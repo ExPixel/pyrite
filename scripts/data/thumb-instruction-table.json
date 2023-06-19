@@ -1,0 +1,1590 @@
+[
+	[
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSL",
+			"subname": "imm",
+			"desc": "Logical shift-left register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "LSR",
+			"subname": "imm",
+			"desc": "Logical shift-right register",
+			"subdesc": "Immediate value"
+		}
+	],
+	[
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ASR",
+			"subname": "imm",
+			"desc": "Arithmetic shift-right register",
+			"subdesc": "Immediate value"
+		},
+		{
+			"name": "ADD",
+			"subname": "reg",
+			"desc": "Add to register",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "ADD",
+			"subname": "reg",
+			"desc": "Add to register",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "SUB",
+			"subname": "reg",
+			"desc": "Subtract from register",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "SUB",
+			"subname": "reg",
+			"desc": "Subtract from register",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "ADD",
+			"subname": "imm3",
+			"desc": "Add to register",
+			"subdesc": "3-bit immediate offset"
+		},
+		{
+			"name": "ADD",
+			"subname": "imm3",
+			"desc": "Add to register",
+			"subdesc": "3-bit immediate offset"
+		},
+		{
+			"name": "SUB",
+			"subname": "imm3",
+			"desc": "Subtract from register",
+			"subdesc": "3-bit immediate offset"
+		},
+		{
+			"name": "SUB",
+			"subname": "imm3",
+			"desc": "Subtract from register",
+			"subdesc": "3-bit immediate offset"
+		}
+	],
+	[
+		{
+			"name": "MOV",
+			"subname": "i8r0",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r0"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r1",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r1"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r2",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r2"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r3",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r3"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r4",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r4"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r5",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r5"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r6",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r6"
+		},
+		{
+			"name": "MOV",
+			"subname": "i8r7",
+			"desc": "Move value to a register",
+			"subdesc": "8-bit immediate offset, using r7"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r0",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r0"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r1",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r1"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r2",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r2"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r3",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r3"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r4",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r4"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r5",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r5"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r6",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r6"
+		},
+		{
+			"name": "CMP",
+			"subname": "i8r7",
+			"desc": "Compare register to value (Subtract)",
+			"subdesc": "8-bit immediate offset, using r7"
+		}
+	],
+	[
+		{
+			"name": "ADD",
+			"subname": "i8r0",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r0"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r1",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r1"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r2",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r2"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r3",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r3"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r4",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r4"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r5",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r5"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r6",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r6"
+		},
+		{
+			"name": "ADD",
+			"subname": "i8r7",
+			"desc": "Add to register",
+			"subdesc": "8-bit immediate offset, using r7"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r0",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r0"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r1",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r1"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r2",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r2"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r3",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r3"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r4",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r4"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r5",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r5"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r6",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r6"
+		},
+		{
+			"name": "SUB",
+			"subname": "i8r7",
+			"desc": "Subtract from register",
+			"subdesc": "8-bit immediate offset, using r7"
+		}
+	],
+	[
+		{
+			"name": "DP",
+			"subname": "g1",
+			"desc": "Thumb data processing",
+			"subdesc": "Instruction group 1"
+		},
+		{
+			"name": "DP",
+			"subname": "g2",
+			"desc": "Thumb data processing",
+			"subdesc": "Instruction group 2"
+		},
+		{
+			"name": "DP",
+			"subname": "g3",
+			"desc": "Thumb data processing",
+			"subdesc": "Instruction group 3"
+		},
+		{
+			"name": "DP",
+			"subname": "g4",
+			"desc": "Thumb data processing",
+			"subdesc": "Instruction group 4"
+		},
+		{
+			"name": "ADDH",
+			"subname": "",
+			"desc": "Add registers, select from all 16",
+			"subdesc": ""
+		},
+		{
+			"name": "CMPH",
+			"subname": "",
+			"desc": "Compare registers, select from all 16",
+			"subdesc": ""
+		},
+		{
+			"name": "MOVH",
+			"subname": "",
+			"desc": "Move to a register, select from all 16",
+			"subdesc": ""
+		},
+		{
+			"name": "BX",
+			"subname": "reg",
+			"desc": "Branch and switch execution modes",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r0",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r1",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r2",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r3",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r4",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r5",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r6",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "LDRPC",
+			"subname": "r7",
+			"desc": "r15-relative load word",
+			"subdesc": "Using r7"
+		}
+	],
+	[
+		{
+			"name": "STR",
+			"subname": "reg",
+			"desc": "Store word",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "STR",
+			"subname": "reg",
+			"desc": "Store word",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "reg",
+			"desc": "Store halfword",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "reg",
+			"desc": "Store halfword",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "reg",
+			"desc": "Store byte",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "reg",
+			"desc": "Store byte",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRSB",
+			"subname": "reg",
+			"desc": "Load signed byte",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRSB",
+			"subname": "reg",
+			"desc": "Load signed byte",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "reg",
+			"desc": "Load word",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "reg",
+			"desc": "Load word",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "reg",
+			"desc": "Load halfword",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "reg",
+			"desc": "Load halfword",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "reg",
+			"desc": "Load byte",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "reg",
+			"desc": "Load byte",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRSH",
+			"subname": "reg",
+			"desc": "Load signed halfword",
+			"subdesc": "Register offset"
+		},
+		{
+			"name": "LDRSH",
+			"subname": "reg",
+			"desc": "Load signed halfword",
+			"subdesc": "Register offset"
+		}
+	],
+	[
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STR",
+			"subname": "imm5",
+			"desc": "Store word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDR",
+			"subname": "imm5",
+			"desc": "Load word",
+			"subdesc": "5-bit immediate offset"
+		}
+	],
+	[
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRB",
+			"subname": "imm5",
+			"desc": "Store byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRB",
+			"subname": "imm5",
+			"desc": "Load byte",
+			"subdesc": "5-bit immediate offset"
+		}
+	],
+	[
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "STRH",
+			"subname": "imm5",
+			"desc": "Store halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		},
+		{
+			"name": "LDRH",
+			"subname": "imm5",
+			"desc": "Load halfword",
+			"subdesc": "5-bit immediate offset"
+		}
+	],
+	[
+		{
+			"name": "STRSP",
+			"subname": "r0",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r1",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r2",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r3",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r4",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r5",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r6",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "STRSP",
+			"subname": "r7",
+			"desc": "r13-relative store word",
+			"subdesc": "Using r7"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r0",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r1",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r2",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r3",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r4",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r5",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r6",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "LDRSP",
+			"subname": "r7",
+			"desc": "r13-relative load word",
+			"subdesc": "Using r7"
+		}
+	],
+	[
+		{
+			"name": "ADDPC",
+			"subname": "r0",
+			"desc": "",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r1",
+			"desc": "",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r2",
+			"desc": "",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r3",
+			"desc": "",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r4",
+			"desc": "",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r5",
+			"desc": "",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r6",
+			"desc": "",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "ADDPC",
+			"subname": "r7",
+			"desc": "",
+			"subdesc": "Using r7"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r0",
+			"desc": "",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r1",
+			"desc": "",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r2",
+			"desc": "",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r3",
+			"desc": "",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r4",
+			"desc": "",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r5",
+			"desc": "",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r6",
+			"desc": "",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "ADDSP",
+			"subname": "r7",
+			"desc": "",
+			"subdesc": "Using r7"
+		}
+	],
+	[
+		{
+			"name": "ADDSP",
+			"subname": "imm7",
+			"desc": "",
+			"subdesc": "7-bit immediate offset"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "PUSH",
+			"subname": "",
+			"desc": "Store multiple words to memory (STMDB equivalent)",
+			"subdesc": ""
+		},
+		{
+			"name": "PUSH",
+			"subname": "lr",
+			"desc": "Store multiple words to memory (STMDB equivalent)",
+			"subdesc": "Include r14"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "POP",
+			"subname": "",
+			"desc": "Load multiple words from memory (LDMIA equivalent)",
+			"subdesc": ""
+		},
+		{
+			"name": "POP",
+			"subname": "pc",
+			"desc": "Load multiple words from memory (LDMIA equivalent)",
+			"subdesc": "Include r15"
+		},
+		{
+			"name": "BKPT",
+			"subname": "",
+			"desc": "Software breakpoint",
+			"subdesc": "",
+			"_class": "arm9"
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		}
+	],
+	[
+		{
+			"name": "STMIA",
+			"subname": "r0",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r1",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r2",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r3",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r4",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r5",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r6",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "STMIA",
+			"subname": "r7",
+			"desc": "Store multiple words, increment after",
+			"subdesc": "Using r7"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r0",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r0"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r1",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r1"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r2",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r2"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r3",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r3"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r4",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r4"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r5",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r5"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r6",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r6"
+		},
+		{
+			"name": "LDMIA",
+			"subname": "r7",
+			"desc": "Load multiple words, increment after",
+			"subdesc": "Using r7"
+		}
+	],
+	[
+		{
+			"name": "BEQ",
+			"subname": "",
+			"desc": "Branch if zero flag set",
+			"subdesc": ""
+		},
+		{
+			"name": "BNE",
+			"subname": "",
+			"desc": "Branch if zero flag clear",
+			"subdesc": ""
+		},
+		{
+			"name": "BCS",
+			"subname": "",
+			"desc": "Branch if carry flag set",
+			"subdesc": ""
+		},
+		{
+			"name": "BCC",
+			"subname": "",
+			"desc": "Branch if carry flag clear",
+			"subdesc": ""
+		},
+		{
+			"name": "BMI",
+			"subname": "",
+			"desc": "Branch if negative flag set",
+			"subdesc": ""
+		},
+		{
+			"name": "BPL",
+			"subname": "",
+			"desc": "Branch if negative flag clear",
+			"subdesc": ""
+		},
+		{
+			"name": "BVS",
+			"subname": "",
+			"desc": "Branch if overflow flag set",
+			"subdesc": ""
+		},
+		{
+			"name": "BVC",
+			"subname": "",
+			"desc": "Branch if overflow flag clear",
+			"subdesc": ""
+		},
+		{
+			"name": "BHI",
+			"subname": "",
+			"desc": "Branch if higher (unsigned)",
+			"subdesc": ""
+		},
+		{
+			"name": "BLS",
+			"subname": "",
+			"desc": "Branch if lower or the same (unsigned)",
+			"subdesc": ""
+		},
+		{
+			"name": "BGE",
+			"subname": "",
+			"desc": "Branch if greater than or equal to",
+			"subdesc": ""
+		},
+		{
+			"name": "BLT",
+			"subname": "",
+			"desc": "Branch if less than",
+			"subdesc": ""
+		},
+		{
+			"name": "BGT",
+			"subname": "",
+			"desc": "Branch if greater than",
+			"subdesc": ""
+		},
+		{
+			"name": "BLE",
+			"subname": "",
+			"desc": "Branch if less than or equal to",
+			"subdesc": ""
+		},
+		{
+			"name": "[undefined]",
+			"subname": "[undefined]",
+			"desc": "[undefined]",
+			"subdesc": "[undefined]",
+			"_class": "und"
+		},
+		{
+			"name": "SWI",
+			"subname": "",
+			"desc": "Software interrupt (enter supervisor mode)",
+			"subdesc": ""
+		}
+	],
+	[
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "B",
+			"subname": "",
+			"desc": "Branch",
+			"subdesc": ""
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		},
+		{
+			"name": "BLX",
+			"subname": "off",
+			"desc": "Branch, link and switch execution modes ",
+			"subdesc": "Two-instruction branch, low 11 bits of offset",
+			"_class": "arm9"
+		}
+	],
+	[
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "setup",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, high 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		},
+		{
+			"name": "BL",
+			"subname": "off",
+			"desc": "Branch and link",
+			"subdesc": "Two-instruction branch, low 11 bits of offset"
+		}
+	]
+]
