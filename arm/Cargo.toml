@@ -11,3 +11,4 @@ util = { path = "../util" }
 
 [dev-dependencies]
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+which = { version = "4.4", default-features = false }

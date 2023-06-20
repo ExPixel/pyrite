@@ -16,7 +16,7 @@ const ARM_NOOP_OPCODE: u32 = 0xe1a00000;
 const THUMB_NOOP_OPCODE: u16 = 0x46c0;
 
 pub struct Cpu {
-    registers: Registers,
+    pub registers: Registers,
     fetched: u32,
     decoded: u32,
     exception_handler: Option<ExceptionHandler>,
@@ -175,6 +175,7 @@ impl Cpu {
 
     /// This version is meant to be called when an exception is thrown inside of an
     /// instruction.
+    #[allow(dead_code)]
     pub(crate) fn exception_internal(
         &mut self,
         exception: CpuException,

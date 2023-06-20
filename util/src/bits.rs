@@ -12,6 +12,8 @@ pub trait BitOps:
     + PartialEq
     + Copy
 {
+    type Signed;
+
     const ONE: Self;
     const ZERO: Self;
     const MAX: Self;
@@ -91,6 +93,8 @@ pub trait BitOps:
 
         (self & !(mask << start)) | ((value & mask) << start)
     }
+
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self;
 }
 
 pub trait IntoBitIndex {
@@ -102,73 +106,153 @@ pub trait IntoBit {
 }
 
 impl BitOps for u8 {
+    type Signed = i8;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = u8::MAX;
     const BITS: u32 = 8;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for u16 {
+    type Signed = i16;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = u16::MAX;
     const BITS: u32 = 16;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for u32 {
+    type Signed = i32;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = u32::MAX;
     const BITS: u32 = 32;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for u64 {
+    type Signed = i64;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = u64::MAX;
     const BITS: u32 = 64;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for u128 {
+    type Signed = i128;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = u128::MAX;
     const BITS: u32 = 128;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for i8 {
+    type Signed = i8;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = i8::MAX;
     const BITS: u32 = 8;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for i16 {
+    type Signed = i16;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = i16::MAX;
     const BITS: u32 = 16;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for i32 {
+    type Signed = i32;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = i32::MAX;
     const BITS: u32 = 32;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for i64 {
+    type Signed = i64;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = i64::MAX;
     const BITS: u32 = 64;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl BitOps for i128 {
+    type Signed = i128;
+
     const ONE: Self = 1;
     const ZERO: Self = 0;
     const MAX: Self = i128::MAX;
     const BITS: u32 = 128;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = signed_size.into_bit_index();
+        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
+    }
 }
 
 impl IntoBit for bool {
@@ -244,6 +328,6 @@ impl IntoBitIndex for u32 {
 impl IntoBitIndex for i32 {
     #[inline(always)]
     fn into_bit_index(self) -> u32 {
-        self.min(0) as u32
+        self.max(0) as u32
     }
 }

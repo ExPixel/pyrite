@@ -2,6 +2,25 @@ import json
 import os
 
 
+def arm_instr_data_to_lut_entry(data):
+    name = data["name"].lower()
+    subname = data["subname"].lower()
+
+    if name == "b":
+        assert len(subname) == 0
+        return "arm::arm_b"
+    elif name == "bl":
+        assert len(subname) == 0
+        return "arm::arm_bl"
+
+    return "arm::todo"
+
+
+def thumb_instr_data_to_lut_entry(data):
+    name = data["name"].lower()
+    return "thumb::todo"
+
+
 INSTRUCTION_TABLE_DIR = "scripts/data"
 OUTPUT_FILE = "arm/src/lookup.rs"
 
@@ -68,11 +87,6 @@ def generate_arm_lut(data):
     return lut
 
 
-def arm_instr_data_to_lut_entry(data):
-    name = data["name"].lower()
-    return "arm::todo"
-
-
 def generate_thumb_lut(data):
     lut = []
     for row in data:
@@ -80,11 +94,6 @@ def generate_thumb_lut(data):
             entry = thumb_instr_data_to_lut_entry(col)
             lut.append(entry)
     return lut
-
-
-def thumb_instr_data_to_lut_entry(data):
-    name = data["name"].lower()
-    return "thumb::todo"
 
 
 if __name__ == "__main__":
