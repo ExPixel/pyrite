@@ -12,6 +12,33 @@ def arm_instr_data_to_lut_entry(data):
     elif name == "bl":
         assert len(subname) == 0
         return "arm::arm_bl"
+    elif name in DATAPROC_INSTR or name in DATAPROC_INSTR_S:
+        if name.endswith("s"):
+            s_flag = "S_FLAG_SET"
+            op_name = name[0:-1].capitalize() + "Op"
+        else:
+            s_flag = "S_FLAG_CLR"
+            op_name = name.capitalize() + "Op"
+        if subname == "imm":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::ImmOp2>"
+        if subname == "lli":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LliOp2>"
+        if subname == "llr":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LlrOp2>"
+        if subname == "lri":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LriOp2>"
+        if subname == "lrr":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LrrOp2>"
+        if subname == "ari":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::AriOp2>"
+        if subname == "arr":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::ArrOp2>"
+        if subname == "rri":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::RriOp2>"
+        if subname == "rrr":
+            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::RrrOp2>"
+        else:
+            print("unknown dataproc subname: " + subname)
 
     return "arm::todo"
 
@@ -23,6 +50,26 @@ def thumb_instr_data_to_lut_entry(data):
 
 INSTRUCTION_TABLE_DIR = "scripts/data"
 OUTPUT_FILE = "arm/src/lookup.rs"
+
+DATAPROC_INSTR = [
+    "adc",
+    "add",
+    "and",
+    "bic",
+    "cmn",
+    "cmp",
+    "eor",
+    "mov",
+    "mvn",
+    "orr",
+    "rsb",
+    "rsc",
+    "sbc",
+    "sub",
+    "teq",
+    "tst",
+]
+DATAPROC_INSTR_S = [x + "s" for x in DATAPROC_INSTR]
 
 
 def main():

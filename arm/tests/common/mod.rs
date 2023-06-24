@@ -49,8 +49,8 @@ const ARM_END_OPCODE: u32 = 0xF777F777;
 /// By itself this is an undefined instruction. (2 of them make a branch with link but w/e)
 const THUMB_END_OPCODE: u16 = 0xF777;
 
-pub fn execute_arm(name: &str, source: &str) -> (Cpu, TestMemory) {
-    let mut exec = Executor::new(name, InstructionSet::Arm);
+pub fn execute_arm(source: &str) -> (Cpu, TestMemory) {
+    let mut exec = Executor::new(InstructionSet::Arm);
     exec.push(source);
     (exec.cpu, exec.mem)
 }
@@ -58,24 +58,20 @@ pub fn execute_arm(name: &str, source: &str) -> (Cpu, TestMemory) {
 pub struct Executor {
     pub cpu: Cpu,
     pub mem: TestMemory,
-    pub name: String,
 
     data: String,
     source: String,
     base_isa: InstructionSet,
-    count: u32,
 }
 
 impl Executor {
-    pub fn new(name: impl Into<String>, base_isa: InstructionSet) -> Self {
+    pub fn new(base_isa: InstructionSet) -> Self {
         Executor {
             cpu: Cpu::uninitialized(base_isa, CpuMode::System),
             mem: TestMemory::default(),
-            name: name.into(),
             source: String::new(),
             data: String::new(),
             base_isa,
-            count: 0,
         }
     }
 
@@ -91,7 +87,6 @@ impl Executor {
     pub fn push_no_exec(&mut self, source: &str) {
         self.source.push_str(source);
         self.source.push('\n');
-        self.count += 1;
     }
 
     pub fn push(&mut self, source: &str) {
@@ -100,8 +95,6 @@ impl Executor {
     }
 
     fn execute(&mut self) {
-        let name = format!("{}-{}", self.name, self.count);
-
         let mut source = String::new();
         if !self.data.is_empty() {
             source.push_str(".data\n");
@@ -112,7 +105,7 @@ impl Executor {
         source.push_str(".text\n");
         source.push_str("_exit:\n");
         source.push_str(".word 0xF777F777\n");
-        self.mem.data = assemble(self.base_isa, &name, &source).unwrap();
+        self.mem.data = assemble(self.base_isa, &source).unwrap();
 
         self.cpu
             .registers
@@ -139,4 +132,10 @@ impl Executor {
             self.cpu.step(&mut self.mem);
         }
     }
+}
+
+macro_rules! arm {
+    ($source:expr) => {
+        $crate::common::execute_arm($source)
+    };
 }

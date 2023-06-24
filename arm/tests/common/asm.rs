@@ -4,10 +4,11 @@ use std::{
     io,
     path::{Path, PathBuf},
     process::{self, Command},
-    sync::{Mutex, OnceLock},
+    sync::{atomic::AtomicU32, Mutex, OnceLock},
 };
 
 use arm::InstructionSet;
+use rand::Rng;
 
 fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
     let arm_none_eabi_name = PathBuf::from(&(format!("arm-none-eabi-{name}")));
@@ -144,13 +145,23 @@ fn run_arm_executable(name: &str, args: &[&OsStr]) -> io::Result<process::ExitSt
     Ok(output.status)
 }
 
-pub fn assemble(isa: InstructionSet, name: &str, source: &str) -> std::io::Result<Vec<u8>> {
+pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
+    use rand::Rng as _;
+
     let tmp_dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
 
-    let source_file_path = tmp_dir.join(format!("{}.s", name));
-    let object_file_path = tmp_dir.join(format!("{}.o", name));
-    let elf_file_path = tmp_dir.join(format!("{}.elf", name));
-    let bin_file_path = tmp_dir.join(format!("{}.bin", name));
+    static FILENAME_INCREMENT: AtomicU32 = AtomicU32::new(0);
+
+    let mut rng = rand::thread_rng();
+    let cnt = FILENAME_INCREMENT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let rnd = rng.gen_range(0u64..=u64::MAX);
+
+    let fname = format!("asm-{rnd}-{cnt}");
+
+    let source_file_path = tmp_dir.join(format!("{fname}.s"));
+    let object_file_path = tmp_dir.join(format!("{fname}.o"));
+    let elf_file_path = tmp_dir.join(format!("{fname}.elf"));
+    let bin_file_path = tmp_dir.join(format!("{fname}.bin"));
 
     let files_to_destroy = [
         &source_file_path as &Path,
@@ -204,7 +215,6 @@ pub fn assemble(isa: InstructionSet, name: &str, source: &str) -> std::io::Resul
         panic!("failed to assemble {}", source_file_path.display());
     }
 
-    println!("{:?}", std::fs::read_to_string(&object_file_path));
     if !run_arm_executable(
         "ld",
         &[

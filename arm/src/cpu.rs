@@ -280,6 +280,11 @@ impl Cycles {
     pub const fn one() -> Cycles {
         Cycles(1)
     }
+
+    #[inline]
+    pub const fn is_zero(self) -> bool {
+        self.0 == 0
+    }
 }
 
 impl From<u32> for Cycles {
