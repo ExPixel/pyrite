@@ -1,0 +1,53 @@
+name: test
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: '0 9 * * 5'
+  
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Install Packages
+        run: |
+          sudo apt install -y gcc-arm-none-eabi
+
+      - name: Install
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - name: Restore cached target/
+        id: target-cache-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            target
+            /home/runner/.cargo
+          key: stable-target
+
+      - name: cargo test 
+        run: cargo test --locked
+
+      - name: Save cached target/
+        id: target-cache-save
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            target
+            /home/runner/.cargo
+          key: ${{ steps.target-cache-restore.outputs.cache-primary-key }}
