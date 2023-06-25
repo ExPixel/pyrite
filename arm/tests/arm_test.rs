@@ -29,6 +29,17 @@ pub fn test_dataproc_imm_operand() {
 }
 
 #[test]
+pub fn test_dataproc_r15_operand() {
+    // should only be 8 bytes ahead since this is not a register shift:
+    let (cpu, _mem) = arm!("mov r0, r15");
+    assert_eq!(cpu.registers.read(0), 8);
+
+    // should be 12 bytes ahead for a register shift:
+    let (cpu, _mem) = arm!("mov r0, r15, lsl r1");
+    assert_eq!(cpu.registers.read(0), 12);
+}
+
+#[test]
 pub fn test_lsl() {
     let (cpu, _mem) = arm! {"
         mov r1, #1
