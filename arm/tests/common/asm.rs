@@ -8,7 +8,6 @@ use std::{
 };
 
 use arm::InstructionSet;
-use rand::Rng;
 
 fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
     let arm_none_eabi_name = PathBuf::from(&(format!("arm-none-eabi-{name}")));
