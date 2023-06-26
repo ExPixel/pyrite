@@ -96,21 +96,27 @@ impl Executor {
 
     fn execute(&mut self) {
         let mut source = String::new();
-        if !self.data.is_empty() {
-            source.push_str(".data\n");
-            source.push_str(&self.data);
-        }
         source.push_str(".text\n");
+        source.push_str(".global _start\n");
+        source.push_str("_start:\n");
         source.push_str(&self.source);
         source.push_str(".text\n");
         source.push_str("_exit:\n");
         source.push_str(".word 0xF777F777\n");
+        if !self.data.is_empty() {
+            source.push_str(".data\n");
+            source.push_str(&self.data);
+        }
+        println!("source:\n{source}\n");
         self.mem.data = assemble(self.base_isa, &source).unwrap();
 
         self.cpu
             .registers
             .put_flag(CpsrFlag::T, self.base_isa == InstructionSet::Thumb);
         self.cpu.branch(0, &mut self.mem);
+
+        let start_time = std::time::Instant::now();
+        let mut steps_since_time_chek = 0;
 
         loop {
             let next_pc = self.cpu.next_execution_address();
@@ -127,6 +133,15 @@ impl Executor {
                 && self.mem.view16(next_pc) == THUMB_END_OPCODE
             {
                 break;
+            }
+
+            if steps_since_time_chek >= 1024 {
+                if start_time.elapsed() > std::time::Duration::from_secs(5) {
+                    panic!("emulator timeout: 0x{next_pc:08X}");
+                }
+                steps_since_time_chek = 0;
+            } else {
+                steps_since_time_chek += 1;
             }
 
             self.cpu.step(&mut self.mem);

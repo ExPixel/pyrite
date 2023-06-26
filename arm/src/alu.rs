@@ -544,12 +544,7 @@ pub trait BinaryOp {
     #[must_use]
     fn execute<const S: bool>(registers: &mut Registers, lhs: u32, rhs: u32) -> u32;
 
-    /// Just a shorthand for
-    /// ```ignore
-    /// if S {
-    ///     Self::set_flags();
-    /// }
-    /// ```
+    /// Just a shorthand for `if S { Self::set_flags() }`
     fn set_flags_if<const S: bool>(registers: &mut Registers, lhs: u32, rhs: u32, result: u32) {
         if S {
             Self::set_flags(registers, lhs, rhs, result)
@@ -578,12 +573,7 @@ pub trait ExtractOp2 {
         }
     }
 
-    /// Just a shorthand for
-    /// ```ignore
-    /// if S {
-    ///     Self::set_flags();
-    /// }
-    /// ```
+    /// Just a shorthand for `if S { Self::set_flags() }`
     #[inline(always)]
     fn set_flags_if<const S: bool>(registers: &mut Registers, lhs: u32, rhs: u32) {
         if S {

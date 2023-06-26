@@ -4,7 +4,9 @@ import os
 
 def arm_instr_data_to_lut_entry(data):
     name = data["name"].lower()
-    subname = data["subname"].lower()
+    subname = data["subname"].lower() if "subname" in data else ""
+    subdesc = data["subdesc"].lower() if "subdesc" in data else ""
+    _class = data["_class"].lower() if "_class" in data else ""
 
     if name == "b":
         assert len(subname) == 0
@@ -19,27 +21,97 @@ def arm_instr_data_to_lut_entry(data):
         else:
             s_flag = "S_FLAG_CLR"
             op_name = name.capitalize() + "Op"
+
         if subname == "imm":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::ImmOp2>"
-        if subname == "lli":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LliOp2>"
-        if subname == "llr":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LlrOp2>"
-        if subname == "lri":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LriOp2>"
-        if subname == "lrr":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::LrrOp2>"
-        if subname == "ari":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::AriOp2>"
-        if subname == "arr":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::ArrOp2>"
-        if subname == "rri":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::RriOp2>"
-        if subname == "rrr":
-            return f"arm::arm_dataproc::<{s_flag}, alu::{op_name}, alu::RrrOp2>"
+            op2 = "ImmOp2"
+        elif subname == "lli":
+            op2 = "LliOp2"
+        elif subname == "llr":
+            op2 = "LlrOp2"
+        elif subname == "lri":
+            op2 = "LriOp2"
+        elif subname == "lrr":
+            op2 = "LrrOp2"
+        elif subname == "ari":
+            op2 = "AriOp2"
+        elif subname == "arr":
+            op2 = "ArrOp2"
+        elif subname == "rri":
+            op2 = "RriOp2"
+        elif subname == "rrr":
+            op2 = "RrrOp2"
         else:
+            op2 = None
             print("unknown dataproc subname: " + subname)
 
+        return f"arm::arm_dataproc::<alu::{op_name}, {s_flag}, alu::{op2}>"
+
+    if name in ["ldr", "str", "ldrb", "strb", "ldrt", "strt", "ldrbt", "strbt"]:
+        op_name = name.capitalize()
+
+        bindex = op_name.rfind("b")
+        if bindex > 2:
+            op_name = op_name[0:bindex] + op_name[(bindex + 1) :] + "B"
+        tindex = op_name.rfind("t")
+        if tindex > 2:
+            op_name = op_name[0:tindex] + op_name[(tindex + 1) :]
+            op_name = f"{op_name}<FORCE_USER_MODE>"
+
+        writeback = "false"
+
+        if "post-increment" in subdesc:
+            indexing = "PostIncrement"
+            writeback = "true"
+
+        elif "pre-increment" in subdesc:
+            indexing = "PreIncrement"
+            writeback = "true"
+        elif "positive" in subdesc:
+            indexing = "PreIncrement"
+
+        elif "post-decrement" in subdesc:
+            indexing = "PostDecrement"
+            writeback = "true"
+
+        elif "pre-decrement" in subdesc:
+            indexing = "PreDecrement"
+            writeback = "true"
+        elif "negative" in subdesc:
+            indexing = "PreDecrement"
+
+        else:
+            indexing = ""
+            print("indexing not found: " + subname)
+
+        if "immediate" in subdesc:
+            offset = "SDTImmOffset"
+        elif "arithmetic-right-shifted" in subdesc:
+            offset = "alu::AriOp2"
+        elif "right-shifted" in subdesc:
+            offset = "alu::LriOp2"
+        elif "left-shifted" in subdesc:
+            offset = "alu::LliOp2"
+        elif "right-rotated" in subdesc:
+            offset = "alu::RriOp2"
+        else:
+            offset = ""
+            print("offset not found: " + subname)
+
+        return f"arm::arm_single_data_transfer::<{op_name}, {offset}, {indexing}, {writeback}>"
+
+    if name == "blx":
+        return "arm::blx"
+    if name == "bkpt":
+        return "arm::bkpt"
+    if name == "clz":
+        return "arm::clz"
+
+    if _class == "und":
+        return "arm::undefined"
+    if _class == "edsp":
+        return "arm::m_extension_undefined"
+
+    print(f"unknown instruction {name}/{subname}")
     return "arm::todo"
 
 

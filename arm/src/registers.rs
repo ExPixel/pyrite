@@ -219,10 +219,15 @@ impl Registers {
 
     /// Sets the mode of the CPU. This will also change the mode bits in the CPSR register
     /// and properly swap register values to their corresponding banked values for the new mode.
-    pub fn write_mode(&mut self, new_mode: CpuMode) {
+    ///
+    /// ## Returns
+    ///
+    /// The previous mode.
+    pub fn write_mode(&mut self, new_mode: CpuMode) -> CpuMode {
         let old_mode = self.read_mode();
         self.on_mode_switch(old_mode, new_mode);
         self.cpsr = (self.cpsr & 0xFFFFFFE0) | new_mode.bits();
+        old_mode
     }
 
     /// Sets the mode bits of the CPSR register. This will also change the mode of the CPU

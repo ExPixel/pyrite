@@ -1,3 +1,5 @@
+use arm::CpsrFlag;
+
 #[macro_use]
 pub mod common;
 
@@ -46,7 +48,7 @@ pub fn test_lsl() {
         mov r0, r1, LSL #1
     "};
     assert_eq!(cpu.registers.read(0), 2);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -58,7 +60,7 @@ pub fn test_lsls_imm() {
         movs    r0, r1, LSL #1
     "};
     assert_eq!(cpu.registers.read(0), 0x04000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -71,7 +73,7 @@ pub fn test_lsls_reg() {
         movs    r0, r1, LSL r2
     "};
     assert_eq!(cpu.registers.read(0), 0x04000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -85,7 +87,7 @@ pub fn test_lsls_imm_by_zero() {
         movs    r0, r1, LSL #0
     "};
     assert_eq!(cpu.registers.read(0), 0x80000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -100,7 +102,7 @@ pub fn test_lsls_reg_by_zero() {
         movs    r0, r1, LSL r2
     "};
     assert_eq!(cpu.registers.read(0), 0x80000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -112,7 +114,7 @@ pub fn test_lsls_reg_by_32() {
         movs    r0, r1, LSL r2
     "};
     assert_eq!(cpu.registers.read(0), 0);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -124,7 +126,7 @@ pub fn test_lsls_reg_by_more_than_32() {
         movs    r0, r1, LSL r2
     "};
     assert_eq!(cpu.registers.read(0), 0);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -134,7 +136,7 @@ pub fn test_lsr() {
         mov r0, r1, LSR #1
     "};
     assert_eq!(cpu.registers.read(0), 2);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -144,7 +146,7 @@ pub fn test_lsrs_imm() {
         movs    r0, r1, LSR #1
     "};
     assert_eq!(cpu.registers.read(0), 2);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -155,7 +157,7 @@ pub fn test_lsrs_reg() {
         movs    r0, r1, LSR r2
     "};
     assert_eq!(cpu.registers.read(0), 2);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -169,7 +171,7 @@ pub fn test_lsrs_imm_by_zero() {
         movs    r0, r1, LSR #0
     "};
     assert_eq!(cpu.registers.read(0), 0x00000001);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -184,7 +186,7 @@ pub fn test_lsrs_reg_by_zero() {
         movs    r0, r1, LSR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x00000001);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -197,7 +199,7 @@ pub fn test_lsrs_imm_by_32() {
         movs    r0, r1, LSR #32
     "};
     assert_eq!(cpu.registers.read(0), 0);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -211,7 +213,7 @@ pub fn test_lsrs_reg_by_32() {
         movs    r0, r1, LSR r2
     "};
     assert_eq!(cpu.registers.read(0), 0);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -224,7 +226,7 @@ pub fn test_lsrs_reg_by_more_than_32() {
         movs    r0, r1, LSR r2
     "};
     assert_eq!(cpu.registers.read(0), 0);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -234,7 +236,7 @@ pub fn test_asr_positive() {
         mov r0, r1, ASR #1
     "};
     assert_eq!(cpu.registers.read(0), 0x30000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -244,7 +246,7 @@ pub fn test_asr_negative() {
         mov r0, r1, ASR #1
     "};
     assert_eq!(cpu.registers.read(0), 0xF0000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -254,7 +256,7 @@ pub fn test_asrs_imm() {
         movs    r0, r1, ASR #1
     "};
     assert_eq!(cpu.registers.read(0), 0xF0000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -265,7 +267,7 @@ pub fn test_asrs_reg() {
         movs    r0, r1, ASR r2
     "};
     assert_eq!(cpu.registers.read(0), 0xF0000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -279,7 +281,7 @@ pub fn test_asrs_imm_by_zero() {
         movs    r0, r1, ASR #0
     "};
     assert_eq!(cpu.registers.read(0), 0x00000001);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -295,7 +297,7 @@ pub fn test_asrs_reg_by_zero() {
         movs    r0, r1, ASR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x00000001);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -309,14 +311,14 @@ pub fn test_asrs_imm_by_32() {
         movs    r0, r1, ASR #32
     "};
     assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     let (cpu, _mem) = arm! {"
         mov     r1, #0x70000000 
         movs    r0, r1, ASR #32
     "};
     assert_eq!(cpu.registers.read(0), 0x00000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -328,7 +330,7 @@ pub fn test_asrs_reg_by_32() {
         movs    r0, r1, ASR r2
     "};
     assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     let (cpu, _mem) = arm! {"
         mov     r1, #0x70000000 
@@ -336,7 +338,7 @@ pub fn test_asrs_reg_by_32() {
         movs    r0, r1, ASR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x00000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -348,7 +350,7 @@ pub fn test_asrs_reg_by_more_than_32() {
         movs    r0, r1, ASR r2
     "};
     assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     let (cpu, _mem) = arm! {"
         mov     r1, #0x70000000
@@ -356,7 +358,7 @@ pub fn test_asrs_reg_by_more_than_32() {
         movs    r0, r1, ASR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x00000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -366,7 +368,7 @@ pub fn test_ror() {
         mov r0, r1, ROR #4
     "};
     assert_eq!(cpu.registers.read(0), 0xF0000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -376,7 +378,7 @@ pub fn test_rors_imm() {
         movs    r0, r1, ROR #4
     "};
     assert_eq!(cpu.registers.read(0), 0xF0000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -387,7 +389,7 @@ pub fn test_rors_reg() {
         movs    r0, r1, ROR r2
     "};
     assert_eq!(cpu.registers.read(0), 0xF0000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -401,7 +403,7 @@ pub fn test_rors_imm_by_zero() {
         movs    r0, r1, ROR #0
     "};
     assert_eq!(cpu.registers.read(0), 0x00000001);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -416,7 +418,7 @@ pub fn test_rors_reg_by_zero() {
         movs    r0, r1, ROR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x00000001);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -430,7 +432,7 @@ pub fn test_rors_reg_by_32() {
         movs    r0, r1, ROR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x80000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     // ROR by 32 has result equal to Rm, carry out equal to bit 31 of Rm.
     let (cpu, _mem) = arm! {"
@@ -441,7 +443,7 @@ pub fn test_rors_reg_by_32() {
         movs    r0, r1, ROR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x70000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -455,7 +457,7 @@ pub fn test_rors_reg_by_more_than_32() {
         movs    r0, r1, ROR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x80000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     // ROR by 32 has result equal to Rm, carry out equal to bit 31 of Rm.
     let (cpu, _mem) = arm! {"
@@ -466,7 +468,7 @@ pub fn test_rors_reg_by_more_than_32() {
         movs    r0, r1, ROR r2
     "};
     assert_eq!(cpu.registers.read(0), 0x70000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -476,7 +478,7 @@ pub fn test_rrx_carry_clear() {
         mov r0, r1, RRX
     "};
     assert_eq!(cpu.registers.read(0), 0x08000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -488,7 +490,7 @@ pub fn test_rrx_carry_set() {
         mov     r0, r1, RRX
     "};
     assert_eq!(cpu.registers.read(0), 0x88000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -498,14 +500,14 @@ pub fn test_rrxs_carry_clear() {
         movs    r0, r1, RRX
     "};
     assert_eq!(cpu.registers.read(0), 0x08000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     let (cpu, _mem) = arm! {"
         mov     r1, #0x10000000
         movs    r0, r1, RRX
     "};
     assert_eq!(cpu.registers.read(0), 0x08000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -517,7 +519,7 @@ pub fn test_rrxs_carry_set() {
         movs    r0, r1, RRX
     "};
     assert_eq!(cpu.registers.read(0), 0x88000000);
-    assert!(cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
 
     let (cpu, _mem) = arm! {"
         mov     r1, #0x80000000
@@ -526,5 +528,79 @@ pub fn test_rrxs_carry_set() {
         movs    r0, r1, RRX
     "};
     assert_eq!(cpu.registers.read(0), 0x88000000);
-    assert!(!cpu.registers.get_flag(arm::CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_mov() {
+    let (cpu, _mem) = arm! {"
+        mov 	r1,#42
+    "};
+    assert_eq!(cpu.registers.read(1), 42);
+}
+
+#[test]
+pub fn test_movs() {
+    let (cpu, _mem) = arm! {"
+        movs 	r1, #42
+    "};
+    assert_eq!(cpu.registers.read(1), 42);
+    assert!(!cpu.registers.get_flag(CpsrFlag::N));
+    assert!(!cpu.registers.get_flag(CpsrFlag::Z));
+
+    let (cpu, _mem) = arm! {"
+        movs 	r1, #42
+    "};
+    assert_eq!(cpu.registers.read(1), 42);
+    assert!(!cpu.registers.get_flag(CpsrFlag::N));
+    assert!(!cpu.registers.get_flag(CpsrFlag::Z));
+
+    let (cpu, _mem) = arm! {"
+        movs 	r1, #42
+    "};
+    assert_eq!(cpu.registers.read(1), 42);
+    assert!(!cpu.registers.get_flag(CpsrFlag::N));
+    assert!(!cpu.registers.get_flag(CpsrFlag::Z));
+}
+
+#[test]
+pub fn test_adds() {
+    let (cpu, _mem) = arm! {"
+        mov 	r0,#0
+        ldr     r1, =0xFFFFFFFE
+        adds    r0, r1, #1
+    "};
+    assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
+    assert!(cpu.registers.get_flag(CpsrFlag::N));
+    assert!(!cpu.registers.get_flag(CpsrFlag::Z));
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::V));
+}
+
+#[test]
+pub fn test_ldr() {
+    let (cpu, _mem) = arm! {"
+        ldr r1, =deadbeef
+        mov r2, r1
+        ldr r0, [r1]
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+}
+
+#[test]
+pub fn test_ldr_post_index() {
+    let (cpu, _mem) = arm! {"
+        ldr r1, =deadbeef
+        mov r2, r1
+        ldr r0, [r1], #4
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_add(4));
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
 }

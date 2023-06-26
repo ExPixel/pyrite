@@ -9,6 +9,7 @@ use crate::{
     alu::{BinaryOp, ExtractOp2},
     cpu::{Cpu, Cycles},
     memory::Memory,
+    transfer::{SDTCalculateOffset, SDTIndexingMode, SingleDataTransfer},
 };
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
@@ -47,7 +48,7 @@ pub fn arm_bl(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
 ///
 /// AND,EOR,SUB,RSB,ADD,ADC,SBC,RSC,ORR,BIC  
 /// `<opcode>{cond}{S} Rd,Rn,<Op2>`
-pub fn arm_dataproc<const S: bool, O, E>(
+pub fn arm_dataproc<O, const S: bool, E>(
     instr: u32,
     cpu: &mut Cpu,
     memory: &mut dyn Memory,
@@ -88,4 +89,67 @@ where
     }
 
     cycles
+}
+
+pub fn arm_single_data_transfer<T, O, I, const WRITEBACK: bool>(
+    instr: u32,
+    cpu: &mut Cpu,
+    memory: &mut dyn Memory,
+) -> Cycles
+where
+    T: SingleDataTransfer,
+    O: SDTCalculateOffset,
+    I: SDTIndexingMode,
+{
+    let rd = instr.get_bit_range(12..=15);
+    let rn = instr.get_bit_range(16..=19);
+
+    let offset = O::calculate_offset(instr, &mut cpu.registers);
+    let mut address = cpu.registers.read(rn);
+    address = I::calculate_transfer_address(address, offset);
+    let mut cycles = T::transfer(rd, address, &mut cpu.registers, memory);
+
+    if WRITEBACK {
+        // FIXME At this point Rn is now allowed be r15 but I'm not sure if I should
+        //       assert that and panic here or just log an error. No logging facilities
+        //       for this part of the code at the moment though so once I figure that out
+        //       I should probably take a look at this. For now I just branch anyway later.
+        // From ARM Documentation:
+        //      Write-back must not be specified if R15 is specified as the base register (Rn).
+        //      When using R15 as the base register.
+        address = I::calculate_writeback_address(address, offset);
+        cpu.registers.write(rn, address);
+    }
+
+    if T::IS_LOAD && (rd == 15 || (WRITEBACK && rn == 15)) {
+        let destination = cpu.registers.read(15);
+        cycles += cpu.branch_arm(destination, memory);
+    }
+
+    cycles
+}
+
+pub fn undefined(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
+    let address = cpu.registers.read(15).wrapping_sub(8);
+    todo!("UNDEFIED: addr=0x{address:08X}; instr=0x{instr:08X}");
+}
+
+/// ARM9
+pub fn blx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    undefined(instr, cpu, memory)
+}
+
+// ARM9
+pub fn bkpt(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    undefined(instr, cpu, memory)
+}
+
+// ARM9
+pub fn clz(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    undefined(instr, cpu, memory)
+}
+
+// Used for unsupported M-Extension instructions
+pub fn m_extension_undefined(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    undefined(instr, cpu, memory)
 }

@@ -170,14 +170,14 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
     ];
     let _file_destructor = FileDestructor::new(&files_to_destroy);
 
-    let preamble = "\
-    .global _start
-    _start:\n";
-    let mut new_source = String::with_capacity(preamble.len() + source.len() + 1);
-    new_source.push_str(preamble);
-    new_source.push_str(source);
-    new_source.push('\n');
-    let source = new_source;
+    let source = if !source.ends_with('\n') {
+        let mut new_source = String::with_capacity(source.len() + 1);
+        new_source.push_str(source);
+        new_source.push('\n');
+        new_source
+    } else {
+        source.to_owned()
+    };
 
     // `as` outputs a warning if the file does not end with a newline or if there
     // is no `_start:` symbol.

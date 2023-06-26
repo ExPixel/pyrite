@@ -6,6 +6,7 @@ mod lookup;
 mod memory;
 mod registers;
 mod thumb;
+mod transfer;
 
 pub use alu::{ArithmeticShr, RotateRightExtended};
 pub use cpu::{Cpu, Cycles, InstructionSet};
