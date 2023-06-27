@@ -535,7 +535,7 @@ pub fn test_rrxs_carry_set() {
 #[test]
 pub fn test_mov() {
     let (cpu, _mem) = arm! {"
-        mov 	r1,#42
+        mov     r1,#42
     "};
     assert_eq!(cpu.registers.read(1), 42);
 }
@@ -543,21 +543,21 @@ pub fn test_mov() {
 #[test]
 pub fn test_movs() {
     let (cpu, _mem) = arm! {"
-        movs 	r1, #42
+        movs     r1, #42
     "};
     assert_eq!(cpu.registers.read(1), 42);
     assert!(!cpu.registers.get_flag(CpsrFlag::N));
     assert!(!cpu.registers.get_flag(CpsrFlag::Z));
 
     let (cpu, _mem) = arm! {"
-        movs 	r1, #42
+        movs     r1, #42
     "};
     assert_eq!(cpu.registers.read(1), 42);
     assert!(!cpu.registers.get_flag(CpsrFlag::N));
     assert!(!cpu.registers.get_flag(CpsrFlag::Z));
 
     let (cpu, _mem) = arm! {"
-        movs 	r1, #42
+        movs     r1, #42
     "};
     assert_eq!(cpu.registers.read(1), 42);
     assert!(!cpu.registers.get_flag(CpsrFlag::N));
@@ -576,7 +576,7 @@ proptest! {
     #[test]
     fn test_adds(lhs in operand(), rhs in operand()) {
         let (cpu, _mem) = arm! {"
-            ldr 	r1, =#{lhs}
+            ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
             adds    r0, r1, r2
         "};
@@ -601,13 +601,13 @@ proptest! {
                 ldr     r0, =0x80000000
                 movs    r0, r0, lsl #1  @ set carry
 
-                ldr 	r1, =#{lhs}
+                ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}
                 adcs    r0, r1, r2
             "}
         } else {
             arm! {"
-                ldr 	r1, =#{lhs}
+                ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}
                 adcs    r0, r1, r2
             "}
@@ -631,7 +631,7 @@ proptest! {
     #[test]
     fn test_subs(lhs in operand(), rhs in operand()) {
         let (cpu, _mem) = arm! {"
-            ldr 	r1, =#{lhs}
+            ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
             subs    r0, r1, r2
         "};
@@ -656,13 +656,13 @@ proptest! {
                 ldr     r0, =0x80000000
                 movs    r0, r0, lsl #1  @ set carry
 
-                ldr 	r1, =#{lhs}
+                ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}
                 sbcs    r0, r1, r2
             "}
         } else {
             arm! {"
-                ldr 	r1, =#{lhs}
+                ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}
                 sbcs    r0, r1, r2
             "}
