@@ -600,7 +600,78 @@ pub fn test_ldr_post_index() {
     .data
     deadbeef:
         .word 0xDEADBEEF
+        .word 0xAABBCCDD
     "};
     assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_add(4));
     assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+}
+
+#[test]
+pub fn test_ldr_pre_increment() {
+    let (cpu, _mem) = arm! {"
+        ldr r1, =deadbeef
+        mov r2, r1
+        ldr r0, [r1, #4]!
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_add(4));
+    assert_eq!(cpu.registers.read(0), 0xAABBCCDD);
+}
+
+#[test]
+pub fn test_ldr_pre_decrement() {
+    let (cpu, _mem) = arm! {"
+        ldr r1, =deadbeef
+        mov r2, r1
+        ldr r0, [r1, #-4]!
+    .data
+        .word 0xDEADBEEF
+    deadbeef:
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_sub(4));
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+}
+
+#[test]
+pub fn test_ldr_lsl() {
+    let (cpu, _mem) = arm! {"
+        mov r1, #0
+        ldr r2, =0xDEADBEEF
+        ldr r0, [r1, r2, lsl #4]!
+    "};
+    assert_eq!(cpu.registers.read(1), 0xEADBEEF0);
+}
+
+#[test]
+pub fn test_ldr_lsr() {
+    let (cpu, _mem) = arm! {"
+        mov r1, #0
+        ldr r2, =0xDEADBEEF
+        ldr r0, [r1, r2, lsr #4]!
+    "};
+    assert_eq!(cpu.registers.read(1), 0x0DEADBEE);
+}
+
+#[test]
+pub fn test_ldr_asr() {
+    let (cpu, _mem) = arm! {"
+        mov r1, #0
+        ldr r2, =0xDEADBEEF
+        ldr r0, [r1, r2, asr #4]!
+    "};
+    assert_eq!(cpu.registers.read(1), 0xFDEADBEE);
+}
+
+#[test]
+pub fn test_ldr_ror() {
+    let (cpu, _mem) = arm! {"
+        mov r1, #0
+        ldr r2, =0xDEADBEEF
+        ldr r0, [r1, r2, ror #4]!
+    "};
+    assert_eq!(cpu.registers.read(1), 0xFDEADBEE);
 }
