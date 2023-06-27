@@ -1,13 +1,14 @@
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    io,
+    io::{self, Write},
     path::{Path, PathBuf},
     process::{self, Command},
     sync::{atomic::AtomicU32, Mutex, OnceLock},
 };
 
 use arm::InstructionSet;
+use tempfile::{NamedTempFile, TempPath};
 
 fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
     let arm_none_eabi_name = PathBuf::from(&(format!("arm-none-eabi-{name}")));
@@ -157,18 +158,10 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
 
     let fname = format!("asm-{rnd}-{cnt}");
 
-    let source_file_path = tmp_dir.join(format!("{fname}.s"));
-    let object_file_path = tmp_dir.join(format!("{fname}.o"));
-    let elf_file_path = tmp_dir.join(format!("{fname}.elf"));
-    let bin_file_path = tmp_dir.join(format!("{fname}.bin"));
-
-    let files_to_destroy = [
-        &source_file_path as &Path,
-        &object_file_path,
-        &elf_file_path,
-        &bin_file_path,
-    ];
-    let _file_destructor = FileDestructor::new(&files_to_destroy);
+    let source_file_path = TempPath::from_path(tmp_dir.join(format!("{fname}.s")));
+    let object_file_path = TempPath::from_path(tmp_dir.join(format!("{fname}.o")));
+    let elf_file_path = TempPath::from_path(tmp_dir.join(format!("{fname}.elf")));
+    let bin_file_path = TempPath::from_path(tmp_dir.join(format!("{fname}.bin")));
 
     let source = if !source.ends_with('\n') {
         let mut new_source = String::with_capacity(source.len() + 1);
@@ -218,7 +211,7 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
         "ld",
         &[
             "-T".as_ref(),
-            simple_linker_script().as_ref(),
+            simple_linker_script(tmp_dir).as_ref(),
             "-o".as_ref(),
             elf_file_path.as_ref(),
             object_file_path.as_ref(),
@@ -279,7 +272,7 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
     std::fs::read(&bin_file_path)
 }
 
-fn simple_linker_script() -> &'static Path {
+fn simple_linker_script(dir: &Path) -> TempPath {
     const SIMPLE_LINKER_SCRIPT: &str = "
     ENTRY(_start);
     SECTIONS
@@ -305,7 +298,7 @@ fn simple_linker_script() -> &'static Path {
             *(.rodata*);
         }
 
-        /* The BSS section for uniitialized data */
+        /* The BSS section for uninitialized data */
         .bss : {
             . = ALIGN(4);
             __bss_start = .;
@@ -325,40 +318,9 @@ fn simple_linker_script() -> &'static Path {
         }
     }
     ";
-    static SIMPLE_LINKER_SCRIPT_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-    SIMPLE_LINKER_SCRIPT_PATH.get_or_init(|| {
-        let tmp_dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
-        let path = tmp_dir.join("simple-linker-script.ld");
-        std::fs::write(&path, SIMPLE_LINKER_SCRIPT).expect("failed to write simple linker script");
-        path
-    })
-}
-
-struct FileDestructor<'p> {
-    paths: &'p [&'p Path],
-}
-
-impl<'p> FileDestructor<'p> {
-    pub fn new(paths: &'p [&'p Path]) -> Self {
-        FileDestructor { paths }
-    }
-}
-
-impl<'p> Drop for FileDestructor<'p> {
-    fn drop(&mut self) {
-        for &path in self.paths {
-            if !path.exists() {
-                continue;
-            }
-
-            if let Err(err) = std::fs::remove_file(path) {
-                eprintln!(
-                    "error occurred while deleting path `{}`: {}",
-                    path.display(),
-                    err
-                );
-            }
-        }
-    }
+    let mut file = NamedTempFile::new_in(dir).expect("failed to create linker script file");
+    file.write_all(SIMPLE_LINKER_SCRIPT.as_bytes())
+        .expect("failed to write linker script file");
+    file.into_temp_path()
 }

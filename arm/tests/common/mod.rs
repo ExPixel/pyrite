@@ -151,6 +151,6 @@ impl Executor {
 
 macro_rules! arm {
     ($source:expr) => {
-        $crate::common::execute_arm($source)
+        $crate::common::execute_arm(&format!($source))
     };
 }

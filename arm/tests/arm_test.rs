@@ -1,4 +1,5 @@
 use arm::CpsrFlag;
+use proptest::prelude::*;
 
 #[macro_use]
 pub mod common;
@@ -563,18 +564,122 @@ pub fn test_movs() {
     assert!(!cpu.registers.get_flag(CpsrFlag::Z));
 }
 
-#[test]
-pub fn test_adds() {
-    let (cpu, _mem) = arm! {"
-        mov 	r0,#0
-        ldr     r1, =0xFFFFFFFE
-        adds    r0, r1, #1
-    "};
-    assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
-    assert!(cpu.registers.get_flag(CpsrFlag::N));
-    assert!(!cpu.registers.get_flag(CpsrFlag::Z));
-    assert!(!cpu.registers.get_flag(CpsrFlag::C));
-    assert!(!cpu.registers.get_flag(CpsrFlag::V));
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    #[test]
+    fn test_load_value_into_register(value: u32) {
+        let (cpu, _mem) = arm! {"ldr r0, =#{value}"};
+        prop_assert_eq!(cpu.registers.read(0), value);
+    }
+
+    #[test]
+    fn test_adds(lhs in operand(), rhs in operand()) {
+        let (cpu, _mem) = arm! {"
+            ldr 	r1, =#{lhs}
+            ldr     r2, =#{rhs}
+            adds    r0, r1, r2
+        "};
+
+        let expected_result = lhs.wrapping_add(rhs);
+        let expected_n = (expected_result as i32) < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = lhs.overflowing_add(rhs).1;
+        let expected_v = (lhs as i32).overflowing_add(rhs as i32).1;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_adcs(lhs in operand(), rhs in operand(), initial_carry: bool) {
+        let (cpu, _mem) = if initial_carry {
+            arm! {"
+                ldr     r0, =0x80000000
+                movs    r0, r0, lsl #1  @ set carry
+
+                ldr 	r1, =#{lhs}
+                ldr     r2, =#{rhs}
+                adcs    r0, r1, r2
+            "}
+        } else {
+            arm! {"
+                ldr 	r1, =#{lhs}
+                ldr     r2, =#{rhs}
+                adcs    r0, r1, r2
+            "}
+        };
+
+        let expected_result = lhs.wrapping_add(rhs).wrapping_add(initial_carry as u32);
+        let expected_n = (expected_result as i32) < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = lhs.overflowing_add(rhs).1 |
+            lhs.wrapping_add(rhs).overflowing_add(initial_carry as u32).1;
+        let expected_v = (lhs as i32).overflowing_add(rhs as i32).1 |
+            (lhs.wrapping_add(rhs) as i32).overflowing_add(initial_carry as i32).1;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_subs(lhs in operand(), rhs in operand()) {
+        let (cpu, _mem) = arm! {"
+            ldr 	r1, =#{lhs}
+            ldr     r2, =#{rhs}
+            subs    r0, r1, r2
+        "};
+
+        let expected_result = lhs.wrapping_sub(rhs);
+        let expected_n = (expected_result as i32) < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = lhs >= rhs;
+        let expected_v = (lhs as i32).overflowing_sub(rhs as i32).1;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_sbcs(lhs in operand(), rhs in operand(), initial_carry: bool) {
+        let (cpu, _mem) = if initial_carry {
+            arm! {"
+                ldr     r0, =0x80000000
+                movs    r0, r0, lsl #1  @ set carry
+
+                ldr 	r1, =#{lhs}
+                ldr     r2, =#{rhs}
+                sbcs    r0, r1, r2
+            "}
+        } else {
+            arm! {"
+                ldr 	r1, =#{lhs}
+                ldr     r2, =#{rhs}
+                sbcs    r0, r1, r2
+            "}
+        };
+
+        let expected_result = lhs.wrapping_sub(rhs).wrapping_sub(!initial_carry as u32);
+        let expected_n = (expected_result as i32) < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u64) >= (rhs as u64 + (!initial_carry) as u64);
+        let expected_v = (((lhs >> 31) ^ rhs) & ((lhs >> 31) ^ expected_result)) != 0;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
 }
 
 #[test]
@@ -674,4 +779,12 @@ pub fn test_ldr_ror() {
         ldr r0, [r1, r2, ror #4]!
     "};
     assert_eq!(cpu.registers.read(1), 0xFDEADBEE);
+}
+
+fn operand() -> impl Strategy<Value = u32> {
+    const VALUES: &[u32] = &[
+        0, 1, 2, 0x00BEEF00, 0x7FFFFFFF, 0xFFFFFFFC, 0xFFFFFFFE, 0xFFFFFFFF,
+    ];
+
+    proptest::sample::select(VALUES)
 }

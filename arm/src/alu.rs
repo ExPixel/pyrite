@@ -105,7 +105,7 @@ impl BinaryOp for SubOp {
 
         // #NOTE The concept of a borrow is not the same in ARM as it is in x86.
         //       while in x86 the borrow flag is set if lhs < rhs, in ARM
-        //       if is set if lhs >= rhs.
+        //       if is set if lhs >= rhs (when the result of a subtraction is positive).
         registers.put_flag(CpsrFlag::C, lhs >= rhs);
         registers.put_flag(CpsrFlag::V, overflow);
     }
@@ -129,7 +129,7 @@ impl BinaryOp for SbcOp {
 
         // #NOTE The concept of a borrow is not the same in ARM as it is in x86.
         //       while in x86 the borrow flag is set if lhs < rhs, in ARM
-        //       if is set if lhs >= rhs.
+        //       if is set if lhs >= rhs (when the result of a subtraction is positive).
         registers.put_flag(CpsrFlag::C, (lhs as u64) >= (rhs as u64 + (!carry) as u64));
         registers.put_flag(
             CpsrFlag::V,
