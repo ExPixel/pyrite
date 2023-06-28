@@ -99,6 +99,9 @@ def arm_instr_data_to_lut_entry(data):
 
         return f"arm::arm_single_data_transfer::<{op_name}, {offset}, {indexing}, {writeback}>"
 
+    if name == "swi":
+        return "arm::swi"
+
     if name == "blx":
         return "arm::blx"
     if name == "bkpt":

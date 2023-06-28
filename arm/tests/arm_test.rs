@@ -998,6 +998,25 @@ pub fn test_ldr_ror() {
     assert_eq!(cpu.registers.read(1), 0xFDEADBEE);
 }
 
+#[test]
+pub fn test_swi() {
+    let (cpu, _mem) = arm! {"
+        b   main        @ Reset
+        b   _exit       @ Undefined
+        b   swi_handler @ SWI
+
+    main:
+        ldr r1, =12
+        swi 0
+        b   _exit
+    swi_handler:
+        add     r1, #2
+        movs    pc, lr  @ return from SWI
+    "};
+
+    assert_eq!(cpu.registers.read(1), 14);
+}
+
 fn operand() -> impl Strategy<Value = u32> {
     const VALUES: &[u32] = &[
         0, 1, 2, 0x00BEEF00, 0x7FFFFFFF, 0xFFFFFFFC, 0xFFFFFFFE, 0xFFFFFFFF,

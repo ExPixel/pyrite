@@ -10,6 +10,7 @@ use crate::{
     cpu::{Cpu, Cycles},
     memory::Memory,
     transfer::{SDTCalculateOffset, SDTIndexingMode, SingleDataTransfer},
+    CpuException,
 };
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
@@ -129,9 +130,12 @@ where
     cycles
 }
 
-pub fn undefined(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
-    let address = cpu.registers.read(15).wrapping_sub(8);
-    todo!("UNDEFIED: addr=0x{address:08X}; instr=0x{instr:08X}");
+pub fn swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    cpu.exception_internal(CpuException::Swi, memory)
+}
+
+pub fn undefined(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    cpu.exception_internal(CpuException::Undefined, memory)
 }
 
 /// ARM9
