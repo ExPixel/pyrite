@@ -21,7 +21,7 @@ jobs:
 
       - name: Install Packages
         run: |
-          sudo apt install -y gcc-arm-none-eabi
+          sudo apt install -y binutils-arm-none-eabi
 
       - name: Install
         uses: dtolnay/rust-toolchain@master
@@ -60,7 +60,7 @@ jobs:
           submodules: true
       - name: Install Packages
         run: |
-          sudo apt install -y gcc-arm-none-eabi
+          sudo apt install -y binutils-arm-none-eabi
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
