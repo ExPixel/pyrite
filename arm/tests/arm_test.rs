@@ -537,7 +537,22 @@ pub fn test_mov() {
     let (cpu, _mem) = arm! {"
         mov     r1, #42
     "};
+
     assert_eq!(cpu.registers.read(1), 42);
+}
+
+#[test]
+pub fn test_data_processing_with_r15() {
+    // When using R15 as operand (Rm or Rn), the returned value
+    // depends on the instruction: PC+12 if I=0,R=1 (shift by register),
+    // otherwise PC+8 (shift by immediate).
+    let (cpu, _mem) = arm! {"
+        mov r0, r15, lsl r1
+        mov r1, r15, lsl #0
+    "};
+
+    assert_eq!(cpu.registers.read(0), 12);
+    assert_eq!(cpu.registers.read(1), 12);
 }
 
 proptest! {
