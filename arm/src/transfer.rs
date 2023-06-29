@@ -86,7 +86,17 @@ impl<const USER_MODE: bool> SingleDataTransfer for Str<USER_MODE> {
         }
 
         let mut cycles = Cycles::zero();
+
+        // FIXME    Not sure if this means that the behavior of an unaligned word store
+        //          is completely handled by whatever is on the other end or if only
+        //          work aligned addresses are used.
+        //
+        // From ARM documentation:
+        //      A word store (STR) should generate a word aligned address. The word presented to
+        //      the data bus is not affected if the address is not word aligned. That is, bit 31 of the
+        //      register being stored always appears on data bus output 31.
         memory.store32(dst_addr & !0x3, value, Some(&mut cycles));
+
         cycles
     }
 }

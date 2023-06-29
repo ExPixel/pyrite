@@ -4,6 +4,7 @@ import os
 
 def arm_instr_data_to_lut_entry(data):
     name = data["name"].lower()
+    desc = data["desc"].lower() if "desc" in data else ""
     subname = data["subname"].lower() if "subname" in data else ""
     subdesc = data["subdesc"].lower() if "subdesc" in data else ""
     _class = data["_class"].lower() if "_class" in data else ""
@@ -46,7 +47,7 @@ def arm_instr_data_to_lut_entry(data):
 
         return f"arm::arm_dataproc::<alu::{op_name}, {s_flag}, alu::{op2}>"
 
-    if name in ["ldr", "str", "ldrb", "strb", "ldrt", "strt", "ldrbt", "strbt"]:
+    elif name in ["ldr", "str", "ldrb", "strb", "ldrt", "strt", "ldrbt", "strbt"]:
         op_name = name.capitalize()
 
         bindex = op_name.rfind("b")
@@ -78,10 +79,10 @@ def arm_instr_data_to_lut_entry(data):
             writeback = "true"
         elif "negative" in subdesc:
             indexing = "PreDecrement"
-
         else:
             indexing = ""
             print("indexing not found: " + subname)
+            return "ERROR"
 
         if "immediate" in subdesc:
             offset = "SDTImmOffset"
@@ -96,25 +97,47 @@ def arm_instr_data_to_lut_entry(data):
         else:
             offset = ""
             print("offset not found: " + subname)
+            return "ERROR"
 
         return f"arm::arm_single_data_transfer::<{op_name}, {offset}, {indexing}, {writeback}>"
 
-    if name == "swi":
-        return "arm::swi"
+    elif name == "mrs":
+        if subname == "rc":
+            return "arm::arm_mrs::<alu::Cpsr>"
+        elif subname == "rs":
+            return "arm::arm_mrs::<alu::Spsr>"
+        else:
+            print(f"unknown mrs subname: " + subname)
+            return "ERROR"
+    elif name == "msr":
+        if subname == "rc":
+            return "arm::arm_msr::<alu::Cpsr, alu::LliOp2>"
+        elif subname == "rs":
+            return "arm::arm_msr::<alu::Spsr, alu::LliOp2>"
+        elif subname == "ic":
+            return "arm::arm_msr::<alu::Cpsr, alu::ImmOp2>"
+        elif subname == "is":
+            return "arm::arm_msr::<alu::Spsr, alu::ImmOp2>"
+        else:
+            print(f"unknown msr subname: " + subname)
+            return "ERROR"
 
-    if name == "blx":
-        return "arm::blx"
-    if name == "bkpt":
-        return "arm::bkpt"
-    if name == "clz":
-        return "arm::clz"
+    elif name == "swi":
+        return "arm::arm_swi"
 
-    if _class == "und":
-        return "arm::undefined"
-    if _class == "edsp":
-        return "arm::m_extension_undefined"
+    elif name == "blx":
+        return "arm::arm_blx"
+    elif name == "bkpt":
+        return "arm::arm_bkpt"
+    elif name == "clz":
+        return "arm::arm_clz"
 
-    print(f"unknown instruction {name}/{subname}")
+    elif _class == "und":
+        return "arm::arm_undefined"
+    elif _class == "edsp":
+        return "arm::arm_m_extension_undefined"
+
+    print(f"unknown instruction {name}/{subname} -- {desc} -- {subdesc}")
     return "arm::todo"
 
 

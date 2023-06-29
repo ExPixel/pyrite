@@ -6,7 +6,7 @@ use core::intrinsics::unlikely;
 use std::convert::identity as unlikely;
 
 use crate::{
-    alu::{BinaryOp, ExtractOp2},
+    alu::{BinaryOp, ExtractOp2, Psr},
     cpu::{Cpu, Cycles},
     memory::Memory,
     transfer::{SDTCalculateOffset, SDTIndexingMode, SingleDataTransfer},
@@ -92,6 +92,9 @@ where
     cycles
 }
 
+/// Single Data Transfer (LDR, STR)
+///
+/// `<LDR|STR>{cond}{B}{T} Rd,<Address>`
 pub fn arm_single_data_transfer<T, O, I, const WRITEBACK: bool>(
     instr: u32,
     cpu: &mut Cpu,
@@ -130,30 +133,72 @@ where
     cycles
 }
 
-pub fn swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+/// Move value to status word
+///
+/// MSR - transfer register contents to PSR  
+/// `MSR{cond} <psr>,Rm`
+///
+/// MSR - transfer register contents to PSR flag bits only  
+/// `MSR{cond} <psrf>,Rm`  
+/// The most significant four bits of the register contents are written to the N,Z,C
+/// & V flags respectively.
+///
+/// MSR - transfer immediate value to PSR flag bits only  
+/// `MSR{cond} <psrf>,<#expression>`
+pub fn arm_msr<P, E>(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles
+where
+    P: Psr,
+    E: ExtractOp2,
+{
+    let src = E::extract::<false>(instr, &mut cpu.registers);
+    let flag_bits_only = (instr & 0x00010000) == 0;
+
+    if flag_bits_only {
+        P::write_flags_only(src, &mut cpu.registers);
+    } else {
+        P::write(src, &mut cpu.registers);
+    }
+
+    Cycles::zero()
+}
+
+/// Move status word to register
+///
+/// MRS{cond} Rd,<psr>
+pub fn arm_mrs<P>(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles
+where
+    P: Psr,
+{
+    let src = P::read(&cpu.registers);
+    let dst = instr.get_bit_range(12..=15);
+    cpu.registers.write(dst, src);
+    Cycles::zero()
+}
+
+pub fn arm_swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     cpu.exception_internal(CpuException::Swi, memory)
 }
 
-pub fn undefined(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+pub fn arm_undefined(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     cpu.exception_internal(CpuException::Undefined, memory)
 }
 
 /// ARM9
-pub fn blx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
-    undefined(instr, cpu, memory)
+pub fn arm_blx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    arm_undefined(instr, cpu, memory)
 }
 
 // ARM9
-pub fn bkpt(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
-    undefined(instr, cpu, memory)
+pub fn arm_bkpt(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    arm_undefined(instr, cpu, memory)
 }
 
 // ARM9
-pub fn clz(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
-    undefined(instr, cpu, memory)
+pub fn arm_clz(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    arm_undefined(instr, cpu, memory)
 }
 
 // Used for unsupported M-Extension instructions
-pub fn m_extension_undefined(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
-    undefined(instr, cpu, memory)
+pub fn arm_m_extension_undefined(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    arm_undefined(instr, cpu, memory)
 }

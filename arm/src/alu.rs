@@ -40,6 +40,9 @@ pub struct RriOp2;
 /// Rotate right by register
 pub struct RrrOp2;
 
+pub struct Cpsr;
+pub struct Spsr;
+
 impl BinaryOp for AddOp {
     const HAS_RESULT: bool = true;
 
@@ -536,6 +539,26 @@ impl ExtractOp2 for RrrOp2 {
     }
 }
 
+impl Psr for Cpsr {
+    fn write(value: u32, registers: &mut Registers) {
+        registers.write_cpsr(value);
+    }
+
+    fn read(registers: &Registers) -> u32 {
+        registers.read_cpsr()
+    }
+}
+
+impl Psr for Spsr {
+    fn write(value: u32, registers: &mut Registers) {
+        registers.write_spsr(value)
+    }
+
+    fn read(registers: &Registers) -> u32 {
+        registers.read_spsr()
+    }
+}
+
 pub trait BinaryOp {
     const HAS_RESULT: bool;
 
@@ -608,6 +631,17 @@ pub trait ExtractOp2 {
             (lhs, rhs)
         }
     }
+}
+
+pub trait Psr {
+    fn write(value: u32, registers: &mut Registers);
+
+    fn write_flags_only(value: u32, registers: &mut Registers) {
+        let old = Self::read(registers);
+        Self::write((old & !0xF0000000) | (value & 0xF0000000), registers);
+    }
+
+    fn read(registers: &Registers) -> u32;
 }
 
 impl RotateRightExtended for u32 {

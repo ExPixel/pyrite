@@ -177,6 +177,8 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
 
     std::fs::write(&source_file_path, source)?;
 
+    // FIXME    The `as` utility accepts programs from standard input
+    //          so we can create one less file here. Not a priority though.
     let as_output = if isa == InstructionSet::Arm {
         run_arm_executable(
             "as",
@@ -272,6 +274,10 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
     std::fs::read(&bin_file_path)
 }
 
+// FIXME    There is probably some way to generate this file once and then use
+//          it for all compilations. I can just put it at a known location (CARGO_TMP_DIR)
+//          but then I wouldn't be able to reliably clean it up. Maybe that's
+//          fine though.
 fn simple_linker_script(dir: &Path) -> TempPath {
     const SIMPLE_LINKER_SCRIPT: &str = "
     ENTRY(_start);

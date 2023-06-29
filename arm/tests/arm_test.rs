@@ -1,4 +1,4 @@
-use arm::CpsrFlag;
+use arm::{CpsrFlag, CpuMode};
 use proptest::prelude::*;
 
 #[macro_use]
@@ -929,6 +929,20 @@ pub fn test_ldr() {
 }
 
 #[test]
+pub fn test_ldr_unaligned() {
+    let (cpu, _mem) = arm! {"
+        ldr r1, =deadbeef
+        mov r2, r1
+        ldr r0, [r1, #2]
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
+    assert_eq!(cpu.registers.read(0), 0xBEEFDEAD);
+}
+
+#[test]
 pub fn test_ldr_post_index() {
     let (cpu, _mem) = arm! {"
         ldr r1, =deadbeef
@@ -1014,6 +1028,21 @@ pub fn test_ldr_ror() {
 }
 
 #[test]
+pub fn test_str() {
+    let (cpu, _mem) = arm! {"
+        ldr r2, =deadbeef
+        ldr r0, =0xDEADBEEF
+        ldr r1, [r2]
+        str r0, [r2]
+    .data
+    deadbeef:
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read(1), 0xAABBCCDD);
+}
+
+#[test]
 pub fn test_swi() {
     let (cpu, _mem) = arm! {"
         b   main        @ Reset
@@ -1030,6 +1059,65 @@ pub fn test_swi() {
     "};
 
     assert_eq!(cpu.registers.read(1), 14);
+}
+
+#[test]
+pub fn test_msr_move_value_to_status_word() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =0x60000010
+        msr     cpsr_all, r0
+    "};
+    assert_eq!(cpu.registers.read_mode(), CpuMode::User);
+    assert!(!cpu.registers.get_flag(CpsrFlag::N));
+    assert!(cpu.registers.get_flag(CpsrFlag::Z));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::V));
+}
+
+#[test]
+pub fn test_msr_move_value_to_status_word_flags_only() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =0x60000010
+        msr     cpsr_flg, r0
+    "};
+    assert_eq!(cpu.registers.read_mode(), CpuMode::System);
+    assert!(!cpu.registers.get_flag(CpsrFlag::N));
+    assert!(cpu.registers.get_flag(CpsrFlag::Z));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::V));
+}
+
+#[test]
+pub fn test_msr_move_value_to_status_word_spsr() {
+    let (mut cpu, _mem) = arm! {"
+        b   main        @ Reset
+        b   _exit       @ Undefined
+        b   swi_handler @ SWI
+
+    main:
+        swi     0
+    swi_handler:                    @ use SWI handler here to have to mode with banks
+        ldr     r0, =0x60000010
+        msr     spsr_all, r0
+        b       _exit
+    "};
+    cpu.registers.write_cpsr(cpu.registers.read_spsr());
+    assert_eq!(cpu.registers.read_mode(), CpuMode::User);
+    assert!(!cpu.registers.get_flag(CpsrFlag::N));
+    assert!(cpu.registers.get_flag(CpsrFlag::Z));
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+    assert!(!cpu.registers.get_flag(CpsrFlag::V));
+}
+
+#[test]
+pub fn test_mrs_move_status_word_to_register() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =0x80000000
+        movs    r0, r0, lsl #1  @ set carry and zero flags
+        mrs     r0, cpsr
+    "};
+
+    assert_eq!(cpu.registers.read(0), 0x60000000 | (CpuMode::System as u32));
 }
 
 fn operand() -> impl Strategy<Value = u32> {
