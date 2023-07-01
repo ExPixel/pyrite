@@ -125,7 +125,7 @@ def arm_instr_data_to_lut_entry(data):
     elif name in ["mul", "muls", "mla", "mlas"]:
         s_flag = "S_FLAG_SET" if name.endswith("s") else "S_FLAG_CLR"
         a_flag = "A_FLAG_SET" if name.startswith("mla") else "A_FLAG_CLR"
-        return f"arm::mul::<{s_flag}, {a_flag}>"
+        return f"arm::arm_mul::<{s_flag}, {a_flag}>"
 
     elif name == "swi":
         return "arm::arm_swi"

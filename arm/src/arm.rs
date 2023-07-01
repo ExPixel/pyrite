@@ -180,7 +180,7 @@ where
 ///
 /// MUL{cond}{S} Rd,Rm,Rs  
 /// MLA{cond}{S} Rd,Rm,Rs,Rn
-pub fn mul<const S: bool, const A: bool>(
+pub fn arm_mul<const S: bool, const A: bool>(
     instr: u32,
     cpu: &mut Cpu,
     _memory: &mut dyn Memory,
