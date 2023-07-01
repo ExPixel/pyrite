@@ -72,7 +72,8 @@ where
     }
 
     let rhs = E::extract::<S>(instr, &mut cpu.registers);
-    let result = O::execute::<S>(&mut cpu.registers, lhs, rhs);
+    let result = O::execute(&cpu.registers, lhs, rhs);
+    O::set_flags_if::<S>(&mut cpu.registers, lhs, rhs, result);
 
     // If S=1, Rd=R15; should not be used in user mode:
     //   CPSR = SPSR_<current mode>
