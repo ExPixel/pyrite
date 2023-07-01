@@ -1,3 +1,5 @@
+use util::bits::BitOps;
+
 use crate::{CpsrFlag, Cycles, Registers};
 
 #[inline]
@@ -20,7 +22,7 @@ pub fn internal_multiply_cycles(rhs: u32) -> Cycles {
 }
 
 #[inline]
-pub fn set_multiply_flags(result: u32, registers: &mut Registers) {
-    registers.put_flag(CpsrFlag::N, (result >> 31) & 1);
-    registers.put_flag(CpsrFlag::Z, result == 0);
+pub fn set_multiply_flags<T: BitOps>(result: T, registers: &mut Registers) {
+    registers.put_flag(CpsrFlag::N, result.get_bit(T::BITS - 1));
+    registers.put_flag(CpsrFlag::Z, result == T::ZERO);
 }

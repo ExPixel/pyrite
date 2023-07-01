@@ -947,6 +947,97 @@ proptest! {
         prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
         prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
     }
+
+    #[test]
+    fn test_umulls(lhs in operand(), rhs in operand()) {
+        let (cpu, _mem) = arm! {"
+            ldr     r2, =#{lhs}
+            ldr     r3, =#{rhs}
+            umulls  r0, r1, r2, r3
+        "};
+
+        let expected_result = (lhs as u64).wrapping_mul(rhs as u64);
+        let expected_n = (expected_result as i64) < 0;
+        let expected_z = expected_result == 0;
+        let expected_result_lo = expected_result as u32;
+        let expected_result_hi = (expected_result >> 32) as u32;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result_lo);
+        prop_assert_eq!(cpu.registers.read(1), expected_result_hi);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+    }
+
+    #[test]
+    fn test_umlals(lhs in operand(), rhs in operand(), acc: u64) {
+        let acc_lo = acc as u32;
+        let acc_hi = (acc >> 32) as u32;
+
+        let (cpu, _mem) = arm! {"
+            ldr     r0, =#{acc_lo}
+            ldr     r1, =#{acc_hi}
+            ldr     r2, =#{lhs}
+            ldr     r3, =#{rhs}
+            umlals  r0, r1, r2, r3
+        "};
+
+        let expected_result = (lhs as u64).wrapping_mul(rhs as u64).wrapping_add(acc);
+        let expected_n = (expected_result as i64) < 0;
+        let expected_z = expected_result == 0;
+        let expected_result_lo = expected_result as u32;
+        let expected_result_hi = (expected_result >> 32) as u32;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result_lo);
+        prop_assert_eq!(cpu.registers.read(1), expected_result_hi);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+    }
+
+    #[test]
+    fn test_smulls(lhs in operand(), rhs in operand()) {
+        let (cpu, _mem) = arm! {"
+            ldr     r2, =#{lhs}
+            ldr     r3, =#{rhs}
+            smulls  r0, r1, r2, r3
+        "};
+
+        let expected_result = (lhs as i32 as i64).wrapping_mul(rhs as i32 as i64);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_result_lo = expected_result as u32;
+        let expected_result_hi = (expected_result >> 32) as u32;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result_lo);
+        prop_assert_eq!(cpu.registers.read(1), expected_result_hi);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+    }
+
+    #[test]
+    fn test_smlals(lhs in operand(), rhs in operand(), acc: u64) {
+        let acc_lo = acc as u32;
+        let acc_hi = (acc >> 32) as u32;
+
+        let (cpu, _mem) = arm! {"
+            ldr     r0, =#{acc_lo}
+            ldr     r1, =#{acc_hi}
+            ldr     r2, =#{lhs}
+            ldr     r3, =#{rhs}
+            smlals  r0, r1, r2, r3
+        "};
+
+        let expected_result =
+            (lhs as i32 as i64).wrapping_mul(rhs as i32 as i64).wrapping_add(acc as i64);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_result_lo = expected_result as u32;
+        let expected_result_hi = (expected_result >> 32) as u32;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result_lo);
+        prop_assert_eq!(cpu.registers.read(1), expected_result_hi);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+    }
 }
 
 #[test]

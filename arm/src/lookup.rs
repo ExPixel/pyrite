@@ -24,6 +24,8 @@ pub const S_FLAG_SET: bool = true;
 pub const S_FLAG_CLR: bool = false;
 pub const A_FLAG_SET: bool = true;
 pub const A_FLAG_CLR: bool = false;
+pub const SIGNED: bool = true;
+pub const UNSIGNED: bool = false;
 pub const FORCE_USER_MODE: bool = false;
 
 pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
@@ -164,7 +166,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::AddOp, S_FLAG_CLR, alu::RriOp2>,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_CLR, alu::RrrOp2>,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_CLR, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<UNSIGNED, S_FLAG_CLR, A_FLAG_CLR>,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_CLR, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_CLR, alu::AriOp2>,
@@ -180,7 +182,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::AddOp, S_FLAG_SET, alu::RriOp2>,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_SET, alu::RrrOp2>,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_SET, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<UNSIGNED, S_FLAG_SET, A_FLAG_CLR>,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_SET, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::AddOp, S_FLAG_SET, alu::AriOp2>,
@@ -196,7 +198,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_CLR, alu::RriOp2>,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_CLR, alu::RrrOp2>,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_CLR, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<UNSIGNED, S_FLAG_CLR, A_FLAG_SET>,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_CLR, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_CLR, alu::AriOp2>,
@@ -212,7 +214,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_SET, alu::RriOp2>,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_SET, alu::RrrOp2>,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_SET, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<UNSIGNED, S_FLAG_SET, A_FLAG_SET>,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_SET, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::AdcOp, S_FLAG_SET, alu::AriOp2>,
@@ -228,7 +230,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_CLR, alu::RriOp2>,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_CLR, alu::RrrOp2>,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_CLR, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<SIGNED, S_FLAG_CLR, A_FLAG_CLR>,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_CLR, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_CLR, alu::AriOp2>,
@@ -244,7 +246,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_SET, alu::RriOp2>,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_SET, alu::RrrOp2>,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_SET, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<SIGNED, S_FLAG_SET, A_FLAG_CLR>,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_SET, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::SbcOp, S_FLAG_SET, alu::AriOp2>,
@@ -260,7 +262,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::RscOp, S_FLAG_CLR, alu::RriOp2>,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_CLR, alu::RrrOp2>,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_CLR, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<SIGNED, S_FLAG_CLR, A_FLAG_SET>,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_CLR, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_CLR, alu::AriOp2>,
@@ -276,7 +278,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::RscOp, S_FLAG_SET, alu::RriOp2>,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_SET, alu::RrrOp2>,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_SET, alu::LliOp2>,
-    arm::todo,
+    arm::arm_mul_long::<SIGNED, S_FLAG_SET, A_FLAG_SET>,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_SET, alu::LriOp2>,
     arm::todo,
     arm::arm_dataproc::<alu::RscOp, S_FLAG_SET, alu::AriOp2>,

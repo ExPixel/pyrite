@@ -24,4 +24,6 @@ pub const S_FLAG_SET: bool = true;
 pub const S_FLAG_CLR: bool = false;
 pub const A_FLAG_SET: bool = true;
 pub const A_FLAG_CLR: bool = false;
+pub const SIGNED: bool = true;
+pub const UNSIGNED: bool = false;
 pub const FORCE_USER_MODE: bool = false;

@@ -193,18 +193,67 @@ pub fn arm_mul<const S: bool, const A: bool>(
     let rhs = cpu.registers.read(rs);
     let mut result = lhs.wrapping_mul(rhs);
 
-    if A {
+    let acc_cycles = if A {
         let rn = instr.get_bit_range(12..=15);
         let accumulate = cpu.registers.read(rn);
         result = result.wrapping_add(accumulate);
-    }
+        Cycles::one()
+    } else {
+        Cycles::zero()
+    };
 
     if S {
         multiply::set_multiply_flags(result, &mut cpu.registers);
     }
 
     cpu.registers.write(rd, result);
-    Cycles::one() + multiply::internal_multiply_cycles(rhs)
+    acc_cycles + multiply::internal_multiply_cycles(rhs)
+}
+
+/// Multiply Long and Multiply-Accumulate Long
+///
+/// UMULL{cond}{S} RdLo,RdHi,Rm,Rs  
+/// UMLAL{cond}{S} RdLo,RdHi,Rm,Rs  
+/// SMULL{cond}{S} RdLo,RdHi,Rm,Rs  
+/// SMLAL{cond}{S} RdLo,RdHi,Rm,Rs  
+pub fn arm_mul_long<const SIGNED: bool, const S: bool, const A: bool>(
+    instr: u32,
+    cpu: &mut Cpu,
+    _memory: &mut dyn Memory,
+) -> Cycles {
+    let rm = instr.get_bit_range(0..=3);
+    let rs = instr.get_bit_range(8..=11);
+    let rd_lo = instr.get_bit_range(12..=15);
+    let rd_hi = instr.get_bit_range(16..=19);
+
+    let lhs = cpu.registers.read(rm) as u64;
+    let rhs = cpu.registers.read(rs) as u64;
+
+    let lhs = if SIGNED { lhs.sign_extend(32) } else { lhs };
+    let rhs = if SIGNED { rhs.sign_extend(32) } else { rhs };
+
+    let (acc, acc_cycles) = if A {
+        let acc_lo = cpu.registers.read(rd_lo) as u64;
+        let acc_hi = cpu.registers.read(rd_hi) as u64;
+        ((acc_hi << 32) | acc_lo, Cycles::one())
+    } else {
+        (0, Cycles::zero())
+    };
+
+    let result = lhs.wrapping_mul(rhs).wrapping_add(acc);
+    dbg!(result as i64);
+    dbg!(rd_lo);
+    dbg!(rd_hi);
+    dbg!(result as u32);
+    dbg!((result >> 32) as u32);
+
+    if S {
+        multiply::set_multiply_flags(result, &mut cpu.registers);
+    }
+
+    cpu.registers.write(rd_lo, result as u32);
+    cpu.registers.write(rd_hi, (result >> 32) as u32);
+    acc_cycles + multiply::internal_multiply_cycles(rhs as u32)
 }
 
 pub fn arm_swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
