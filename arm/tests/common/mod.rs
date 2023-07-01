@@ -10,7 +10,7 @@ pub struct TestMemory {
 }
 
 impl TestMemory {
-    pub fn view32(&mut self, address: u32) -> u32 {
+    pub fn view32(&self, address: u32) -> u32 {
         self.view16(address) as u32 | ((self.view16(address.wrapping_add(2)) as u32) << 16)
     }
 

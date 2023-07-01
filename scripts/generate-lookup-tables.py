@@ -47,9 +47,23 @@ def arm_instr_data_to_lut_entry(data):
 
         return f"arm::arm_dataproc::<alu::{op_name}, {s_flag}, alu::{op2}>"
 
-    elif name in ["ldr", "str", "ldrb", "strb", "ldrt", "strt", "ldrbt", "strbt"]:
+    elif name in [
+        "ldr",
+        "str",
+        "ldrb",
+        "strb",
+        "ldrt",
+        "strt",
+        "ldrbt",
+        "strbt",
+        "ldrh",
+        "strh",
+        "ldrsb",
+        "ldrsh",
+    ]:
         op_name = name.capitalize()
 
+        halfword_signed = name in ["ldrh", "strh", "ldrsb", "ldrsh"]
         tindex = op_name.rfind("t")
         if tindex > 2:
             op_name = op_name[0:tindex] + op_name[(tindex + 1) :]
@@ -81,20 +95,31 @@ def arm_instr_data_to_lut_entry(data):
             print("indexing not found: " + subname)
             return "ERROR"
 
-        if "immediate" in subdesc:
-            offset = "SDTImmOffset"
-        elif "arithmetic-right-shifted" in subdesc:
-            offset = "alu::AriOp2"
-        elif "right-shifted" in subdesc:
-            offset = "alu::LriOp2"
-        elif "left-shifted" in subdesc:
-            offset = "alu::LliOp2"
-        elif "right-rotated" in subdesc:
-            offset = "alu::RriOp2"
+        if not halfword_signed:
+            if "immediate" in subdesc:
+                offset = "SDTImmOffset"
+            elif "arithmetic-right-shifted" in subdesc:
+                offset = "alu::AriOp2"
+            elif "right-shifted" in subdesc:
+                offset = "alu::LriOp2"
+            elif "left-shifted" in subdesc:
+                offset = "alu::LliOp2"
+            elif "right-rotated" in subdesc:
+                offset = "alu::RriOp2"
+            else:
+                offset = ""
+                print("offset not found: " + subname)
+                return "ERROR"
         else:
-            offset = ""
-            print("offset not found: " + subname)
-            return "ERROR"
+            if "immediate offset" in subdesc:
+                offset = "HalfwordAndSignedImmOffset"
+            elif "register offset" in subdesc:
+                offset = "HalfwordAndSignedRegOffset"
+            else:
+                offset = ""
+                print("offset not found (halfword): " + subname)
+                return "ERROR"
+            pass
 
         return f"arm::arm_single_data_transfer::<{op_name}, {offset}, {indexing}, {writeback}>"
 

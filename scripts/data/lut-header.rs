@@ -2,7 +2,8 @@
 use super::cpu::InstrFn;
 use super::{alu, arm, thumb};
 use crate::transfer::{
-    Ldr, LdrB, PostDecrement, PostIncrement, PreDecrement, PreIncrement, SDTImmOffset, Str, StrB,
+    HalfwordAndSignedImmOffset, HalfwordAndSignedRegOffset, Ldr, Ldrb, Ldrh, Ldrsb, Ldrsh,
+    PostDecrement, PostIncrement, PreDecrement, PreIncrement, SDTImmOffset, Str, Strb, Strh,
 };
 use util::bits::BitOps as _;
 

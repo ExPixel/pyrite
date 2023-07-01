@@ -1155,7 +1155,7 @@ pub fn test_ldr_ror() {
 
 #[test]
 pub fn test_str() {
-    let (cpu, _mem) = arm! {"
+    let (cpu, mem) = arm! {"
         ldr r2, =deadbeef
         ldr r0, =0xDEADBEEF
         ldr r1, [r2]
@@ -1166,6 +1166,110 @@ pub fn test_str() {
     "};
     assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
     assert_eq!(cpu.registers.read(1), 0xAABBCCDD);
+    assert_eq!(mem.view32(cpu.registers.read(2)), cpu.registers.read(0));
+}
+
+#[test]
+pub fn test_ldrh() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrh    r0, [r1]
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
+    assert_eq!(cpu.registers.read(0), 0xBEEF);
+}
+
+#[test]
+pub fn test_ldrh_post_index() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrh    r0, [r1], #4
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_add(4));
+    assert_eq!(cpu.registers.read(0), 0xBEEF);
+}
+
+#[test]
+pub fn test_ldrh_pre_increment() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrh    r0, [r1, #4]!
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_add(4));
+    assert_eq!(cpu.registers.read(0), 0xCCDD);
+}
+
+#[test]
+pub fn test_ldrh_pre_decrement() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrh    r0, [r1, #-4]!
+    .data
+        .word 0xDEADBEEF
+    deadbeef:
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2).wrapping_sub(4));
+    assert_eq!(cpu.registers.read(0), 0xBEEF);
+}
+
+#[test]
+pub fn test_strh() {
+    let (cpu, mem) = arm! {"
+        ldr     r2, =deadbeef
+        ldr     r0, =0xDEADBEEF
+        ldr     r1, [r2]
+        strh    r0, [r2]
+    .data
+    deadbeef:
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read(1), 0xAABBCCDD);
+    assert_eq!(mem.view32(cpu.registers.read(2)), 0xAABBBEEF);
+}
+
+#[test]
+pub fn test_ldrsh() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrsh   r0, [r1]
+    .data
+    deadbeef:
+        .word 0xDEAD8000
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
+    assert_eq!(cpu.registers.read(0), 0xFFFF8000);
+}
+
+#[test]
+pub fn test_ldrsb() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrsb   r0, [r1]
+    .data
+    deadbeef:
+        .word 0xDEAD8080
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
+    assert_eq!(cpu.registers.read(0), 0xFFFFFF80);
 }
 
 #[test]
