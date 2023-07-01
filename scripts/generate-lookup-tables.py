@@ -50,9 +50,6 @@ def arm_instr_data_to_lut_entry(data):
     elif name in ["ldr", "str", "ldrb", "strb", "ldrt", "strt", "ldrbt", "strbt"]:
         op_name = name.capitalize()
 
-        bindex = op_name.rfind("b")
-        if bindex > 2:
-            op_name = op_name[0:bindex] + op_name[(bindex + 1) :] + "B"
         tindex = op_name.rfind("t")
         if tindex > 2:
             op_name = op_name[0:tindex] + op_name[(tindex + 1) :]

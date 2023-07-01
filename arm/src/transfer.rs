@@ -4,9 +4,9 @@ use crate::{
 };
 
 pub struct Ldr<const USER_MODE: bool = false>;
-pub struct LdrB<const USER_MODE: bool = false>;
+pub struct Ldrb<const USER_MODE: bool = false>;
 pub struct Str<const USER_MODE: bool = false>;
-pub struct StrB<const USER_MODE: bool = false>;
+pub struct Strb<const USER_MODE: bool = false>;
 
 pub struct PreIncrement;
 pub struct PreDecrement;
@@ -52,7 +52,7 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     }
 }
 
-impl<const USER_MODE: bool> SingleDataTransfer for LdrB<USER_MODE> {
+impl<const USER_MODE: bool> SingleDataTransfer for Ldrb<USER_MODE> {
     const IS_LOAD: bool = true;
 
     fn transfer(
@@ -101,7 +101,7 @@ impl<const USER_MODE: bool> SingleDataTransfer for Str<USER_MODE> {
     }
 }
 
-impl<const USER_MODE: bool> SingleDataTransfer for StrB<USER_MODE> {
+impl<const USER_MODE: bool> SingleDataTransfer for Strb<USER_MODE> {
     const IS_LOAD: bool = false;
 
     fn transfer(

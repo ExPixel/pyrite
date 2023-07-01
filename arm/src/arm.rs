@@ -115,7 +115,7 @@ where
     let mut cycles = T::transfer(rd, address, &mut cpu.registers, memory);
 
     if WRITEBACK {
-        // FIXME At this point Rn is now allowed be r15 but I'm not sure if I should
+        // FIXME At this point Rn is not allowed be r15 but I'm not sure if I should
         //       assert that and panic here or just log an error. No logging facilities
         //       for this part of the code at the moment though so once I figure that out
         //       I should probably take a look at this. For now I just branch anyway later.
