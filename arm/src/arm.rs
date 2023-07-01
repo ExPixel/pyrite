@@ -6,7 +6,7 @@ use core::intrinsics::unlikely;
 use std::convert::identity as unlikely;
 
 use crate::{
-    alu::{BinaryOp, ExtractOp2, Psr},
+    alu::{multiply, BinaryOp, ExtractOp2, Psr},
     cpu::{Cpu, Cycles},
     memory::Memory,
     transfer::{SDTCalculateOffset, SDTIndexingMode, SingleDataTransfer},
@@ -174,6 +174,37 @@ where
     let dst = instr.get_bit_range(12..=15);
     cpu.registers.write(dst, src);
     Cycles::zero()
+}
+
+/// Multiply and Multiply-Accumulate
+///
+/// MUL{cond}{S} Rd,Rm,Rs  
+/// MLA{cond}{S} Rd,Rm,Rs,Rn
+pub fn mul<const S: bool, const A: bool>(
+    instr: u32,
+    cpu: &mut Cpu,
+    _memory: &mut dyn Memory,
+) -> Cycles {
+    let rm = instr.get_bit_range(0..=3);
+    let rs = instr.get_bit_range(8..=11);
+    let rd = instr.get_bit_range(16..=19);
+
+    let lhs = cpu.registers.read(rm);
+    let rhs = cpu.registers.read(rs);
+    let mut result = lhs.wrapping_mul(rhs);
+
+    if A {
+        let rn = instr.get_bit_range(12..=15);
+        let accumulate = cpu.registers.read(rn);
+        result = result.wrapping_add(accumulate);
+    }
+
+    if S {
+        multiply::set_multiply_flags(result, &mut cpu.registers);
+    }
+
+    cpu.registers.write(rd, result);
+    Cycles::one() + multiply::internal_multiply_cycles(rhs)
 }
 
 pub fn arm_swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {

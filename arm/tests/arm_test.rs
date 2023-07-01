@@ -912,6 +912,41 @@ proptest! {
         prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::C), false);
         prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::V), false);
     }
+
+    #[test]
+    fn test_muls(lhs in operand(), rhs in operand()) {
+        let (cpu, _mem) = arm! {"
+            ldr     r1, =#{lhs}
+            ldr     r2, =#{rhs}
+            muls    r0, r1, r2
+        "};
+
+        let expected_result = lhs.wrapping_mul(rhs);
+        let expected_n = (expected_result as i32) < 0;
+        let expected_z = expected_result == 0;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+    }
+
+    #[test]
+    fn test_mlas(lhs in operand(), rhs in operand(), acc in operand()) {
+        let (cpu, _mem) = arm! {"
+            ldr     r1, =#{lhs}
+            ldr     r2, =#{rhs}
+            ldr     r3, =#{acc}
+            mlas    r0, r1, r2, r3
+        "};
+
+        let expected_result = lhs.wrapping_mul(rhs).wrapping_add(acc);
+        let expected_n = (expected_result as i32) < 0;
+        let expected_z = expected_result == 0;
+
+        prop_assert_eq!(cpu.registers.read(0), expected_result);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        prop_assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+    }
 }
 
 #[test]

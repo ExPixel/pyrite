@@ -1,4 +1,5 @@
 mod binary_operations;
+pub mod multiply;
 mod psr;
 mod shited_operands;
 

@@ -22,4 +22,6 @@ pub fn decode_thumb_opcode(opcode: u32) -> InstrFn {
 
 pub const S_FLAG_SET: bool = true;
 pub const S_FLAG_CLR: bool = false;
+pub const A_FLAG_SET: bool = true;
+pub const A_FLAG_CLR: bool = false;
 pub const FORCE_USER_MODE: bool = false;
