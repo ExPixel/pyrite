@@ -2,6 +2,7 @@ use util::bits::BitOps;
 
 use crate::{
     alu::{AriOp2, ExtractOp2, LliOp2, LriOp2, RriOp2},
+    memory::AccessType,
     CpuMode, Cycles, Memory, Registers,
 };
 
@@ -33,20 +34,18 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
         registers: &mut Registers,
         memory: &mut dyn Memory,
     ) -> Cycles {
-        let mut cycles = Cycles::zero();
-
-        let mut value = if USER_MODE {
+        let (mut value, wait) = if USER_MODE {
             // FIXME This doesn't really do anything on the GBA as far as I know
             //       But here for completeness I guess. Would make more sense if we
             //       passed the registers to memory whenever we made a read or
             //       write so that we would check things like the current address
             //       and mode.
             let old_mode = registers.write_mode(CpuMode::User);
-            let v = memory.load32(src_addr & !0x3, Some(&mut cycles));
+            let (value, wait) = memory.load32(src_addr & !0x3, AccessType::NonSequential);
             registers.write_mode(old_mode);
-            v
+            (value, wait)
         } else {
-            memory.load32(src_addr & !0x3, Some(&mut cycles))
+            memory.load32(src_addr & !0x3, AccessType::NonSequential)
         };
 
         // From the ARM7TDMI Documentation:
@@ -58,7 +57,8 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
         value = value.rotate_right(8 * (src_addr % 4));
 
         registers.write(rd, value);
-        cycles
+
+        Cycles::one() + wait
     }
 }
 
@@ -71,10 +71,9 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldrb<USER_MODE> {
         registers: &mut Registers,
         memory: &mut dyn Memory,
     ) -> Cycles {
-        let mut cycles = Cycles::zero();
-        let value = memory.load8(src_addr, Some(&mut cycles));
+        let (value, wait) = memory.load8(src_addr, AccessType::NonSequential);
         registers.write(rd, value as u32);
-        cycles
+        Cycles::one() + wait
     }
 }
 
@@ -95,8 +94,6 @@ impl<const USER_MODE: bool> SingleDataTransfer for Str<USER_MODE> {
             value = value.wrapping_add(4);
         }
 
-        let mut cycles = Cycles::zero();
-
         // FIXME    Not sure if this means that the behavior of an unaligned word store
         //          is completely handled by whatever is on the other end or if only
         //          work aligned addresses are used.
@@ -105,9 +102,7 @@ impl<const USER_MODE: bool> SingleDataTransfer for Str<USER_MODE> {
         //      A word store (STR) should generate a word aligned address. The word presented to
         //      the data bus is not affected if the address is not word aligned. That is, bit 31 of the
         //      register being stored always appears on data bus output 31.
-        memory.store32(dst_addr & !0x3, value, Some(&mut cycles));
-
-        cycles
+        Cycles::one() + memory.store32(dst_addr & !0x3, value, AccessType::NonSequential)
     }
 }
 
@@ -128,9 +123,7 @@ impl<const USER_MODE: bool> SingleDataTransfer for Strb<USER_MODE> {
             value = value.wrapping_add(4);
         }
 
-        let mut cycles = Cycles::zero();
-        memory.store8(dst_addr, value as u8, Some(&mut cycles));
-        cycles
+        Cycles::one() + memory.store8(dst_addr, value as u8, AccessType::NonSequential)
     }
 }
 
@@ -138,12 +131,11 @@ impl SingleDataTransfer for Ldrh {
     const IS_LOAD: bool = true;
 
     fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
-        let mut cycles = Cycles::zero();
         // We don't align the address here. If bit 0 is high then behavior is just
         // unpredictable (depends on memory hardware).
-        let value = memory.load16(addr, Some(&mut cycles));
+        let (value, wait) = memory.load16(addr, AccessType::NonSequential);
         registers.write(rd, value as u32);
-        cycles
+        Cycles::one() + wait
     }
 }
 
@@ -159,9 +151,7 @@ impl SingleDataTransfer for Strh {
             value = value.wrapping_add(4);
         }
 
-        let mut cycles = Cycles::zero();
-        memory.store16(addr, value as u16, Some(&mut cycles));
-        cycles
+        Cycles::one() + memory.store16(addr, value as u16, AccessType::NonSequential)
     }
 }
 
@@ -169,10 +159,9 @@ impl SingleDataTransfer for Ldrsb {
     const IS_LOAD: bool = true;
 
     fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
-        let mut cycles = Cycles::zero();
-        let value = memory.load8(addr, Some(&mut cycles));
+        let (value, wait) = memory.load8(addr, AccessType::NonSequential);
         registers.write(rd, value as i8 as i32 as u32);
-        cycles
+        Cycles::one() + wait
     }
 }
 
@@ -180,12 +169,11 @@ impl SingleDataTransfer for Ldrsh {
     const IS_LOAD: bool = true;
 
     fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
-        let mut cycles = Cycles::zero();
         // We don't align the address here. If bit 0 is high then behavior is just
         // unpredictable (depends on memory hardware).
-        let value = memory.load16(addr, Some(&mut cycles));
+        let (value, wait) = memory.load16(addr, AccessType::NonSequential);
         registers.write(rd, value as i16 as i32 as u32);
-        cycles
+        Cycles::one() + wait
     }
 }
 
@@ -291,4 +279,24 @@ pub trait SingleDataTransfer {
     const IS_LOAD: bool;
 
     fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum BlockDataTransferType {
+    IncrementBefore,
+    DecrementBefore,
+    IncrementAfter,
+    DecrementAfter,
+}
+
+impl BlockDataTransferType {
+    #[inline]
+    pub fn offsets(self) -> (u32, u32) {
+        match self {
+            BlockDataTransferType::IncrementBefore => (4, 0),
+            BlockDataTransferType::DecrementBefore => (-4i32 as u32, 0),
+            BlockDataTransferType::IncrementAfter => (0, 4),
+            BlockDataTransferType::DecrementAfter => (0, -4i32 as u32),
+        }
+    }
 }

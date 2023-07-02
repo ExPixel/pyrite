@@ -1,4 +1,4 @@
-use arm::{CpsrFlag, Cpu, CpuMode, Cycles, InstructionSet, Memory};
+use arm::{AccessType, CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
 
 use self::asm::assemble;
 
@@ -24,20 +24,15 @@ impl TestMemory {
 }
 
 impl Memory for TestMemory {
-    fn load8(&mut self, address: u32, cycles: Option<&mut arm::Cycles>) -> u8 {
+    fn load8(&mut self, address: u32, _access: AccessType) -> (u8, Waitstates) {
         let address = address as usize % self.data.len();
-        if let Some(cycles) = cycles {
-            *cycles += Cycles::one();
-        }
-        self.data[address]
+        (self.data[address], Waitstates::zero())
     }
 
-    fn store8(&mut self, address: u32, value: u8, cycles: Option<&mut arm::Cycles>) {
+    fn store8(&mut self, address: u32, value: u8, _access: AccessType) -> Waitstates {
         let address = address as usize % self.data.len();
-        if let Some(cycles) = cycles {
-            *cycles += Cycles::one();
-        }
         self.data[address] = value;
+        Waitstates::zero()
     }
 }
 

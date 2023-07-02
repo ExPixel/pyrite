@@ -7,7 +7,8 @@ use std::convert::identity as unlikely;
 
 use crate::{
     alu::{multiply, BinaryOp, ExtractOp2, Psr},
-    cpu::{Cpu, Cycles},
+    clock::Cycles,
+    cpu::Cpu,
     memory::Memory,
     transfer::{SDTCalculateOffset, SDTIndexingMode, SingleDataTransfer},
     CpuException,

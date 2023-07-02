@@ -1,5 +1,6 @@
 mod alu;
 mod arm;
+mod clock;
 mod cpu;
 mod exception;
 mod lookup;
@@ -9,7 +10,9 @@ mod thumb;
 mod transfer;
 
 pub use alu::{ArithmeticShr, RotateRightExtended};
-pub use cpu::{Cpu, Cycles, InstructionSet};
+pub use clock::{Cycles, Waitstates};
+pub use cpu::{Cpu, InstructionSet};
 pub use exception::{CpuException, ExceptionHandler};
-pub use memory::{BlockDataTransferType, Memory};
+pub use memory::{AccessType, Memory};
 pub use registers::{CpsrFlag, CpuMode, Registers};
+pub use transfer::BlockDataTransferType;

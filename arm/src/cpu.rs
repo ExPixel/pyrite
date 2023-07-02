@@ -1,9 +1,8 @@
-use std::ops::{Add, AddAssign};
-
 use crate::{
+    clock::Cycles,
     exception::{CpuException, ExceptionHandler, ExceptionHandlerResult, EXCEPTION_BASE},
     lookup,
-    memory::Memory,
+    memory::{AccessType, Memory},
     CpsrFlag, CpuMode, Registers,
 };
 
@@ -83,7 +82,10 @@ impl Cpu {
         let mut cycles = Cycles::zero();
         let fetch_pc = (self.registers.read(15) & !0x3).wrapping_add(4);
         self.registers.write(15, fetch_pc);
-        self.fetched = memory.code32(fetch_pc, true, Some(&mut cycles));
+
+        let (fetched, wait) = memory.load32(fetch_pc, AccessType::Sequential);
+        self.fetched = fetched;
+        cycles += Cycles::one() + wait;
 
         if check_condition(opcode >> 28, &self.registers) {
             cycles + exec_fn(opcode, self, memory)
@@ -102,7 +104,10 @@ impl Cpu {
         let mut cycles = Cycles::zero();
         let fetch_pc = (self.registers.read(15) & !0x1).wrapping_add(2);
         self.registers.write(15, fetch_pc);
-        self.fetched = memory.code16(fetch_pc, true, Some(&mut cycles)) as u32;
+
+        let (fetched, wait) = memory.load16(fetch_pc, AccessType::Sequential);
+        self.fetched = fetched as u32;
+        cycles += Cycles::one() + wait;
 
         cycles + exec_fn(opcode, self, memory)
     }
@@ -119,8 +124,10 @@ impl Cpu {
         let address = address & !0x3;
 
         let mut cycles = Cycles::zero();
-        let decoded = memory.code32(address, false, Some(&mut cycles));
-        let fetched = memory.code32(address.wrapping_add(4), true, Some(&mut cycles));
+        let (decoded, wait) = memory.load32(address, AccessType::NonSequential);
+        cycles += Cycles::one() + wait;
+        let (fetched, wait) = memory.load32(address.wrapping_add(4), AccessType::Sequential);
+        cycles += Cycles::one() + wait;
 
         self.decoded = decoded;
         self.fetched = fetched;
@@ -134,8 +141,10 @@ impl Cpu {
         let address = address & !0x1;
 
         let mut cycles = Cycles::zero();
-        let decoded = memory.code16(address, false, Some(&mut cycles));
-        let fetched = memory.code16(address.wrapping_add(2), true, Some(&mut cycles));
+        let (decoded, wait) = memory.load16(address, AccessType::NonSequential);
+        cycles += Cycles::one() + wait;
+        let (fetched, wait) = memory.load16(address.wrapping_add(2), AccessType::Sequential);
+        cycles += Cycles::one() + wait;
 
         self.decoded = decoded as u32;
         self.fetched = fetched as u32;
@@ -264,55 +273,5 @@ fn check_condition(cond: u32, regs: &Registers) -> bool {
 
         // :(
         _ => unreachable!("bad condition code: 0x{:08X} ({:04b})", cond, cond),
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Cycles(u32);
-
-impl Cycles {
-    #[inline]
-    pub const fn zero() -> Self {
-        Cycles(0)
-    }
-
-    #[inline]
-    pub const fn one() -> Cycles {
-        Cycles(1)
-    }
-
-    #[inline]
-    pub const fn is_zero(self) -> bool {
-        self.0 == 0
-    }
-}
-
-impl From<u32> for Cycles {
-    #[inline]
-    fn from(value: u32) -> Self {
-        Cycles(value)
-    }
-}
-
-impl From<Cycles> for u32 {
-    #[inline]
-    fn from(value: Cycles) -> Self {
-        value.0
-    }
-}
-
-impl Add for Cycles {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self::Output {
-        Cycles(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign for Cycles {
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
     }
 }

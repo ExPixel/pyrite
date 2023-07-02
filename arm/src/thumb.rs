@@ -1,7 +1,4 @@
-use crate::{
-    cpu::{Cpu, Cycles},
-    memory::Memory,
-};
+use crate::{cpu::Cpu, memory::Memory, Cycles};
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
     let address = cpu.registers.read(15).wrapping_sub(4);

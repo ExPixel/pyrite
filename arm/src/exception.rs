@@ -1,4 +1,4 @@
-use crate::{memory::Memory, Cpu, CpuMode, Cycles};
+use crate::{clock::Cycles, memory::Memory, Cpu, CpuMode};
 
 pub type ExceptionHandler =
     Box<dyn Send + Sync + FnMut(&mut Cpu, &mut dyn Memory, CpuException) -> ExceptionHandlerResult>;
