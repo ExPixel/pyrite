@@ -28,6 +28,34 @@ pub fn test_bl() {
 }
 
 #[test]
+pub fn test_bx_arm() {
+    let (cpu, _mem) = arm! {"
+    main:
+        ldr r0, =arm_main
+        bx  r0
+        b   _exit
+
+    .arm
+    arm_main:
+    "};
+    assert!(!cpu.registers.get_flag(CpsrFlag::T));
+}
+
+#[test]
+pub fn test_bx_thumb() {
+    let (cpu, _mem) = arm! {"
+    main:
+        ldr r0, =thumb_main+1
+        bx  r0
+        b   _exit
+
+    .thumb
+    thumb_main:
+    "};
+    assert!(cpu.registers.get_flag(CpsrFlag::T));
+}
+
+#[test]
 pub fn test_dataproc_imm_operand() {
     let (cpu, _mem) = arm!("mov r0, #0x12000000");
     assert_eq!(cpu.registers.read(0), 0x12000000);

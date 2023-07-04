@@ -40,6 +40,20 @@ pub fn arm_bl(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     cpu.branch_arm(dest, memory)
 }
 
+/// Branch and Exchange
+///
+/// BX Rn
+pub fn arm_bx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    let destination = cpu.registers.read(instr.get_bit_range(0..=3));
+
+    if destination.get_bit(0) {
+        cpu.registers.set_flag(CpsrFlag::T);
+        cpu.branch_thumb(destination, memory)
+    } else {
+        cpu.branch_arm(destination, memory)
+    }
+}
+
 /// Data Processing Instruction
 ///
 /// MOV,MVN (single operand instructions.)  

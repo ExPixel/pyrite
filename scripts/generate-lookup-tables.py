@@ -194,6 +194,8 @@ def arm_instr_data_to_lut_entry(data):
 
     elif name == "swi":
         return "arm::arm_swi"
+    elif name == "bx":
+        return "arm::arm_bx"
 
     elif name == "blx":
         return "arm::arm_blx"

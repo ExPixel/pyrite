@@ -321,7 +321,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::TstOp, S_FLAG_SET, alu::RriOp2>,
     arm::arm_single_data_transfer::<Ldrsh, HalfwordAndSignedRegOffset, PreDecrement, NO_WRITEBACK>,
     arm::arm_msr::<alu::Cpsr, alu::LliOp2>,
-    arm::todo,
+    arm::arm_bx,
     arm::arm_undefined,
     arm::arm_blx,
     arm::arm_undefined,
