@@ -1200,6 +1200,36 @@ pub fn test_str() {
 }
 
 #[test]
+pub fn test_ldrb() {
+    let (cpu, _mem) = arm! {"
+        ldr     r1, =deadbeef
+        mov     r2, r1
+        ldrb    r0, [r1]
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
+    assert_eq!(cpu.registers.read(0), 0xEF);
+}
+
+#[test]
+pub fn test_strb() {
+    let (cpu, mem) = arm! {"
+        ldr     r2, =deadbeef
+        ldr     r0, =0xDEADBEEF
+        ldr     r1, [r2]
+        strb    r0, [r2]
+    .data
+    deadbeef:
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read(1), 0xAABBCCDD);
+    assert_eq!(mem.view32(cpu.registers.read(2)), 0xAABBCCEF);
+}
+
+#[test]
 pub fn test_ldrh() {
     let (cpu, _mem) = arm! {"
         ldr     r1, =deadbeef

@@ -356,11 +356,6 @@ pub fn arm_mul_long<const SIGNED: bool, const S: bool, const A: bool>(
     };
 
     let result = lhs.wrapping_mul(rhs).wrapping_add(acc);
-    dbg!(result as i64);
-    dbg!(rd_lo);
-    dbg!(rd_hi);
-    dbg!(result as u32);
-    dbg!((result >> 32) as u32);
 
     if S {
         multiply::set_multiply_flags(result, &mut cpu.registers);
