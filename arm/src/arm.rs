@@ -14,11 +14,6 @@ use crate::{
     AccessType, CpsrFlag, CpuException, CpuMode,
 };
 
-pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
-    let address = cpu.registers.read(15).wrapping_sub(8);
-    todo!("TODO: addr=0x{address:08X}; instr=0x{instr:08X}");
-}
-
 /// Branch
 ///
 /// B <offset>
@@ -366,6 +361,9 @@ pub fn arm_mul_long<const SIGNED: bool, const S: bool, const A: bool>(
     acc_cycles + multiply::internal_multiply_cycles(rhs as u32)
 }
 
+/// Swap registers with memory word/byte
+///
+/// `<SWP>{cond}{B} Rd,Rm,[Rn]`  
 pub fn arm_swp<const BYTE: bool>(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     let rn = instr.get_bit_range(16..=19);
     let rd = instr.get_bit_range(12..=15);
@@ -387,6 +385,9 @@ pub fn arm_swp<const BYTE: bool>(instr: u32, cpu: &mut Cpu, memory: &mut dyn Mem
     }
 }
 
+/// Software Interrupt (SWI)
+///
+/// `SWI{cond} <expression>`  
 pub fn arm_swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     cpu.exception_internal(CpuException::Swi, memory)
 }
@@ -400,17 +401,28 @@ pub fn arm_blx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     arm_undefined(instr, cpu, memory)
 }
 
-// ARM9
+/// ARM9
 pub fn arm_bkpt(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     arm_undefined(instr, cpu, memory)
 }
 
-// ARM9
+/// ARM9
 pub fn arm_clz(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     arm_undefined(instr, cpu, memory)
 }
 
-// Used for unsupported M-Extension instructions
+/// Used for unsupported M-Extension instructions
 pub fn arm_m_extension_undefined(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     arm_undefined(instr, cpu, memory)
+}
+
+/// Unimplemented coprocessor functions.
+pub fn arm_coprocessor_instr(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
+    let address = cpu.registers.read(15).wrapping_sub(8);
+    tracing::debug!(
+        address = display(format_args!("0x{:08X}", address)),
+        instruction = display(format_args!("0x{:08X}", instr)),
+        "unimplemented ARM coprocessor instruction"
+    );
+    Cycles::one()
 }

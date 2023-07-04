@@ -201,6 +201,9 @@ def arm_instr_data_to_lut_entry(data):
     elif name == "swpb":
         return "arm::arm_swp::<SWP_BYTE>"
 
+    elif name in ["stc", "ldc", "cdp", "mcr", "mrc"]:
+        return "arm::arm_coprocessor_instr"
+
     elif name == "blx":
         return "arm::arm_blx"
     elif name == "bkpt":
