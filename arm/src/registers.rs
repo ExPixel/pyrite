@@ -236,7 +236,10 @@ impl Registers {
         let old_mode = self.read_mode();
 
         let new_mode = CpuMode::from_bits_checked(mode_bits).unwrap_or_else(|_| {
-            eprintln!("wrote invalid CPU mode 0b{:05b}", mode_bits);
+            tracing::warn!(
+                mode = display(format_args!("0b{mode_bits:05b}")),
+                "wrote invalid CPU mode"
+            );
             CpuMode::Invalid
         });
         self.on_mode_switch(old_mode, new_mode);
@@ -274,7 +277,10 @@ impl Registers {
         if old_mode_bits != new_mode_bits {
             let old_mode = CpuMode::from_bits(old_mode_bits);
             let new_mode = CpuMode::from_bits_checked(new_mode_bits).unwrap_or_else(|_| {
-                eprintln!("wrote invalid CPU mode 0b{:05b}", new_mode_bits);
+                tracing::warn!(
+                    mode = display(format_args!("0b{new_mode_bits:05b}")),
+                    "wrote invalid CPU mode"
+                );
                 CpuMode::Invalid
             });
             self.on_mode_switch(old_mode, new_mode);
