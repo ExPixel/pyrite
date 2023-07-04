@@ -366,6 +366,27 @@ pub fn arm_mul_long<const SIGNED: bool, const S: bool, const A: bool>(
     acc_cycles + multiply::internal_multiply_cycles(rhs as u32)
 }
 
+pub fn arm_swp<const BYTE: bool>(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    let rn = instr.get_bit_range(16..=19);
+    let rd = instr.get_bit_range(12..=15);
+    let rm = instr.get_bit_range(0..=3);
+
+    let address = cpu.registers.read(rn);
+    let source = cpu.registers.read(rm);
+
+    if BYTE {
+        let (temp, wait_load) = memory.load8(address, AccessType::NonSequential);
+        cpu.registers.write(rd, temp as u32);
+        let wait_store = memory.store8(address, source as u8, AccessType::NonSequential);
+        Cycles::one() + wait_load + wait_store
+    } else {
+        let (temp, wait_load) = memory.load32(address, AccessType::NonSequential);
+        cpu.registers.write(rd, temp);
+        let wait_store = memory.store32(address, source, AccessType::NonSequential);
+        Cycles::one() + wait_load + wait_store
+    }
+}
+
 pub fn arm_swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     cpu.exception_internal(CpuException::Swi, memory)
 }

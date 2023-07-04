@@ -30,3 +30,5 @@ const UNSIGNED: bool = false;
 const WRITEBACK: bool = true;
 const NO_WRITEBACK: bool = false;
 const FORCE_USER_MODE: bool = false;
+const SWP_WORD: bool = false;
+const SWP_BYTE: bool = true;

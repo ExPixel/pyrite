@@ -196,6 +196,10 @@ def arm_instr_data_to_lut_entry(data):
         return "arm::arm_swi"
     elif name == "bx":
         return "arm::arm_bx"
+    elif name == "swp":
+        return "arm::arm_swp::<SWP_WORD>"
+    elif name == "swpb":
+        return "arm::arm_swp::<SWP_BYTE>"
 
     elif name == "blx":
         return "arm::arm_blx"

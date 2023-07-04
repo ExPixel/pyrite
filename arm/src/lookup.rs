@@ -30,6 +30,8 @@ const UNSIGNED: bool = false;
 const WRITEBACK: bool = true;
 const NO_WRITEBACK: bool = false;
 const FORCE_USER_MODE: bool = false;
+const SWP_WORD: bool = false;
+const SWP_BYTE: bool = true;
 
 pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::AndOp, S_FLAG_CLR, alu::LliOp2>,
@@ -297,7 +299,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_undefined,
     arm::arm_undefined,
     arm::arm_m_extension_undefined,
-    arm::todo,
+    arm::arm_swp::<SWP_WORD>,
     arm::arm_m_extension_undefined,
     arm::arm_single_data_transfer::<Strh, HalfwordAndSignedRegOffset, PreDecrement, NO_WRITEBACK>,
     arm::arm_m_extension_undefined,
@@ -361,7 +363,7 @@ pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_undefined,
     arm::arm_undefined,
     arm::arm_m_extension_undefined,
-    arm::todo,
+    arm::arm_swp::<SWP_BYTE>,
     arm::arm_m_extension_undefined,
     arm::arm_single_data_transfer::<Strh, HalfwordAndSignedImmOffset, PreDecrement, NO_WRITEBACK>,
     arm::arm_m_extension_undefined,

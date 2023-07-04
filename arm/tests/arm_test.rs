@@ -1702,3 +1702,33 @@ pub fn test_ldm_load_spsr() {
     assert_eq!(cpu.registers.read_cpsr(), 0x60000010);
     assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
 }
+
+#[test]
+pub fn test_swp() {
+    let (cpu, mem) = arm! {"
+        ldr r1, =0xDEADBEEF
+        ldr r2, =data
+        swp r0, r1, [r2]
+    .data
+    data:
+        .word 0xAABBCCDD
+    "};
+
+    assert_eq!(cpu.registers.read(0), 0xAABBCCDD);
+    assert_eq!(mem.view32(cpu.registers.read(2)), 0xDEADBEEF);
+}
+
+#[test]
+pub fn test_swpb() {
+    let (cpu, mem) = arm! {"
+        ldr     r1, =0xDEADBEEF
+        ldr     r2, =data
+        swpb    r0, r1, [r2]
+    .data
+    data:
+        .word 0xAABBCCDD
+    "};
+
+    assert_eq!(cpu.registers.read(0), 0xDD);
+    assert_eq!(mem.view32(cpu.registers.read(2)), 0xAABBCCEF);
+}
