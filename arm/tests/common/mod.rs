@@ -51,6 +51,12 @@ pub fn execute_arm(source: &str) -> (Cpu, TestMemory) {
     (exec.cpu, exec.mem)
 }
 
+pub fn execute_thumb(source: &str) -> (Cpu, TestMemory) {
+    let mut exec = Executor::new(InstructionSet::Thumb);
+    exec.push(source);
+    (exec.cpu, exec.mem)
+}
+
 pub struct Executor {
     pub cpu: Cpu,
     pub mem: TestMemory,
@@ -93,6 +99,13 @@ impl Executor {
     fn execute(&mut self) {
         let mut source = String::new();
         source.push_str(".text\n");
+
+        if self.base_isa == InstructionSet::Thumb {
+            source.push_str(".thumb\n");
+        } else {
+            source.push_str(".arm\n");
+        }
+
         source.push_str(".global _start\n");
         source.push_str("_start:\n");
         source.push_str(&self.source);
@@ -145,8 +158,16 @@ impl Executor {
     }
 }
 
+#[macro_export]
 macro_rules! arm {
     ($source:expr) => {
         $crate::common::execute_arm(&format!($source))
+    };
+}
+
+#[macro_export]
+macro_rules! thumb {
+    ($source:expr) => {
+        $crate::common::execute_thumb(&format!($source))
     };
 }
