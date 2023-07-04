@@ -10,8 +10,8 @@ use crate::{
     clock::Cycles,
     cpu::Cpu,
     memory::Memory,
-    transfer::{SDTCalculateOffset, SDTIndexingMode, SingleDataTransfer},
-    CpuException,
+    transfer::{BlockDataTransfer, IndexingMode, SDTCalculateOffset, SingleDataTransfer},
+    AccessType, CpsrFlag, CpuException, CpuMode,
 };
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
@@ -105,14 +105,14 @@ pub fn arm_single_data_transfer<T, O, I, const WRITEBACK: bool>(
 where
     T: SingleDataTransfer,
     O: SDTCalculateOffset,
-    I: SDTIndexingMode,
+    I: IndexingMode,
 {
     let rd = instr.get_bit_range(12..=15);
     let rn = instr.get_bit_range(16..=19);
 
     let offset = O::calculate_offset(instr, &mut cpu.registers);
     let mut address = cpu.registers.read(rn);
-    address = I::calculate_transfer_address(address, offset);
+    address = I::calculate_single_data_transfer_address(address, offset);
     let mut cycles = T::transfer(rd, address, &mut cpu.registers, memory);
 
     if WRITEBACK {
@@ -123,13 +123,113 @@ where
         // From ARM Documentation:
         //      Write-back must not be specified if R15 is specified as the base register (Rn).
         //      When using R15 as the base register.
-        address = I::calculate_writeback_address(address, offset);
+        address = I::calculate_single_data_transfer_writeback_address(address, offset);
         cpu.registers.write(rn, address);
     }
 
     if T::IS_LOAD && (rd == 15 || (WRITEBACK && rn == 15)) {
         let destination = cpu.registers.read(15);
         cycles += cpu.branch_arm(destination, memory);
+    }
+
+    if !T::IS_LOAD {
+        cpu.next_fetch_access_type = AccessType::NonSequential;
+    }
+
+    cycles
+}
+
+/// Block Data Transfer (LDM, STM)
+///
+/// `<LDM|STM>{cond}<FD|ED|FA|EA|IA|IB|DA|DB> Rn{!},<Rlist>{^}`  
+pub fn arm_block_data_transfer<T, I, const WRITEBACK: bool, const S: bool>(
+    instr: u32,
+    cpu: &mut Cpu,
+    memory: &mut dyn Memory,
+) -> Cycles
+where
+    T: BlockDataTransfer,
+    I: IndexingMode,
+{
+    let register_list = instr.get_bit_range(0..=15);
+    let rn = instr.get_bit_range(16..=19);
+    let base_address = cpu.registers.read(rn);
+    let register_count = register_list.count_ones();
+
+    let mut address = I::block_transfer_lowest_address(base_address, register_count);
+    address = address.wrapping_sub(4); // we start with an add every loop iteration
+
+    // If the S-bit is set for an LDM instruction which doesn't include R15 in the transfer
+    // list or an STM instruction, then the registers transferred are taken from the user
+    // bank.
+    let force_user_mode = S && (!T::IS_LOAD || !register_list.get_bit(15));
+    let starting_mode = cpu.registers.read_mode();
+    if force_user_mode {
+        cpu.registers.write_mode(CpuMode::User);
+    }
+
+    let mut cycles = Cycles::zero();
+    let mut access_type = AccessType::NonSequential;
+
+    for register in 0..16 {
+        if !register_list.get_bit(register) {
+            continue;
+        }
+        address = address.wrapping_add(4);
+        cycles += T::transfer(register, address, access_type, &mut cpu.registers, memory);
+
+        if access_type == AccessType::NonSequential {
+            access_type = AccessType::Sequential;
+
+            // From ARM Documentation:
+            //     When write-back is specified, the base is written back at the end of the second cycle
+            //     of the instruction. During a STM, the first register is written out at the start of the
+            //     second cycle. A STM which includes storing the base, with the base as the first register
+            //     to be stored, will therefore store the unchanged value, whereas with the base second
+            //     or later in the transfer order, will store the modified value. A LDM will always overwrite
+            //     the updated base if the base is in the list.
+            //
+            // From Other ARM Documentation For LDM:
+            //     During the third cycle, the first word is moved to the appropriate destination register
+            //     while the second word is fetched from memory, and the modified base is latched
+            //     internally in case it is needed to restore processor state after an abort.
+            if WRITEBACK && !T::IS_LOAD {
+                let writeback_address =
+                    I::calculate_block_transfer_writeback_address(base_address, register_count);
+                cpu.registers.write(rn, writeback_address);
+            }
+        }
+    }
+
+    // if the S-bit is set in an LDM instruction and R15 is in the transfer list
+    // then SPSR_<mode> is transferred to CPSR at the same time as R15 is loaded (the end
+    // of the transfer).
+    let load_spsr = S && T::IS_LOAD && register_list.get_bit(15);
+    if load_spsr {
+        cpu.registers.write_cpsr(cpu.registers.read_spsr());
+    }
+
+    if WRITEBACK && T::IS_LOAD {
+        let writeback_address =
+            I::calculate_block_transfer_writeback_address(base_address, register_count);
+        cpu.registers.write(rn, writeback_address);
+    }
+
+    if force_user_mode {
+        cpu.registers.write_mode(starting_mode);
+    }
+
+    if T::IS_LOAD && register_list.get_bit(15) {
+        let destination = cpu.registers.read(15);
+        if load_spsr && cpu.registers.get_flag(CpsrFlag::T) {
+            cycles += cpu.branch_thumb(destination, memory);
+        } else {
+            cycles += cpu.branch_arm(destination, memory);
+        }
+    }
+
+    if !T::IS_LOAD {
+        cpu.next_fetch_access_type = AccessType::NonSequential;
     }
 
     cycles

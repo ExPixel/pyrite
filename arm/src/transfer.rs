@@ -25,6 +25,9 @@ pub struct PostDecrement;
 pub struct HalfwordAndSignedImmOffset;
 pub struct HalfwordAndSignedRegOffset;
 
+pub struct Ldm;
+pub struct Stm;
+
 impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     const IS_LOAD: bool = true;
 
@@ -215,6 +218,7 @@ impl SDTCalculateOffset for RriOp2 {
 }
 
 impl SDTCalculateOffset for HalfwordAndSignedImmOffset {
+    #[inline(always)]
     fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
         let lo = instr.get_bit_range(0..=3);
         let hi = instr.get_bit_range(8..=11);
@@ -223,37 +227,76 @@ impl SDTCalculateOffset for HalfwordAndSignedImmOffset {
 }
 
 impl SDTCalculateOffset for HalfwordAndSignedRegOffset {
+    #[inline(always)]
     fn calculate_offset(instr: u32, registers: &mut Registers) -> u32 {
         let rm = instr.get_bit_range(0..=3);
         registers.read(rm)
     }
 }
 
-impl SDTIndexingMode for PreIncrement {
+impl IndexingMode for PreIncrement {
     #[inline(always)]
-    fn calculate_transfer_address(address: u32, offset: u32) -> u32 {
+    fn calculate_single_data_transfer_address(address: u32, offset: u32) -> u32 {
         address.wrapping_add(offset)
     }
-}
 
-impl SDTIndexingMode for PreDecrement {
     #[inline(always)]
-    fn calculate_transfer_address(address: u32, offset: u32) -> u32 {
-        address.wrapping_sub(offset)
+    fn block_transfer_lowest_address(base_address: u32, _register_count: u32) -> u32 {
+        base_address.wrapping_add(4)
+    }
+
+    fn calculate_block_transfer_writeback_address(base_address: u32, register_count: u32) -> u32 {
+        base_address.wrapping_add(register_count * 4)
     }
 }
 
-impl SDTIndexingMode for PostIncrement {
+impl IndexingMode for PreDecrement {
     #[inline(always)]
-    fn calculate_writeback_address(address: u32, offset: u32) -> u32 {
+    fn calculate_single_data_transfer_address(address: u32, offset: u32) -> u32 {
+        address.wrapping_sub(offset)
+    }
+
+    #[inline(always)]
+    fn block_transfer_lowest_address(base_address: u32, register_count: u32) -> u32 {
+        base_address.wrapping_sub(register_count * 4)
+    }
+
+    fn calculate_block_transfer_writeback_address(base_address: u32, register_count: u32) -> u32 {
+        base_address.wrapping_sub(register_count * 4)
+    }
+}
+
+impl IndexingMode for PostIncrement {
+    #[inline(always)]
+    fn calculate_single_data_transfer_writeback_address(address: u32, offset: u32) -> u32 {
         address.wrapping_add(offset)
     }
+
+    #[inline(always)]
+    fn block_transfer_lowest_address(base_address: u32, _register_count: u32) -> u32 {
+        base_address
+    }
+
+    fn calculate_block_transfer_writeback_address(base_address: u32, register_count: u32) -> u32 {
+        base_address.wrapping_add(register_count * 4)
+    }
 }
 
-impl SDTIndexingMode for PostDecrement {
+impl IndexingMode for PostDecrement {
     #[inline(always)]
-    fn calculate_writeback_address(address: u32, offset: u32) -> u32 {
+    fn calculate_single_data_transfer_writeback_address(address: u32, offset: u32) -> u32 {
         address.wrapping_sub(offset)
+    }
+
+    #[inline(always)]
+    fn block_transfer_lowest_address(base_address: u32, register_count: u32) -> u32 {
+        base_address
+            .wrapping_sub(register_count * 4)
+            .wrapping_add(4)
+    }
+
+    fn calculate_block_transfer_writeback_address(base_address: u32, register_count: u32) -> u32 {
+        base_address.wrapping_sub(register_count * 4)
     }
 }
 
@@ -261,17 +304,60 @@ pub trait SDTCalculateOffset {
     fn calculate_offset(instr: u32, registers: &mut Registers) -> u32;
 }
 
-pub trait SDTIndexingMode {
+pub trait IndexingMode {
     /// Address that is used for the transfer (pre-index)
     #[inline(always)]
-    fn calculate_transfer_address(address: u32, _offset: u32) -> u32 {
+    fn calculate_single_data_transfer_address(address: u32, _offset: u32) -> u32 {
         address
     }
 
     /// Address that is used for writeback (post-index)
     #[inline(always)]
-    fn calculate_writeback_address(address: u32, _offset: u32) -> u32 {
+    fn calculate_single_data_transfer_writeback_address(address: u32, _offset: u32) -> u32 {
         address
+    }
+
+    /// Calculates the lowest address of a block data transfer.
+    fn block_transfer_lowest_address(base_address: u32, register_count: u32) -> u32;
+
+    fn calculate_block_transfer_writeback_address(base_address: u32, register_count: u32) -> u32;
+}
+
+impl BlockDataTransfer for Ldm {
+    const IS_LOAD: bool = true;
+
+    #[inline]
+    fn transfer(
+        destination_register: u32,
+        source_address: u32,
+        access_type: AccessType,
+        registers: &mut Registers,
+        memory: &mut dyn Memory,
+    ) -> Cycles {
+        let (value, wait) = memory.load32(source_address, access_type);
+        registers.write(destination_register, value);
+        Cycles::one() + wait
+    }
+}
+
+impl BlockDataTransfer for Stm {
+    const IS_LOAD: bool = false;
+
+    #[inline]
+    fn transfer(
+        source_register: u32,
+        destination_address: u32,
+        access_type: AccessType,
+        registers: &mut Registers,
+        memory: &mut dyn Memory,
+    ) -> Cycles {
+        let mut value = registers.read(source_register);
+        // When r15 is stored as part of an STM instruction it will 12 bytes ahead instead of 8.
+        if source_register == 15 {
+            value = value.wrapping_add(4);
+        }
+        let wait = memory.store32(destination_address, value, access_type);
+        Cycles::one() + wait
     }
 }
 
@@ -281,22 +367,14 @@ pub trait SingleDataTransfer {
     fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles;
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum BlockDataTransferType {
-    IncrementBefore,
-    DecrementBefore,
-    IncrementAfter,
-    DecrementAfter,
-}
+pub trait BlockDataTransfer {
+    const IS_LOAD: bool;
 
-impl BlockDataTransferType {
-    #[inline]
-    pub fn offsets(self) -> (u32, u32) {
-        match self {
-            BlockDataTransferType::IncrementBefore => (4, 0),
-            BlockDataTransferType::DecrementBefore => (-4i32 as u32, 0),
-            BlockDataTransferType::IncrementAfter => (0, 4),
-            BlockDataTransferType::DecrementAfter => (0, -4i32 as u32),
-        }
-    }
+    fn transfer(
+        register: u32,
+        address: u32,
+        access_type: AccessType,
+        registers: &mut Registers,
+        memory: &mut dyn Memory,
+    ) -> Cycles;
 }

@@ -69,25 +69,25 @@ def arm_instr_data_to_lut_entry(data):
             op_name = op_name[0:tindex] + op_name[(tindex + 1) :]
             op_name = f"{op_name}<FORCE_USER_MODE>"
 
-        writeback = "false"
+        writeback = "NO_WRITEBACK"
 
         if "post-increment" in subdesc:
             indexing = "PostIncrement"
-            writeback = "true"
+            writeback = "WRITEBACK"
 
         elif "pre-increment" in subdesc:
             indexing = "PreIncrement"
-            writeback = "true"
+            writeback = "WRITEBACK"
         elif "positive" in subdesc:
             indexing = "PreIncrement"
 
         elif "post-decrement" in subdesc:
             indexing = "PostDecrement"
-            writeback = "true"
+            writeback = "WRITEBACK"
 
         elif "pre-decrement" in subdesc:
             indexing = "PreDecrement"
-            writeback = "true"
+            writeback = "WRITEBACK"
         elif "negative" in subdesc:
             indexing = "PreDecrement"
         else:
@@ -122,6 +122,34 @@ def arm_instr_data_to_lut_entry(data):
             pass
 
         return f"arm::arm_single_data_transfer::<{op_name}, {offset}, {indexing}, {writeback}>"
+
+    elif name.startswith("ldm") or name.startswith("stm"):
+        op_name = "Ldm" if name.startswith("l") else "Stm"
+
+        if "u" in subname:
+            s_flag = "S_FLAG_SET"
+        else:
+            s_flag = "S_FLAG_CLR"
+
+        if "w" in subname:
+            writeback = "WRITEBACK"
+        else:
+            writeback = "NO_WRITEBACK"
+
+        if name.endswith("da"):
+            indexing = "PostDecrement"
+        elif name.endswith("ia"):
+            indexing = "PostIncrement"
+        elif name.endswith("db"):
+            indexing = "PreDecrement"
+        elif name.endswith("ib"):
+            indexing = "PreIncrement"
+        else:
+            indexing = ""
+            print("indexing not found: " + subname)
+            return "ERROR"
+
+        return f"arm::arm_block_data_transfer::<{op_name}, {indexing}, {writeback}, {s_flag}>"
 
     elif name == "mrs":
         if subname == "rc":

@@ -15,4 +15,3 @@ pub use cpu::{Cpu, InstructionSet};
 pub use exception::{CpuException, ExceptionHandler};
 pub use memory::{AccessType, Memory};
 pub use registers::{CpsrFlag, CpuMode, Registers};
-pub use transfer::BlockDataTransferType;

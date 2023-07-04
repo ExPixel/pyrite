@@ -17,6 +17,7 @@ const THUMB_NOOP_OPCODE: u16 = 0x46c0;
 pub struct Cpu {
     pub registers: Registers,
     fetched: u32,
+    pub(crate) next_fetch_access_type: AccessType,
     decoded: u32,
     exception_handler: Option<ExceptionHandler>,
 }
@@ -45,6 +46,7 @@ impl Cpu {
         Cpu {
             registers,
             exception_handler: None,
+            next_fetch_access_type: AccessType::NonSequential,
             fetched: noop_opcode,
             decoded: noop_opcode,
         }
@@ -73,21 +75,23 @@ impl Cpu {
     }
 
     /// Returns the number of cycles required to step the CPU in the ARM state.
-    #[inline]
+    #[inline(never)]
     fn step_arm(&mut self, memory: &mut dyn Memory) -> Cycles {
         let opcode = self.decoded;
-        let exec_fn = lookup::decode_arm_opcode(opcode);
         self.decoded = self.fetched;
 
         let mut cycles = Cycles::zero();
         let fetch_pc = (self.registers.read(15) & !0x3).wrapping_add(4);
         self.registers.write(15, fetch_pc);
 
-        let (fetched, wait) = memory.load32(fetch_pc, AccessType::Sequential);
+        let fetch_access_type =
+            std::mem::replace(&mut self.next_fetch_access_type, AccessType::Sequential);
+        let (fetched, wait) = memory.load32(fetch_pc, fetch_access_type);
         self.fetched = fetched;
         cycles += Cycles::one() + wait;
 
         if check_condition(opcode >> 28, &self.registers) {
+            let exec_fn = lookup::decode_arm_opcode(opcode);
             cycles + exec_fn(opcode, self, memory)
         } else {
             cycles
@@ -105,7 +109,7 @@ impl Cpu {
         let fetch_pc = (self.registers.read(15) & !0x1).wrapping_add(2);
         self.registers.write(15, fetch_pc);
 
-        let (fetched, wait) = memory.load16(fetch_pc, AccessType::Sequential);
+        let (fetched, wait) = memory.load16(fetch_pc, self.next_fetch_access_type);
         self.fetched = fetched as u32;
         cycles += Cycles::one() + wait;
 

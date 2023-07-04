@@ -2,8 +2,8 @@
 use super::cpu::InstrFn;
 use super::{alu, arm, thumb};
 use crate::transfer::{
-    HalfwordAndSignedImmOffset, HalfwordAndSignedRegOffset, Ldr, Ldrb, Ldrh, Ldrsb, Ldrsh,
-    PostDecrement, PostIncrement, PreDecrement, PreIncrement, SDTImmOffset, Str, Strb, Strh,
+    HalfwordAndSignedImmOffset, HalfwordAndSignedRegOffset, Ldm, Ldr, Ldrb, Ldrh, Ldrsb, Ldrsh,
+    PostDecrement, PostIncrement, PreDecrement, PreIncrement, SDTImmOffset, Stm, Str, Strb, Strh,
 };
 use util::bits::BitOps as _;
 
@@ -21,10 +21,12 @@ pub fn decode_thumb_opcode(opcode: u32) -> InstrFn {
     THUMB_OPCODE_TABLE[opcode_idx as usize]
 }
 
-pub const S_FLAG_SET: bool = true;
-pub const S_FLAG_CLR: bool = false;
-pub const A_FLAG_SET: bool = true;
-pub const A_FLAG_CLR: bool = false;
-pub const SIGNED: bool = true;
-pub const UNSIGNED: bool = false;
-pub const FORCE_USER_MODE: bool = false;
+const S_FLAG_SET: bool = true;
+const S_FLAG_CLR: bool = false;
+const A_FLAG_SET: bool = true;
+const A_FLAG_CLR: bool = false;
+const SIGNED: bool = true;
+const UNSIGNED: bool = false;
+const WRITEBACK: bool = true;
+const NO_WRITEBACK: bool = false;
+const FORCE_USER_MODE: bool = false;

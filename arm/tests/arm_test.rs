@@ -4,6 +4,8 @@ use proptest::prelude::*;
 #[macro_use]
 pub mod common;
 
+use common::proptest_util::operand;
+
 #[test]
 pub fn test_b() {
     let (cpu, _mem) = arm! {"
@@ -1289,6 +1291,24 @@ pub fn test_swi() {
     "};
 
     assert_eq!(cpu.registers.read(1), 14);
+    assert_eq!(cpu.registers.read_mode(), CpuMode::System);
+}
+
+#[test]
+pub fn test_swi_check_mode() {
+    let (cpu, _mem) = arm! {"
+        b   main        @ Reset
+        b   _exit       @ Undefined
+        b   swi_handler @ SWI
+
+    main:
+        ldr r1, =12
+        swi 0
+    swi_handler:
+        b   _exit
+    "};
+
+    assert_eq!(cpu.registers.read_mode(), CpuMode::Supervisor);
 }
 
 #[test]
@@ -1350,10 +1370,277 @@ pub fn test_mrs_move_status_word_to_register() {
     assert_eq!(cpu.registers.read(0), 0x60000000 | (CpuMode::System as u32));
 }
 
-fn operand() -> impl Strategy<Value = u32> {
-    const VALUES: &[u32] = &[
-        0, 1, 2, 0x00BEEF00, 0x7FFFFFFF, 0xFFFFFFFC, 0xFFFFFFFE, 0xFFFFFFFF,
+#[test]
+pub fn test_ldmia() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =data
+        ldr     r5, =end_of_data
+        ldmia   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00112233
+        .word 0x44556677
+        .word 0x8899AABB
+        .word 0xCCDDEEFF
+    end_of_data:
+        .word 0xDEADBEEF
+    "};
+
+    assert_eq!(cpu.registers.read(1), 0x00112233);
+    assert_eq!(cpu.registers.read(2), 0x44556677);
+    assert_eq!(cpu.registers.read(3), 0x8899AABB);
+    assert_eq!(cpu.registers.read(4), 0xCCDDEEFF);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_ldmib() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =data
+        ldr     r1, =0x00112233
+        ldr     r2, =0x44556677
+        ldr     r3, =0x8899AABB
+        ldr     r4, =0xCCDDEEFF
+        ldr     r5, =end_of_data
+        ldr     r6, =data
+        ldmib   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00112233
+        .word 0x44556677
+        .word 0x8899AABB
+        .word 0xCCDDEEFF
+    end_of_data:
+        .word 0xDEADBEEF
+    "};
+
+    assert_eq!(cpu.registers.read(1), 0x44556677);
+    assert_eq!(cpu.registers.read(2), 0x8899AABB);
+    assert_eq!(cpu.registers.read(3), 0xCCDDEEFF);
+    assert_eq!(cpu.registers.read(4), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_ldmda() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =end_of_data
+        ldr     r5, =data
+        ldmda   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00112233
+        .word 0x44556677
+        .word 0x8899AABB
+        .word 0xCCDDEEFF
+    end_of_data:
+        .word 0xDEADBEEF
+    "};
+
+    assert_eq!(cpu.registers.read(1), 0x44556677);
+    assert_eq!(cpu.registers.read(2), 0x8899AABB);
+    assert_eq!(cpu.registers.read(3), 0xCCDDEEFF);
+    assert_eq!(cpu.registers.read(4), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_ldmdb() {
+    let (cpu, _mem) = arm! {"
+        ldr     r0, =end_of_data
+        ldr     r5, =data
+        ldmdb   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00112233
+        .word 0x44556677
+        .word 0x8899AABB
+        .word 0xCCDDEEFF
+    end_of_data:
+        .word 0xDEADBEEF
+    "};
+
+    assert_eq!(cpu.registers.read(1), 0x00112233);
+    assert_eq!(cpu.registers.read(2), 0x44556677);
+    assert_eq!(cpu.registers.read(3), 0x8899AABB);
+    assert_eq!(cpu.registers.read(4), 0xCCDDEEFF);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_stmia() {
+    let (cpu, mem) = arm! {"
+        ldr     r0, =data
+        ldr     r1, =0x00112233
+        ldr     r2, =0x44556677
+        ldr     r3, =0x8899AABB
+        ldr     r4, =0xCCDDEEFF
+        ldr     r5, =end_of_data
+        stmia   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+    end_of_data:
+        .word 0x00000000
+    "};
+
+    let expected_data = [
+        mem.view32(cpu.registers.read(5).wrapping_sub(16)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(12)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(8)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(4)),
     ];
 
-    proptest::sample::select(VALUES)
+    assert_eq!(cpu.registers.read(1), expected_data[0]);
+    assert_eq!(cpu.registers.read(2), expected_data[1]);
+    assert_eq!(cpu.registers.read(3), expected_data[2]);
+    assert_eq!(cpu.registers.read(4), expected_data[3]);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_stmib() {
+    let (cpu, mem) = arm! {"
+        ldr     r0, =data
+        ldr     r1, =0x00112233
+        ldr     r2, =0x44556677
+        ldr     r3, =0x8899AABB
+        ldr     r4, =0xCCDDEEFF
+        ldr     r5, =end_of_data
+        stmib   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+    end_of_data:
+        .word 0x00000000
+    "};
+
+    let expected_data = [
+        mem.view32(cpu.registers.read(5).wrapping_sub(12)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(8)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(4)),
+        mem.view32(cpu.registers.read(5)),
+    ];
+
+    assert_eq!(cpu.registers.read(1), expected_data[0]);
+    assert_eq!(cpu.registers.read(2), expected_data[1]);
+    assert_eq!(cpu.registers.read(3), expected_data[2]);
+    assert_eq!(cpu.registers.read(4), expected_data[3]);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_stmda() {
+    let (cpu, mem) = arm! {"
+        ldr     r0, =end_of_data
+        ldr     r1, =0x00112233
+        ldr     r2, =0x44556677
+        ldr     r3, =0x8899AABB
+        ldr     r4, =0xCCDDEEFF
+        ldr     r5, =data
+        stmda   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+    end_of_data:
+        .word 0x00000000
+    "};
+
+    let expected_data = [
+        mem.view32(cpu.registers.read(5).wrapping_add(4)),
+        mem.view32(cpu.registers.read(5).wrapping_add(8)),
+        mem.view32(cpu.registers.read(5).wrapping_add(12)),
+        mem.view32(cpu.registers.read(5).wrapping_add(16)),
+    ];
+
+    assert_eq!(cpu.registers.read(1), expected_data[0]);
+    assert_eq!(cpu.registers.read(2), expected_data[1]);
+    assert_eq!(cpu.registers.read(3), expected_data[2]);
+    assert_eq!(cpu.registers.read(4), expected_data[3]);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_stmdb() {
+    let (cpu, mem) = arm! {"
+        ldr     r0, =end_of_data
+        ldr     r1, =0x00112233
+        ldr     r2, =0x44556677
+        ldr     r3, =0x8899AABB
+        ldr     r4, =0xCCDDEEFF
+        ldr     r5, =data
+        stmdb   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+    end_of_data:
+        .word 0x00000000
+    "};
+
+    let expected_data = [
+        mem.view32(cpu.registers.read(5)),
+        mem.view32(cpu.registers.read(5).wrapping_add(4)),
+        mem.view32(cpu.registers.read(5).wrapping_add(8)),
+        mem.view32(cpu.registers.read(5).wrapping_add(12)),
+    ];
+
+    assert_eq!(cpu.registers.read(1), expected_data[0]);
+    assert_eq!(cpu.registers.read(2), expected_data[1]);
+    assert_eq!(cpu.registers.read(3), expected_data[2]);
+    assert_eq!(cpu.registers.read(4), expected_data[3]);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_ldm_load_spsr() {
+    let (cpu, _mem) = arm! {"
+        b   main        @ Reset
+        b   _exit       @ Undefined
+        b   swi_handler @ SWI
+
+    main:
+        ldr     r0, =jump_to_exit
+        swi     0
+    jump_to_exit:
+        ldr     r9, =0xDEADBEEF
+        b       _exit
+
+    swi_handler:                    @ use SWI handler here to have to mode with banks
+        ldr     r0, =0x60000010
+        msr     spsr_all, r0        @ Load some value into SPSR
+        mrs     r6, cpsr_all        @ Remember CPSR
+
+        ldr     r0, =data
+        ldr     r5, =end_of_data
+        ldmia   r0!, {{r1-r4, r15}}^ @ Load SPSR and goto jump_to_exit
+        b       _exit
+    .data
+    data:
+        .word 0x00112233
+        .word 0x44556677
+        .word 0x8899AABB
+        .word 0xCCDDEEFF
+        .word jump_to_exit
+    end_of_data:
+    "};
+
+    assert_eq!(cpu.registers.read(1), 0x00112233);
+    assert_eq!(cpu.registers.read(2), 0x44556677);
+    assert_eq!(cpu.registers.read(3), 0x8899AABB);
+    assert_eq!(cpu.registers.read(4), 0xCCDDEEFF);
+    assert_eq!(cpu.registers.read(9), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read_cpsr(), 0x60000010);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
 }
