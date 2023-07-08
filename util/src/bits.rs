@@ -16,7 +16,7 @@ pub trait BitOps:
 
     const ONE: Self;
     const ZERO: Self;
-    const MAX: Self;
+    const ALL_BITS_SET: Self;
     const BITS: u32;
 
     #[inline(always)]
@@ -50,7 +50,7 @@ pub trait BitOps:
         if size < Self::BITS {
             (Self::ONE << size) - Self::ONE
         } else {
-            Self::MAX
+            Self::ALL_BITS_SET
         }
     }
 
@@ -110,7 +110,7 @@ impl BitOps for u8 {
 
     const ONE: Self = 1;
     const ZERO: Self = 0;
-    const MAX: Self = u8::MAX;
+    const ALL_BITS_SET: Self = u8::MAX;
     const BITS: u32 = 8;
 
     #[inline]
@@ -125,7 +125,7 @@ impl BitOps for u16 {
 
     const ONE: Self = 1;
     const ZERO: Self = 0;
-    const MAX: Self = u16::MAX;
+    const ALL_BITS_SET: Self = u16::MAX;
     const BITS: u32 = 16;
 
     #[inline]
@@ -140,7 +140,22 @@ impl BitOps for u32 {
 
     const ONE: Self = 1;
     const ZERO: Self = 0;
-    const MAX: Self = u32::MAX;
+    const ALL_BITS_SET: Self = u32::MAX;
+    const BITS: u32 = 32;
+
+    #[inline]
+    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
+        let shift = Self::BITS - signed_size.into_bit_index();
+        (((self << shift) as Self::Signed) >> shift) as Self
+    }
+}
+
+impl BitOps for i32 {
+    type Signed = i32;
+
+    const ONE: Self = 1;
+    const ZERO: Self = 0;
+    const ALL_BITS_SET: Self = u32::MAX as i32;
     const BITS: u32 = 32;
 
     #[inline]
@@ -155,7 +170,7 @@ impl BitOps for u64 {
 
     const ONE: Self = 1;
     const ZERO: Self = 0;
-    const MAX: Self = u64::MAX;
+    const ALL_BITS_SET: Self = u64::MAX;
     const BITS: u32 = 64;
 
     #[inline]
@@ -170,28 +185,13 @@ impl BitOps for u128 {
 
     const ONE: Self = 1;
     const ZERO: Self = 0;
-    const MAX: Self = u128::MAX;
+    const ALL_BITS_SET: Self = u128::MAX;
     const BITS: u32 = 128;
 
     #[inline]
     fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
         let shift = Self::BITS - signed_size.into_bit_index();
         (((self << shift) as Self::Signed) >> shift) as Self
-    }
-}
-
-impl BitOps for i128 {
-    type Signed = i128;
-
-    const ONE: Self = 1;
-    const ZERO: Self = 0;
-    const MAX: Self = i128::MAX;
-    const BITS: u32 = 128;
-
-    #[inline]
-    fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self {
-        let shift = signed_size.into_bit_index();
-        (((self << (Self::BITS - shift)) as Self::Signed) >> shift) as Self
     }
 }
 

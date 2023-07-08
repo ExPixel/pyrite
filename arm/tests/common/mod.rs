@@ -3,7 +3,10 @@ use arm::{AccessType, CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates
 use self::asm::assemble;
 
 pub mod asm;
-pub mod proptest_util;
+pub mod operands;
+
+#[macro_use]
+mod test_combinations;
 
 #[derive(Default)]
 pub struct TestMemory {
