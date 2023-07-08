@@ -216,12 +216,24 @@ def arm_instr_data_to_lut_entry(data):
     elif _class == "edsp":
         return "arm::arm_m_extension_undefined"
 
-    print(f"unknown instruction {name}/{subname} -- {desc} -- {subdesc}")
+    print(f"unknown ARM instruction {name}/{subname} -- {desc} -- {subdesc}")
     return "arm::todo"
 
 
 def thumb_instr_data_to_lut_entry(data):
     name = data["name"].lower()
+    desc = data["desc"].lower() if "desc" in data else ""
+    subname = data["subname"].lower() if "subname" in data else ""
+    subdesc = data["subdesc"].lower() if "subdesc" in data else ""
+    _class = data["_class"].lower() if "_class" in data else ""
+
+    if name == "swi":
+        return "thumb::thumb_swi"
+    elif _class == "und":
+        return "thumb::thumb_undefined"
+
+    print(f"unknown THUMB instruction {name}/{subname} -- {desc} -- {subdesc}")
+
     return "thumb::todo"
 
 
