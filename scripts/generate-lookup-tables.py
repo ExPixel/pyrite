@@ -289,6 +289,26 @@ def thumb_instr_data_to_lut_entry(data):
     elif name == "ldmia":
         register = int(subname[1:])
         return f"thumb::thumb_block_data_transfer::<Ldm, ConstReg<{register}>, ThumbRegisterList, PostIncrement>"
+    elif name in [
+        "beq",
+        "bne",
+        "bcs",
+        "bcc",
+        "bmi",
+        "bpl",
+        "bvs",
+        "bvc",
+        "bhi",
+        "bls",
+        "bge",
+        "blt",
+        "bgt",
+        "ble",
+    ]:
+        cond = "COND_" + name[1:].upper()
+        return f"thumb::thumb_conditional_branch::<{cond}>"
+    elif name == "b":
+        return f"thumb::thumb_unconditional_branch"
     elif name == "swi":
         return "thumb::thumb_swi"
     elif _class == "und":

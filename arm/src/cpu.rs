@@ -250,7 +250,7 @@ impl Cpu {
 
 /// Returns true if an instruction should run based
 /// the given condition code and cpsr.
-fn check_condition(cond: u32, regs: &Registers) -> bool {
+pub(crate) fn check_condition(cond: u32, regs: &Registers) -> bool {
     match cond {
         0x0 => regs.get_flag(CpsrFlag::Z), // 0:   EQ     Z=1           equal (zero) (same)
         0x1 => !regs.get_flag(CpsrFlag::Z), // 1:   NE     Z=0           not equal (nonzero) (not same)

@@ -1195,3 +1195,46 @@ pub fn test_stmia() {
     assert_eq!(cpu.registers.read(4), expected_data[3]);
     assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
 }
+
+#[test]
+pub fn test_conditional_branch() {
+    let (cpu, _mem) = thumb! {"
+        ldr r1, =#4
+        add r0, r1
+        bne _exit
+        ldr r0, =#8
+    "};
+    assert_eq!(cpu.registers.read(0), 4);
+
+    let (cpu, _mem) = thumb! {"
+        ldr r1, =#4
+        add r0, r1
+        beq _exit
+        ldr r0, =#8
+    "};
+    assert_eq!(cpu.registers.read(0), 8);
+}
+
+#[test]
+pub fn test_unconditional_branch() {
+    let (cpu, _mem) = thumb! {"
+        b   main
+        ldr r2, =#0xDEADBEEF
+    .pool
+
+    test:
+        ldr r3, =#0xDEADBEEF
+        b   _exit
+    .pool
+
+    main:
+        ldr r1, =#4
+        add r0, r1
+        b   test
+        ldr r0, =#8
+    "};
+
+    assert_eq!(cpu.registers.read(0), 4);
+    assert_eq!(cpu.registers.read(2), 0);
+    assert_eq!(cpu.registers.read(3), 0xDEADBEEF);
+}

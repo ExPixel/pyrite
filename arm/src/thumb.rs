@@ -2,7 +2,7 @@ use util::bits::BitOps;
 
 use crate::{
     alu::{self, BinaryOp, ExtractThumbOperand},
-    cpu::Cpu,
+    cpu::{check_condition, Cpu},
     memory::Memory,
     transfer::{BlockDataTransfer, IndexingMode, SDTCalculateOffset, SingleDataTransfer},
     AccessType, CpsrFlag, CpuException, Cycles, Registers,
@@ -326,6 +326,34 @@ pub fn thumb_add_sp(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycl
     let sp = cpu.registers.read(13);
     cpu.registers.write(13, sp.wrapping_add(offset));
     Cycles::zero()
+}
+
+/// conditional branch
+///
+/// `B<COND> label`
+pub fn thumb_conditional_branch<const CONDITION: u32>(
+    instr: u32,
+    cpu: &mut Cpu,
+    memory: &mut dyn Memory,
+) -> Cycles {
+    if check_condition(CONDITION, &cpu.registers) {
+        let offset = ((instr & 0xFF) << 1).sign_extend(9);
+        let pc = cpu.registers.read(15);
+        let dest = pc.wrapping_add(offset) & 0xFFFFFFFE;
+        cpu.branch_thumb(dest, memory)
+    } else {
+        Cycles::zero()
+    }
+}
+
+/// unconditional branch
+///
+/// `B label`
+pub fn thumb_unconditional_branch(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    let offset = ((instr & 0x7FF) << 1).sign_extend(12);
+    let pc = cpu.registers.read(15);
+    let dest = pc.wrapping_add(offset) & 0xFFFFFFFE;
+    cpu.branch_thumb(dest, memory)
 }
 
 /// Software Interrupt (SWI)

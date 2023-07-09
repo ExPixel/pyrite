@@ -39,6 +39,21 @@ const FORCE_USER_MODE: bool = false;
 const SWP_WORD: bool = false;
 const SWP_BYTE: bool = true;
 
+const COND_EQ: u32 = 0x0;
+const COND_NE: u32 = 0x1;
+const COND_CS: u32 = 0x2;
+const COND_CC: u32 = 0x3;
+const COND_MI: u32 = 0x4;
+const COND_PL: u32 = 0x5;
+const COND_VS: u32 = 0x6;
+const COND_VC: u32 = 0x7;
+const COND_HI: u32 = 0x8;
+const COND_LS: u32 = 0x9;
+const COND_GE: u32 = 0xA;
+const COND_LT: u32 = 0xB;
+const COND_GT: u32 = 0xC;
+const COND_LE: u32 = 0xD;
+
 #[rustfmt::skip]
 pub const ARM_OPCODE_TABLE: [InstrFn; 4096] = [
     arm::arm_dataproc::<alu::AndOp, S_FLAG_CLR, alu::LliOp2>,
@@ -4349,30 +4364,30 @@ pub const THUMB_OPCODE_TABLE: [InstrFn; 256] = [
     thumb::thumb_block_data_transfer::<Ldm, ConstReg<5>, ThumbRegisterList, PostIncrement>,
     thumb::thumb_block_data_transfer::<Ldm, ConstReg<6>, ThumbRegisterList, PostIncrement>,
     thumb::thumb_block_data_transfer::<Ldm, ConstReg<7>, ThumbRegisterList, PostIncrement>,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
+    thumb::thumb_conditional_branch::<COND_EQ>,
+    thumb::thumb_conditional_branch::<COND_NE>,
+    thumb::thumb_conditional_branch::<COND_CS>,
+    thumb::thumb_conditional_branch::<COND_CC>,
+    thumb::thumb_conditional_branch::<COND_MI>,
+    thumb::thumb_conditional_branch::<COND_PL>,
+    thumb::thumb_conditional_branch::<COND_VS>,
+    thumb::thumb_conditional_branch::<COND_VC>,
+    thumb::thumb_conditional_branch::<COND_HI>,
+    thumb::thumb_conditional_branch::<COND_LS>,
+    thumb::thumb_conditional_branch::<COND_GE>,
+    thumb::thumb_conditional_branch::<COND_LT>,
+    thumb::thumb_conditional_branch::<COND_GT>,
+    thumb::thumb_conditional_branch::<COND_LE>,
     thumb::thumb_undefined,
     thumb::thumb_swi,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
-    thumb::todo,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
+    thumb::thumb_unconditional_branch,
     thumb::todo,
     thumb::todo,
     thumb::todo,
