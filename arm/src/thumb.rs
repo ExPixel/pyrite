@@ -4,7 +4,7 @@ use crate::{
     alu::{self, BinaryOp, ExtractThumbOperand},
     cpu::Cpu,
     memory::Memory,
-    transfer::{IndexingMode, SDTCalculateOffset, SingleDataTransfer},
+    transfer::{BlockDataTransfer, IndexingMode, SDTCalculateOffset, SingleDataTransfer},
     AccessType, CpsrFlag, CpuException, Cycles, Registers,
 };
 
@@ -192,41 +192,140 @@ pub fn thumb_bx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     }
 }
 
-pub fn thumb_single_data_transfer<T, D, B, O, I>(
+pub fn thumb_single_data_transfer<Transfer, DestinationRegister, BaseAddress, Offset, Indexing>(
     instr: u32,
     cpu: &mut Cpu,
     memory: &mut dyn Memory,
 ) -> Cycles
 where
-    T: SingleDataTransfer,
-    D: ExtractThumbOperand, // destination register
-    B: ExtractThumbOperand, // base
-    O: SDTCalculateOffset,
-    I: IndexingMode,
+    Transfer: SingleDataTransfer,
+    DestinationRegister: ExtractThumbOperand,
+    BaseAddress: ExtractThumbOperand,
+    Offset: SDTCalculateOffset,
+    Indexing: IndexingMode,
 {
-    let rd = D::extract(instr, &cpu.registers);
-    let offset = O::calculate_offset(instr, &mut cpu.registers);
-    let mut address = B::extract(instr, &cpu.registers);
-    address = I::calculate_single_data_transfer_address(address, offset);
-    let mut cycles = T::transfer(rd, address, &mut cpu.registers, memory);
+    let rd = DestinationRegister::extract(instr, &cpu.registers);
+    let offset = Offset::calculate_offset(instr, &mut cpu.registers);
+    let mut address = BaseAddress::extract(instr, &cpu.registers);
+    address = Indexing::calculate_single_data_transfer_address(address, offset);
+    let mut cycles = Transfer::transfer(rd, address, &mut cpu.registers, memory);
 
     // During the third cycle, the ARM7TDMI-S processor transfers the data to the
     // destination register. (External memory is not used.) Normally, the ARM7TDMI-S
     // core merges this third cycle with the next prefetch to form one memory N-cycle
-    if T::IS_LOAD {
+    if Transfer::IS_LOAD {
         cycles += Cycles::one();
     }
 
-    if T::IS_LOAD && rd == 15 {
+    if Transfer::IS_LOAD && rd == 15 {
         let destination = cpu.registers.read(15);
         cycles += cpu.branch_thumb(destination, memory);
     }
 
-    if !T::IS_LOAD {
+    if !Transfer::IS_LOAD {
         cpu.next_fetch_access_type = AccessType::NonSequential;
     }
 
     cycles
+}
+
+pub fn thumb_block_data_transfer<Transfer, BaseAddressRegister, Rlist, Indexing>(
+    instr: u32,
+    cpu: &mut Cpu,
+    memory: &mut dyn Memory,
+) -> Cycles
+where
+    Transfer: BlockDataTransfer,
+    BaseAddressRegister: ExtractThumbOperand,
+    Rlist: ExtractThumbOperand,
+    Indexing: IndexingMode,
+{
+    let register_list = Rlist::extract(instr, &cpu.registers);
+    let rn = BaseAddressRegister::extract(instr, &cpu.registers);
+    let base_address = cpu.registers.read(rn);
+    let register_count = register_list.count_ones();
+
+    let mut address = Indexing::block_transfer_lowest_address(base_address, register_count);
+    address = address.wrapping_sub(4); // we start with an add every loop iteration
+
+    let mut cycles = Cycles::zero();
+    let mut access_type = AccessType::NonSequential;
+
+    for register in 0..16 {
+        if !register_list.get_bit(register) {
+            continue;
+        }
+        address = address.wrapping_add(4);
+        cycles += Transfer::transfer(register, address, access_type, &mut cpu.registers, memory);
+
+        if access_type == AccessType::NonSequential {
+            access_type = AccessType::Sequential;
+
+            // From ARM Documentation:
+            //     When write-back is specified, the base is written back at the end of the second cycle
+            //     of the instruction. During a STM, the first register is written out at the start of the
+            //     second cycle. A STM which includes storing the base, with the base as the first register
+            //     to be stored, will therefore store the unchanged value, whereas with the base second
+            //     or later in the transfer order, will store the modified value. A LDM will always overwrite
+            //     the updated base if the base is in the list.
+            //
+            // From Other ARM Documentation For LDM:
+            //     During the third cycle, the first word is moved to the appropriate destination register
+            //     while the second word is fetched from memory, and the modified base is latched
+            //     internally in case it is needed to restore processor state after an abort.
+            if !Transfer::IS_LOAD {
+                let writeback_address = Indexing::calculate_block_transfer_writeback_address(
+                    base_address,
+                    register_count,
+                );
+                cpu.registers.write(rn, writeback_address);
+            }
+        }
+    }
+
+    if Transfer::IS_LOAD {
+        let writeback_address =
+            Indexing::calculate_block_transfer_writeback_address(base_address, register_count);
+        cpu.registers.write(rn, writeback_address);
+    }
+
+    if !Transfer::IS_LOAD {
+        cpu.next_fetch_access_type = AccessType::NonSequential;
+    }
+
+    cycles
+}
+
+/// load address
+///
+/// `ADD Rd, PC, #Imm`  
+/// `ADD Rd, SP, #Imm`  
+pub fn thumb_load_address<const RD: u32, L>(
+    instr: u32,
+    cpu: &mut Cpu,
+    _memory: &mut dyn Memory,
+) -> Cycles
+where
+    L: ExtractThumbOperand,
+{
+    let lhs = L::extract(instr, &cpu.registers);
+    let rhs = (instr & 0xFF) << 2;
+    cpu.registers.write(RD, lhs.wrapping_add(rhs));
+    Cycles::zero()
+}
+
+/// add offset to Stack Pointer
+///
+/// `ADD SP, #Imm`  
+/// `ADD SP, #-Imm`  
+pub fn thumb_add_sp(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
+    let mut offset = instr.get_bit_range(0..=6) << 2;
+    if instr.get_bit(7) {
+        offset = -(offset as i32) as u32;
+    }
+    let sp = cpu.registers.read(13);
+    cpu.registers.write(13, sp.wrapping_add(offset));
+    Cycles::zero()
 }
 
 /// Software Interrupt (SWI)

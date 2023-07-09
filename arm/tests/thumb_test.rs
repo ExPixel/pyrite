@@ -1097,3 +1097,101 @@ pub fn test_str_sp() {
     assert_eq!(cpu.registers.read(2), cpu.registers.read(13));
     assert_eq!(mem.view32(cpu.registers.read(13)), cpu.registers.read(0));
 }
+
+#[test]
+pub fn test_add_pc() {
+    let (cpu, _mem) = thumb! {"
+        add r0, pc, #4
+    "};
+    assert_eq!(cpu.registers.read(0), 8);
+}
+
+#[test]
+pub fn test_add_sp() {
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#10
+        mov sp, r0
+        add r0, sp, #4
+    "};
+    assert_eq!(cpu.registers.read(0), 14);
+    assert_eq!(cpu.registers.read(13), 10);
+}
+
+#[test]
+pub fn test_add_sp_imm_positive() {
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#10
+        mov sp, r0
+        add sp, #4
+    "};
+    assert_eq!(cpu.registers.read(0), 10);
+    assert_eq!(cpu.registers.read(13), 14);
+}
+
+#[test]
+pub fn test_add_sp_imm_negative() {
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#10
+        mov sp, r0
+        add sp, #-4
+    "};
+    assert_eq!(cpu.registers.read(0), 10);
+    assert_eq!(cpu.registers.read(13), 6);
+}
+
+#[test]
+pub fn test_ldmia() {
+    let (cpu, _mem) = thumb! {"
+        ldr     r0, =data
+        ldr     r5, =end_of_data
+        ldmia   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00112233
+        .word 0x44556677
+        .word 0x8899AABB
+        .word 0xCCDDEEFF
+    end_of_data:
+        .word 0xDEADBEEF
+    "};
+
+    assert_eq!(cpu.registers.read(1), 0x00112233);
+    assert_eq!(cpu.registers.read(2), 0x44556677);
+    assert_eq!(cpu.registers.read(3), 0x8899AABB);
+    assert_eq!(cpu.registers.read(4), 0xCCDDEEFF);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}
+
+#[test]
+pub fn test_stmia() {
+    let (cpu, mem) = thumb! {"
+        ldr     r0, =data
+        ldr     r1, =0x00112233
+        ldr     r2, =0x44556677
+        ldr     r3, =0x8899AABB
+        ldr     r4, =0xCCDDEEFF
+        ldr     r5, =end_of_data
+        stmia   r0!, {{r1-r4}}
+    .data
+    data:
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+        .word 0x00000000
+    end_of_data:
+        .word 0x00000000
+    "};
+
+    let expected_data = [
+        mem.view32(cpu.registers.read(5).wrapping_sub(16)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(12)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(8)),
+        mem.view32(cpu.registers.read(5).wrapping_sub(4)),
+    ];
+
+    assert_eq!(cpu.registers.read(1), expected_data[0]);
+    assert_eq!(cpu.registers.read(2), expected_data[1]);
+    assert_eq!(cpu.registers.read(3), expected_data[2]);
+    assert_eq!(cpu.registers.read(4), expected_data[3]);
+    assert_eq!(cpu.registers.read(0), cpu.registers.read(5));
+}

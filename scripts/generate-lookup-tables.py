@@ -269,6 +269,26 @@ def thumb_instr_data_to_lut_entry(data):
         op_name = (name[:-2]).capitalize()
         register = int(subname[1:])
         return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<8, 9>, RegValue<13>, ThumbImm8ExtendedTo10, PreIncrement>"
+    elif name == "addpc":
+        register = int(subname[1:])
+        return f"thumb::thumb_load_address::<{register}, WordAlignedPc>"
+    elif name == "addsp" and subname.startswith("r"):
+        register = int(subname[1:])
+        return f"thumb::thumb_load_address::<{register}, RegValue<13>>"
+    elif name == "addsp" and subname == "imm7":
+        return f"thumb::thumb_add_sp"
+    elif name == "push":
+        rlist = "ThumbRegisterListWithLr" if subname == "lr" else "ThumbRegisterList"
+        return f"thumb::thumb_block_data_transfer::<Stm, ConstReg<13>, {rlist}, PreDecrement>"
+    elif name == "pop":
+        rlist = "ThumbRegisterListWithPc" if subname == "pc" else "ThumbRegisterList"
+        return f"thumb::thumb_block_data_transfer::<Ldm, ConstReg<13>, {rlist}, PostIncrement>"
+    elif name == "stmia":
+        register = int(subname[1:])
+        return f"thumb::thumb_block_data_transfer::<Stm, ConstReg<{register}>, ThumbRegisterList, PostIncrement>"
+    elif name == "ldmia":
+        register = int(subname[1:])
+        return f"thumb::thumb_block_data_transfer::<Ldm, ConstReg<{register}>, ThumbRegisterList, PostIncrement>"
     elif name == "swi":
         return "thumb::thumb_swi"
     elif _class == "und":
