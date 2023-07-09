@@ -32,12 +32,15 @@ pub fn test_lsl_imm_by_zero() {
 }
 
 #[test]
-pub fn test_lsr_imm() {
+pub fn test_lsl_reg() {
+    // The least significant **discarded** bit becomes the shifter carry output which may
+    // be latched into the C bit of the CPSR.
     let (cpu, _mem) = thumb! {"
-        mov r1, #5
-        lsr r0, r1, #1
+        ldr r0, =#0x82000000
+        ldr r1, =#1
+        lsl r0, r1
     "};
-    assert_eq!(cpu.registers.read(0), 2);
+    assert_eq!(cpu.registers.read(0), 0x04000000);
     assert!(cpu.registers.get_flag(CpsrFlag::C));
 }
 
@@ -56,6 +59,66 @@ pub fn test_lsr_imm_by_zero() {
 }
 
 #[test]
+pub fn test_lsl_reg_by_zero() {
+    // LSL #0 is a special case, where the shifter carry out is the old value of the CPSR C
+    // flag. The contents of Rm are used directly as the second operand.
+    let (cpu, _mem) = thumb! {"
+        ldr r2, =#0x82000000
+        ldr r0, =#0x80000000
+        ldr r1, =#0
+        lsl r2, #1              @ set carry flag
+        lsl r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x80000000);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsl_reg_by_32() {
+    // LSL by 32 has result zero, carry out equal to bit 0 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x00000001
+        ldr r1, =#32
+        lsl r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsl_reg_by_more_than_32() {
+    // LSL by more than 32 has result zero, carry out zero.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x00000001
+        ldr r1, =#33
+        lsl r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0);
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsr_imm() {
+    let (cpu, _mem) = thumb! {"
+        mov r1, #5
+        lsr r0, r1, #1
+    "};
+    assert_eq!(cpu.registers.read(0), 2);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsr_reg() {
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#5
+        ldr r1, =#1
+        lsr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 2);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
 pub fn test_lsr_imm_by_32() {
     // The form of the shift field which might be expected to correspond to LSR #0 is used to encode LSR #32,
     // which has a zero result with bit 31 of Rm as the carry output.
@@ -66,6 +129,46 @@ pub fn test_lsr_imm_by_32() {
     "};
     assert_eq!(cpu.registers.read(0), 0);
     assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsr_reg_by_zero() {
+    // Logical shift right zero is redundant as it is the same as logical shift left zero,
+    // so the assembler will convert LSR #0 (and ASR #0 and ROR #0) into LSL #0, and allow LSR #32 to be specified.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x00000001
+        ldr r1, =#0
+        ldr r2, =#0x82000000
+        lsl r2, #1              @ set carry flag
+        lsr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x00000001);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsr_reg_by_32() {
+    // The form of the shift field which might be expected to correspond to LSR #0 is used to encode LSR #32,
+    // which has a zero result with bit 31 of Rm as the carry output.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x80000000
+        ldr r1, =#32
+        lsr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_lsr_reg_by_more_than_32() {
+    // LSR by more than 32 has result zero, carry out zero.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x80000000
+        ldr r1, =#33
+        lsr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0);
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
 #[test]
@@ -130,6 +233,149 @@ pub fn test_asr_imm_by_32() {
         asr r0, r1, #32
     "};
     assert_eq!(cpu.registers.read(0), 0x00000000);
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_asr_reg() {
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0xE0000001
+        ldr r1, =#1
+        asr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0xF0000000);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_asr_reg_by_zero() {
+    // Logical shift right zero is redundant as it is the same as logical shift left zero,
+    // so the assembler will convert LSR #0 (and ASR #0 and ROR #0) into LSL #0, and allow
+    // LSR #32 to be specified.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x00000001
+        ldr r1, =#0
+        ldr r2, =#0x82000000
+        lsl r2, #1              @ set carry flag
+        asr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x00000001);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_asr_reg_by_32() {
+    // ASR by 32 or more has result filled with and carry out equal to bit 31 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x80000000 
+        ldr r1, =#32
+        asr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x70000000 
+        ldr r1, =#32
+        asr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x00000000);
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_asr_reg_by_more_than_32() {
+    // ASR by 32 or more has result filled with and carry out equal to bit 31 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x80000000 
+        ldr r1, =#33
+        asr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0xFFFFFFFF);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x70000000
+        ldr r1, =#33
+        asr r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x00000000);
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_rors_reg() {
+    let (cpu, _mem) = thumb! {"
+        ldr r0, =#0x0000000F
+        ldr r1, =#4
+        ror r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0xF0000000);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_rors_reg_by_zero() {
+    // The unchanged contents of Rm will be used as the second operand,
+    // and the old value of the CPSR C flag will be passed on as the shifter carry output.
+    let (cpu, _mem) = thumb! {"
+        ldr r2, =#0x80000000
+        ldr r0, =#0x00000001
+        ldr r1, =#0
+        lsl r2, #1              @ set carry flag
+        ror r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x00000001);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_rors_reg_by_32() {
+    // ROR by 32 has result equal to Rm, carry out equal to bit 31 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r2, =#0x80000000
+        ldr r0, =#0x80000000
+        ldr r1, =#32
+        lsl r2, #1              @ set carry flag
+        ror r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x80000000);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+
+    // ROR by 32 has result equal to Rm, carry out equal to bit 31 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r2, =#0x80000000
+        ldr r0, =#0x70000000
+        ldr r1, =#32
+        lsl r2, #1              @ set carry flag
+        ror r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x70000000);
+    assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+#[test]
+pub fn test_rors_reg_by_more_than_32() {
+    // ROR by 32 has result equal to Rm, carry out equal to bit 31 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r2, =#0x80000000
+        ldr r0, =#0x00000008
+        ldr r1, =#36
+        lsl r2, #1              @ set carry flag
+        ror r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x80000000);
+    assert!(cpu.registers.get_flag(CpsrFlag::C));
+
+    // ROR by 32 has result equal to Rm, carry out equal to bit 31 of Rm.
+    let (cpu, _mem) = thumb! {"
+        ldr r2, =#0x80000000
+        ldr r0, =#0x00000007
+        ldr r1, =#36
+        lsl r2, #1              @ set carry flag
+        ror r0, r1
+    "};
+    assert_eq!(cpu.registers.read(0), 0x70000000);
     assert!(!cpu.registers.get_flag(CpsrFlag::C));
 }
 
@@ -484,7 +730,7 @@ test_combinations! {
 
     #[test]
     fn test_cmp(lhs in imm32(), rhs in imm32()) {
-        let (cpu, _mem) = arm! {"
+        let (cpu, _mem) = thumb! {"
             ldr r0, =#{lhs}
             ldr r1, =#{rhs}
             cmp r0, r1
