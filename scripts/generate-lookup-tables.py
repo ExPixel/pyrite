@@ -265,6 +265,10 @@ def thumb_instr_data_to_lut_entry(data):
     elif name in ["str", "ldr"] and subname == "imm5":
         op_name = name.capitalize()
         return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5ExtendedTo7, PreIncrement>"
+    elif name in ["ldrsp", "strsp"]:
+        op_name = (name[:-2]).capitalize()
+        register = int(subname[1:])
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<8, 9>, RegValue<13>, ThumbImm8ExtendedTo10, PreIncrement>"
     elif name == "swi":
         return "thumb::thumb_swi"
     elif _class == "und":

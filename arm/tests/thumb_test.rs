@@ -1065,3 +1065,35 @@ pub fn test_ldrsb() {
     assert_eq!(cpu.registers.read(1), cpu.registers.read(2));
     assert_eq!(cpu.registers.read(0), 0xFFFFFF80);
 }
+
+#[test]
+pub fn test_ldr_sp() {
+    let (cpu, _mem) = thumb! {"
+        ldr r1, =deadbeef
+        mov sp, r1
+        ldr r0, [sp]
+    .data
+    deadbeef:
+        .word 0xDEADBEEF
+    "};
+    assert_eq!(cpu.registers.read(1), cpu.registers.read(13));
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+}
+
+#[test]
+pub fn test_str_sp() {
+    let (cpu, mem) = thumb! {"
+        ldr r2, =deadbeef
+        ldr r0, =0xDEADBEEF
+        ldr r1, [r2]
+        mov sp, r2
+        str r0, [sp]
+    .data
+    deadbeef:
+        .word 0xAABBCCDD
+    "};
+    assert_eq!(cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(cpu.registers.read(1), 0xAABBCCDD);
+    assert_eq!(cpu.registers.read(2), cpu.registers.read(13));
+    assert_eq!(mem.view32(cpu.registers.read(13)), cpu.registers.read(0));
+}
