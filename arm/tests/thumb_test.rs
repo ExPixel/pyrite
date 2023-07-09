@@ -3,7 +3,7 @@ pub mod common;
 
 use arm::CpsrFlag;
 
-use crate::common::operands::{imm3, imm32};
+use crate::common::operands::{imm3, imm32, imm8};
 
 #[test]
 pub fn test_lsl_imm() {
@@ -136,7 +136,7 @@ pub fn test_asr_imm_by_32() {
 test_combinations! {
     #[test]
     fn test_load_value_into_register(value in imm32()) {
-        let (cpu, _mem) = arm! {"ldr r0, =#{value}"};
+        let (cpu, _mem) = thumb! {"ldr r0, =#{value}"};
         assert_eq!(cpu.registers.read(0), value as u32);
     }
 
@@ -146,6 +146,27 @@ test_combinations! {
         let (cpu, _mem) = thumb! {"
                 ldr r1, =#{lhs}
                 add r0, r1, #{rhs}
+            "};
+
+        let expected_result = lhs.wrapping_add(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32).overflowing_add(rhs as u32).1;
+        let expected_v = lhs.overflowing_add(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_add_imm8(lhs in imm32(), rhs in imm8()) {
+        println!("lhs = {lhs}, rhs = {rhs}");
+        let (cpu, _mem) = thumb! {"
+                ldr r0, =#{lhs}
+                add r0, #{rhs}
             "};
 
         let expected_result = lhs.wrapping_add(rhs);
@@ -204,6 +225,26 @@ test_combinations! {
     }
 
     #[test]
+    fn test_sub_imm8(lhs in imm32(), rhs in imm8()) {
+        let (cpu, _mem) = thumb! {"
+                ldr r0, =#{lhs}
+                sub r0, #{rhs}
+            "};
+
+        let expected_result = lhs.wrapping_sub(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32) >= (rhs as u32);
+        let expected_v = lhs.overflowing_sub(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
     fn test_sub_reg3(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = thumb! {"
                 ldr r1, =#{lhs}
@@ -218,6 +259,35 @@ test_combinations! {
         let expected_v = lhs.overflowing_sub(rhs).1;
 
         assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_mov_imm8(rhs in imm8()) {
+        let (cpu, _mem) = thumb! {"
+            mov     r0, #{rhs}
+        "};
+
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), rhs < 0);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), rhs == 0);
+    }
+
+    #[test]
+    fn test_cmp_imm8(lhs in imm32(), rhs in imm8()) {
+        let (cpu, _mem) = thumb! {"
+            ldr     r0, =#{lhs}
+            cmp     r0, #{rhs}
+        "};
+
+        let expected_result = lhs.wrapping_sub(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32) >= (rhs as u32);
+        let expected_v = (lhs as i32).overflowing_sub(rhs as i32).1;
+
         assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
         assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
         assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);

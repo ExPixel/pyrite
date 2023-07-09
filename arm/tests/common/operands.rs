@@ -17,6 +17,10 @@ pub fn imm3() -> impl Iterator<Item = i32> {
     })
 }
 
+pub fn imm8() -> impl Iterator<Item = i32> {
+    [255, 128, 16, 8, 1, 0].into_iter()
+}
+
 pub fn bools() -> impl Iterator<Item = bool> {
     [true, false].into_iter()
 }

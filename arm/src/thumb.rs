@@ -25,8 +25,7 @@ where
     let rd = instr.get_bit_range(0..=2);
     let rs = instr.get_bit_range(3..=5);
     let lhs = cpu.registers.read(rs);
-    let mut rhs = instr.get_bit_range(6..=10);
-    rhs = O::transform_imm_rhs(rhs);
+    let rhs = O::transform_imm_rhs(instr.get_bit_range(6..=10));
     let result = O::execute(&cpu.registers, lhs, rhs);
     O::set_flags(&mut cpu.registers, lhs, rhs, result);
     debug_assert!(O::HAS_RESULT);
@@ -49,7 +48,7 @@ where
     O: BinaryOp,
 {
     let lhs = cpu.registers.read(RD);
-    let rhs = instr.get_bit_range(0..=7);
+    let rhs = O::transform_imm_rhs(instr.get_bit_range(0..=7));
     let result = O::execute(&cpu.registers, lhs, rhs);
     O::set_flags(&mut cpu.registers, lhs, rhs, result);
     if O::HAS_RESULT {
