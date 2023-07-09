@@ -29,6 +29,11 @@ pub struct Ldm;
 pub struct Stm;
 
 pub struct ThumbImm8ExtendedTo10;
+pub struct ThumbImm5;
+pub struct ThumbImm5ExtendedTo6;
+pub struct ThumbImm5ExtendedTo7;
+/// Common THUMB mode Ro (bits 6-8)
+pub struct ThumbRegisterOffset;
 
 impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     const IS_LOAD: bool = true;
@@ -239,6 +244,31 @@ impl SDTCalculateOffset for HalfwordAndSignedRegOffset {
 impl SDTCalculateOffset for ThumbImm8ExtendedTo10 {
     fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
         (instr & 0xFF) << 2
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm5 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        instr.get_bit_range(6..=10)
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm5ExtendedTo6 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        instr.get_bit_range(6..=10) << 1
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm5ExtendedTo7 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        instr.get_bit_range(6..=10) << 2
+    }
+}
+
+impl SDTCalculateOffset for ThumbRegisterOffset {
+    fn calculate_offset(instr: u32, registers: &mut Registers) -> u32 {
+        let ro = instr.get_bit_range(6..=8);
+        registers.read(ro)
     }
 }
 

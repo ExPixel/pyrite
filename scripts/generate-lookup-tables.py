@@ -250,12 +250,29 @@ def thumb_instr_data_to_lut_entry(data):
     elif name == "ldrpc":
         register = int(subname[1:])
         return f"thumb::thumb_single_data_transfer::<Ldr, ConstReg<{register}>, WordAlignedPc, ThumbImm8ExtendedTo10, PreIncrement>"
+    elif (
+        name in ["str", "ldr", "strh", "strb", "ldrsb", "ldrh", "ldrb", "ldrsh"]
+        and subname == "reg"
+    ):
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbRegisterOffset, PreIncrement>"
+    elif name in ["strb", "ldrb"] and subname == "imm5":
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5, PreIncrement>"
+    elif name in ["strh", "ldrh"] and subname == "imm5":
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5ExtendedTo6, PreIncrement>"
+    elif name in ["str", "ldr"] and subname == "imm5":
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5ExtendedTo7, PreIncrement>"
     elif name == "swi":
         return "thumb::thumb_swi"
     elif _class == "und":
         return "thumb::thumb_undefined"
 
-    print(f"unknown THUMB instruction {name}/{subname} -- {desc} -- {subdesc}")
+    print(
+        f"unknown THUMB instruction {name}/{subname} -- {desc} -- {subdesc} -- {_class}"
+    )
 
     return "thumb::todo"
 
