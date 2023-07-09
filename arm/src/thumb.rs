@@ -8,11 +8,6 @@ use crate::{
     AccessType, CpsrFlag, CpuException, Cycles, Registers,
 };
 
-pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
-    let address = cpu.registers.read(15).wrapping_sub(4);
-    todo!("TODO: addr=0x{address:08X}; instr=0x{instr:04X}");
-}
-
 /// move shifted register
 ///
 /// `LSL Rd, Rs, #Offset5`  
@@ -289,6 +284,11 @@ where
         cpu.registers.write(rn, writeback_address);
     }
 
+    if Transfer::IS_LOAD && register_list.get_bit(15) {
+        let destination = cpu.registers.read(15);
+        cycles += cpu.branch_thumb(destination, memory);
+    }
+
     if !Transfer::IS_LOAD {
         cpu.next_fetch_access_type = AccessType::NonSequential;
     }
@@ -356,6 +356,30 @@ pub fn thumb_unconditional_branch(instr: u32, cpu: &mut Cpu, memory: &mut dyn Me
     cpu.branch_thumb(dest, memory)
 }
 
+// long branch with link (setup)
+//
+// `BL label`
+pub fn thumb_bl_setup(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
+    let pc = cpu.registers.read(15);
+    let off = ((instr & 0x7FF) << 12).sign_extend(23);
+    let setup = pc.wrapping_add(off);
+    cpu.registers.write(14, setup);
+
+    Cycles::zero()
+}
+
+// long branch with link (execute)
+//
+// `BL label`
+pub fn thumb_bl_complete(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    let pc = cpu.registers.read(15);
+    let lr = cpu.registers.read(14);
+    let off = (instr & 0x7FF) << 1;
+    let dest = lr.wrapping_add(off) & 0xFFFFFFFE;
+    cpu.registers.write(14, (pc.wrapping_sub(2)) | 1);
+    cpu.branch_thumb(dest, memory)
+}
+
 /// Software Interrupt (SWI)
 ///
 /// `SWI{cond} <expression>`  
@@ -365,4 +389,14 @@ pub fn thumb_swi(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles 
 
 pub fn thumb_undefined(_instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     cpu.exception_internal(CpuException::Undefined, memory)
+}
+
+/// ARM9
+pub fn thumb_blx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    thumb_undefined(instr, cpu, memory)
+}
+
+/// ARM9
+pub fn thumb_bkpt(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    thumb_undefined(instr, cpu, memory)
 }

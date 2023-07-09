@@ -388,7 +388,6 @@ test_combinations! {
 
     #[test]
     fn test_add_imm3(lhs in imm32(), rhs in imm3()) {
-        println!("lhs = {lhs}, rhs = {rhs}");
         let (cpu, _mem) = thumb! {"
                 ldr r1, =#{lhs}
                 add r0, r1, #{rhs}
@@ -409,7 +408,6 @@ test_combinations! {
 
     #[test]
     fn test_add_imm8(lhs in imm32(), rhs in imm8()) {
-        println!("lhs = {lhs}, rhs = {rhs}");
         let (cpu, _mem) = thumb! {"
                 ldr r0, =#{lhs}
                 add r0, #{rhs}
@@ -430,7 +428,6 @@ test_combinations! {
 
     #[test]
     fn test_add_reg3(lhs in imm32(), rhs in imm32()) {
-        println!("lhs = {lhs}, rhs = {rhs}");
         let (cpu, _mem) = thumb! {"
                 ldr r1, =#{lhs}
                 ldr r2, =#{rhs}
@@ -807,7 +804,6 @@ test_combinations! {
 
     #[test]
     fn test_add_hi(lhs in imm32(), rhs in imm32()) {
-        println!("lhs = {lhs}, rhs = {rhs}");
         let (cpu, _mem) = thumb! {"
                 ldr r0, =#{lhs}
                 ldr r1, =#{rhs}
@@ -1237,4 +1233,39 @@ pub fn test_unconditional_branch() {
     assert_eq!(cpu.registers.read(0), 4);
     assert_eq!(cpu.registers.read(2), 0);
     assert_eq!(cpu.registers.read(3), 0xDEADBEEF);
+}
+
+#[test]
+pub fn test_function_call() {
+    let (cpu, _mem) = thumb! {"
+        ldr     r0, =stack
+        mov     sp, r0
+        b       main
+    add:
+        push    {{r0, r1, lr}}
+        ldr     r0, =#8
+        ldr     r1, =#9
+        add     r2, r3
+        pop     {{r0, r1, pc}}
+    .pool
+
+    main:
+        ldr     r0, =#4
+        ldr     r1, =#5
+        ldr     r2, =#6
+        ldr     r3, =#7
+        bl      add
+        b       _exit
+    .pool
+
+    top_of_stack:
+        .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+        .word 0x00000000, 0x00000000, 0x00000000, 0x00000000
+    stack:
+    "};
+
+    assert_eq!(cpu.registers.read(0), 4);
+    assert_eq!(cpu.registers.read(1), 5);
+    assert_eq!(cpu.registers.read(2), 13);
+    assert_eq!(cpu.registers.read(3), 7);
 }

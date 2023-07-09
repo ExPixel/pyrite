@@ -593,7 +593,6 @@ test_combinations! {
 
     #[test]
     fn test_adds(lhs in imm32(), rhs in imm32()) {
-        println!("lhs = {lhs}, rhs = {rhs}");
         let (cpu, _mem) = arm! {"
                 ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}

@@ -309,8 +309,20 @@ def thumb_instr_data_to_lut_entry(data):
         return f"thumb::thumb_conditional_branch::<{cond}>"
     elif name == "b":
         return f"thumb::thumb_unconditional_branch"
+    elif name == "bl":
+        if subname == "setup":
+            return f"thumb::thumb_bl_setup"
+        if subname == "off":
+            return f"thumb::thumb_bl_complete"
+        else:
+            print("bl type found: " + subname)
+            return "ERROR"
     elif name == "swi":
         return "thumb::thumb_swi"
+    elif name == "blx":
+        return "thumb::thumb_blx"
+    elif name == "bkpt":
+        return "thumb::thumb_bkpt"
     elif _class == "und":
         return "thumb::thumb_undefined"
 

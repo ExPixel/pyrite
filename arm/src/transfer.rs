@@ -391,6 +391,7 @@ impl BlockDataTransfer for Stm {
     ) -> Cycles {
         let mut value = registers.read(source_register);
         // When r15 is stored as part of an STM instruction it will 12 bytes ahead instead of 8.
+        // NOTE: Thumb mode cannot store r15 (only load), so we ignore it here and only handle ARM.
         if source_register == 15 {
             value = value.wrapping_add(4);
         }
