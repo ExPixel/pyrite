@@ -1,7 +1,7 @@
 #[macro_use]
 pub mod common;
 
-use arm::CpsrFlag;
+use arm::{CpsrFlag, CpuMode};
 
 use crate::common::operands::{imm3, imm32, imm8};
 
@@ -293,4 +293,32 @@ test_combinations! {
         assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
         assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
     }
+}
+
+#[test]
+pub fn test_swi() {
+    let (cpu, _mem) = arm! {"
+        b   main        @ Reset
+        b   _exit       @ Undefined
+        b   swi_handler @ SWI
+
+    main:
+        ldr r0, =main_thumb+1
+        bx  r0
+        b   _exit
+    .pool
+    swi_handler:
+        add     r1, #2
+        movs    pc, lr  @ return from SWI
+        b       _exit
+
+    .thumb
+    main_thumb:
+        ldr r1, =12
+        swi 0
+    .hword 0xF777F777    @ EXIT (FIXME: change to to a branch once those are implemented)
+    "};
+
+    assert_eq!(cpu.registers.read(1), 14);
+    assert_eq!(cpu.registers.read_mode(), CpuMode::System);
 }
