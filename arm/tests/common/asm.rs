@@ -261,6 +261,7 @@ pub fn assemble(isa: InstructionSet, source: &str) -> std::io::Result<Vec<u8>> {
                 "armv4t".as_ref(),
                 "-Mforce-thumb".as_ref(),
                 "--adjust-vma=0x0".as_ref(),
+                "-z".as_ref(),
                 "-D".as_ref(),
                 bin_file_path.as_ref(),
             ],

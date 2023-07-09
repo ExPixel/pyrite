@@ -28,6 +28,8 @@ pub struct HalfwordAndSignedRegOffset;
 pub struct Ldm;
 pub struct Stm;
 
+pub struct ThumbImm8ExtendedTo10;
+
 impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     const IS_LOAD: bool = true;
 
@@ -231,6 +233,12 @@ impl SDTCalculateOffset for HalfwordAndSignedRegOffset {
     fn calculate_offset(instr: u32, registers: &mut Registers) -> u32 {
         let rm = instr.get_bit_range(0..=3);
         registers.read(rm)
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm8ExtendedTo10 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        (instr & 0xFF) << 2
     }
 }
 

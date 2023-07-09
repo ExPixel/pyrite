@@ -249,7 +249,7 @@ def thumb_instr_data_to_lut_entry(data):
         return f"thumb::thumb_bx"
     elif name == "ldrpc":
         register = int(subname[1:])
-        return f"thumb::thumb_pc_relative_load::<{register}>"
+        return f"thumb::thumb_single_data_transfer::<Ldr, ConstReg<{register}>, WordAlignedPc, ThumbImm8ExtendedTo10, PreIncrement>"
     elif name == "swi":
         return "thumb::thumb_swi"
     elif _class == "und":
@@ -316,7 +316,7 @@ def generate_lut_code(name, lut):
     count = len(lut)
     current_instr_on_line = 0
 
-    s = f"\npub const {name}: [InstrFn; {count}] = ["
+    s = f"\n#[rustfmt::skip]\npub const {name}: [InstrFn; {count}] = ["
     if len(lut) > 0:
         s += "\n"
         for entry in lut:

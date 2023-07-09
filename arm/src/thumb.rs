@@ -4,8 +4,8 @@ use crate::{
     alu::{self, BinaryOp, ExtractThumbOperand},
     cpu::Cpu,
     memory::Memory,
-    transfer::{Ldr, SingleDataTransfer},
-    CpsrFlag, CpuException, Cycles, Registers,
+    transfer::{IndexingMode, SDTCalculateOffset, SingleDataTransfer},
+    AccessType, CpsrFlag, CpuException, Cycles, Registers,
 };
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
@@ -55,31 +55,6 @@ where
         cpu.registers.write(RD, result);
     }
     Cycles::zero()
-}
-
-/// PC-relative load
-///
-/// `LDR Rd, [PC, #Imm]`  
-pub fn thumb_pc_relative_load<const RD: u32>(
-    instr: u32,
-    cpu: &mut Cpu,
-    memory: &mut dyn Memory,
-) -> Cycles {
-    // From ARM7TDMI Documentation:
-    //      The value of the PC will be 4 bytes greater than the address of this instruction,
-    //      but bit 1 of PC is forced to 0 to ensure it is word aligned.
-    // NOTE: Only bit 1 is forced to 0 because bit 0 is forced to 0 in THUMB mode anyway.
-    let pc = cpu.registers.read(15) & 0xFFFFFFFC;
-
-    // From ARM7TDMI Documentation:
-    //      The value specified by #Imm is a full 10-bit address, but must always be word-aligned
-    //      (ie with bits 1:0 set to 0), since the assembler places #Imm >> 2 in field Word8.
-    let offset = instr.get_bit_range(0..=7) << 2;
-
-    let address = pc.wrapping_add(offset);
-
-    let cycles = Ldr::<false>::transfer(RD, address, &mut cpu.registers, memory);
-    cycles + Cycles::one()
 }
 
 /// add/subtract
@@ -215,6 +190,43 @@ pub fn thumb_bx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
         cpu.registers.clear_flag(CpsrFlag::T);
         cpu.branch_arm(destination, memory)
     }
+}
+
+pub fn thumb_single_data_transfer<T, D, B, O, I>(
+    instr: u32,
+    cpu: &mut Cpu,
+    memory: &mut dyn Memory,
+) -> Cycles
+where
+    T: SingleDataTransfer,
+    D: ExtractThumbOperand, // destination register
+    B: ExtractThumbOperand, // base
+    O: SDTCalculateOffset,
+    I: IndexingMode,
+{
+    let rd = D::extract(instr, &cpu.registers);
+    let offset = O::calculate_offset(instr, &mut cpu.registers);
+    let mut address = B::extract(instr, &cpu.registers);
+    address = I::calculate_single_data_transfer_address(address, offset);
+    let mut cycles = T::transfer(rd, address, &mut cpu.registers, memory);
+
+    // During the third cycle, the ARM7TDMI-S processor transfers the data to the
+    // destination register. (External memory is not used.) Normally, the ARM7TDMI-S
+    // core merges this third cycle with the next prefetch to form one memory N-cycle
+    if T::IS_LOAD {
+        cycles += Cycles::one();
+    }
+
+    if T::IS_LOAD && rd == 15 {
+        let destination = cpu.registers.read(15);
+        cycles += cpu.branch_thumb(destination, memory);
+    }
+
+    if !T::IS_LOAD {
+        cpu.next_fetch_access_type = AccessType::NonSequential;
+    }
+
+    cycles
 }
 
 /// Software Interrupt (SWI)
