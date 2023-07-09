@@ -216,12 +216,120 @@ def arm_instr_data_to_lut_entry(data):
     elif _class == "edsp":
         return "arm::arm_m_extension_undefined"
 
-    print(f"unknown instruction {name}/{subname} -- {desc} -- {subdesc}")
+    print(f"unknown ARM instruction {name}/{subname} -- {desc} -- {subdesc}")
     return "arm::todo"
 
 
 def thumb_instr_data_to_lut_entry(data):
     name = data["name"].lower()
+    desc = data["desc"].lower() if "desc" in data else ""
+    subname = data["subname"].lower() if "subname" in data else ""
+    subdesc = data["subdesc"].lower() if "subdesc" in data else ""
+    _class = data["_class"].lower() if "_class" in data else ""
+
+    if name in ["lsl", "lsr", "asr"] and subname in "imm":
+        op_name = name.capitalize() + "Op"
+        return f"thumb::thumb_move_shifted_register::<alu::{op_name}>"
+    elif name in ["mov", "cmp", "add", "sub"] and subname.startswith("i8r"):
+        op_name = name.capitalize() + "Op"
+        register = int(subname[3:])
+        return (
+            f"thumb::thumb_mov_compare_add_subtract_imm::<{register}, alu::{op_name}>"
+        )
+    elif name in ["add", "sub"] and (subname == "reg" or subname == "imm3"):
+        op_name = name.capitalize() + "Op"
+        imm = "AddSubtractImm3" if subname == "imm3" else "AddSubtractReg3"
+        return f"thumb::thumb_add_subtract::<alu::{imm}, alu::{op_name}>"
+    elif name == "dp":
+        return f"thumb::thumb_alu_operation"
+    elif name in ["addh", "cmph", "movh"]:
+        op_name = name[:-1].capitalize() + "Op"
+        return f"thumb::thumb_hi_register_op::<alu::{op_name}>"
+    elif name == "bx":
+        return f"thumb::thumb_bx"
+    elif name == "ldrpc":
+        register = int(subname[1:])
+        return f"thumb::thumb_single_data_transfer::<Ldr, ConstReg<{register}>, WordAlignedPc, ThumbImm8ExtendedTo10, PreIncrement>"
+    elif (
+        name in ["str", "ldr", "strh", "strb", "ldrsb", "ldrh", "ldrb", "ldrsh"]
+        and subname == "reg"
+    ):
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbRegisterOffset, PreIncrement>"
+    elif name in ["strb", "ldrb"] and subname == "imm5":
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5, PreIncrement>"
+    elif name in ["strh", "ldrh"] and subname == "imm5":
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5ExtendedTo6, PreIncrement>"
+    elif name in ["str", "ldr"] and subname == "imm5":
+        op_name = name.capitalize()
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<0, 2>, RegAtValue<3, 5>, ThumbImm5ExtendedTo7, PreIncrement>"
+    elif name in ["ldrsp", "strsp"]:
+        op_name = (name[:-2]).capitalize()
+        register = int(subname[1:])
+        return f"thumb::thumb_single_data_transfer::<{op_name}, RegAt<8, 9>, RegValue<13>, ThumbImm8ExtendedTo10, PreIncrement>"
+    elif name == "addpc":
+        register = int(subname[1:])
+        return f"thumb::thumb_load_address::<{register}, WordAlignedPc>"
+    elif name == "addsp" and subname.startswith("r"):
+        register = int(subname[1:])
+        return f"thumb::thumb_load_address::<{register}, RegValue<13>>"
+    elif name == "addsp" and subname == "imm7":
+        return f"thumb::thumb_add_sp"
+    elif name == "push":
+        rlist = "ThumbRegisterListWithLr" if subname == "lr" else "ThumbRegisterList"
+        return f"thumb::thumb_block_data_transfer::<Stm, ConstReg<13>, {rlist}, PreDecrement>"
+    elif name == "pop":
+        rlist = "ThumbRegisterListWithPc" if subname == "pc" else "ThumbRegisterList"
+        return f"thumb::thumb_block_data_transfer::<Ldm, ConstReg<13>, {rlist}, PostIncrement>"
+    elif name == "stmia":
+        register = int(subname[1:])
+        return f"thumb::thumb_block_data_transfer::<Stm, ConstReg<{register}>, ThumbRegisterList, PostIncrement>"
+    elif name == "ldmia":
+        register = int(subname[1:])
+        return f"thumb::thumb_block_data_transfer::<Ldm, ConstReg<{register}>, ThumbRegisterList, PostIncrement>"
+    elif name in [
+        "beq",
+        "bne",
+        "bcs",
+        "bcc",
+        "bmi",
+        "bpl",
+        "bvs",
+        "bvc",
+        "bhi",
+        "bls",
+        "bge",
+        "blt",
+        "bgt",
+        "ble",
+    ]:
+        cond = "COND_" + name[1:].upper()
+        return f"thumb::thumb_conditional_branch::<{cond}>"
+    elif name == "b":
+        return f"thumb::thumb_unconditional_branch"
+    elif name == "bl":
+        if subname == "setup":
+            return f"thumb::thumb_bl_setup"
+        if subname == "off":
+            return f"thumb::thumb_bl_complete"
+        else:
+            print("bl type found: " + subname)
+            return "ERROR"
+    elif name == "swi":
+        return "thumb::thumb_swi"
+    elif name == "blx":
+        return "thumb::thumb_blx"
+    elif name == "bkpt":
+        return "thumb::thumb_bkpt"
+    elif _class == "und":
+        return "thumb::thumb_undefined"
+
+    print(
+        f"unknown THUMB instruction {name}/{subname} -- {desc} -- {subdesc} -- {_class}"
+    )
+
     return "thumb::todo"
 
 
@@ -281,7 +389,7 @@ def generate_lut_code(name, lut):
     count = len(lut)
     current_instr_on_line = 0
 
-    s = f"\npub const {name}: [InstrFn; {count}] = ["
+    s = f"\n#[rustfmt::skip]\npub const {name}: [InstrFn; {count}] = ["
     if len(lut) > 0:
         s += "\n"
         for entry in lut:

@@ -112,7 +112,11 @@ impl Executor {
         source.push_str(".global _start\n");
         source.push_str("_start:\n");
         source.push_str(&self.source);
+        source.push('\n');
+        source.push_str(".hword 0xF777\n");
+        source.push_str(".hword 0xF777\n");
         source.push_str(".text\n");
+        source.push_str(".arm\n");
         source.push_str("_exit:\n");
         source.push_str(".word 0xF777F777\n");
         if !self.data.is_empty() {

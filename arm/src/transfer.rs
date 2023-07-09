@@ -28,12 +28,19 @@ pub struct HalfwordAndSignedRegOffset;
 pub struct Ldm;
 pub struct Stm;
 
+pub struct ThumbImm8ExtendedTo10;
+pub struct ThumbImm5;
+pub struct ThumbImm5ExtendedTo6;
+pub struct ThumbImm5ExtendedTo7;
+/// Common THUMB mode Ro (bits 6-8)
+pub struct ThumbRegisterOffset;
+
 impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     const IS_LOAD: bool = true;
 
     fn transfer(
-        rd: u32,
-        src_addr: u32,
+        destination_register: u32,
+        source_address: u32,
         registers: &mut Registers,
         memory: &mut dyn Memory,
     ) -> Cycles {
@@ -44,11 +51,11 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
             //       write so that we would check things like the current address
             //       and mode.
             let old_mode = registers.write_mode(CpuMode::User);
-            let (value, wait) = memory.load32(src_addr & !0x3, AccessType::NonSequential);
+            let (value, wait) = memory.load32(source_address & !0x3, AccessType::NonSequential);
             registers.write_mode(old_mode);
             (value, wait)
         } else {
-            memory.load32(src_addr & !0x3, AccessType::NonSequential)
+            memory.load32(source_address & !0x3, AccessType::NonSequential)
         };
 
         // From the ARM7TDMI Documentation:
@@ -57,9 +64,9 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
         //  be rotated into the register so that the addressed byte occupies bit 0-7.
         // Basically we rotate the word to the right by the number of bits that the address
         // is unaligned by (offset from the word boundary).
-        value = value.rotate_right(8 * (src_addr % 4));
+        value = value.rotate_right(8 * (source_address % 4));
 
-        registers.write(rd, value);
+        registers.write(destination_register, value);
 
         Cycles::one() + wait
     }
@@ -234,6 +241,37 @@ impl SDTCalculateOffset for HalfwordAndSignedRegOffset {
     }
 }
 
+impl SDTCalculateOffset for ThumbImm8ExtendedTo10 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        (instr & 0xFF) << 2
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm5 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        instr.get_bit_range(6..=10)
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm5ExtendedTo6 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        instr.get_bit_range(6..=10) << 1
+    }
+}
+
+impl SDTCalculateOffset for ThumbImm5ExtendedTo7 {
+    fn calculate_offset(instr: u32, _registers: &mut Registers) -> u32 {
+        instr.get_bit_range(6..=10) << 2
+    }
+}
+
+impl SDTCalculateOffset for ThumbRegisterOffset {
+    fn calculate_offset(instr: u32, registers: &mut Registers) -> u32 {
+        let ro = instr.get_bit_range(6..=8);
+        registers.read(ro)
+    }
+}
+
 impl IndexingMode for PreIncrement {
     #[inline(always)]
     fn calculate_single_data_transfer_address(address: u32, offset: u32) -> u32 {
@@ -353,6 +391,7 @@ impl BlockDataTransfer for Stm {
     ) -> Cycles {
         let mut value = registers.read(source_register);
         // When r15 is stored as part of an STM instruction it will 12 bytes ahead instead of 8.
+        // NOTE: Thumb mode cannot store r15 (only load), so we ignore it here and only handle ARM.
         if source_register == 15 {
             value = value.wrapping_add(4);
         }

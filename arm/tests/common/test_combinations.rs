@@ -1,3 +1,4 @@
+#[allow(unused_macros)]
 macro_rules! test_combinations {
     (@ $body:block @ $current_name:ident in $current_thing:expr, $($name:ident in $thing:expr),+ ) => {
         for $current_name in $current_thing {

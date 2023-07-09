@@ -16,7 +16,7 @@ use crate::{
 
 /// Branch
 ///
-/// B <offset>
+/// `B <offset>`
 pub fn arm_b(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
     let pc = cpu.registers.read(15);
@@ -26,7 +26,7 @@ pub fn arm_b(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
 
 /// Branch and Link
 ///
-/// BL <offset>
+/// `BL <offset>`
 pub fn arm_bl(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
     let pc = cpu.registers.read(15);
@@ -134,6 +134,13 @@ where
         //      When using R15 as the base register.
         address = I::calculate_single_data_transfer_writeback_address(address, offset);
         cpu.registers.write(rn, address);
+    }
+
+    // During the third cycle, the ARM7TDMI-S processor transfers the data to the
+    // destination register. (External memory is not used.) Normally, the ARM7TDMI-S
+    // core merges this third cycle with the next prefetch to form one memory N-cycle
+    if T::IS_LOAD {
+        cycles += Cycles::one();
     }
 
     if T::IS_LOAD && (rd == 15 || (WRITEBACK && rn == 15)) {
@@ -275,7 +282,7 @@ where
 
 /// Move status word to register
 ///
-/// MRS{cond} Rd,<psr>
+/// `MRS{cond} Rd,<psr>`
 pub fn arm_mrs<P>(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles
 where
     P: Psr,

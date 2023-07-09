@@ -2,10 +2,12 @@ mod binary_operations;
 pub mod multiply;
 mod psr;
 mod shited_operands;
+mod thumb_operands;
 
 pub use binary_operations::*;
 pub use psr::*;
 pub use shited_operands::*;
+pub use thumb_operands::*;
 
 impl RotateRightExtended for u32 {
     type Output = Self;
