@@ -240,6 +240,8 @@ def thumb_instr_data_to_lut_entry(data):
         op_name = name.capitalize() + "Op"
         imm = "AddSubtractImm3" if subname == "imm3" else "AddSubtractReg3"
         return f"thumb::thumb_add_subtract::<alu::{imm}, alu::{op_name}>"
+    elif name == "dp":
+        return f"thumb::thumb_alu_operation"
     elif name == "ldrpc":
         register = int(subname[1:])
         return f"thumb::thumb_pc_relative_load::<{register}>"

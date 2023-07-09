@@ -20,6 +20,8 @@ pub struct SbcOp;
 pub struct SubOp;
 pub struct TeqOp;
 pub struct TstOp;
+pub struct MulOp;
+pub struct NegOp;
 
 pub struct LslOp;
 pub struct LsrOp;
@@ -404,6 +406,26 @@ impl BinaryOp for RrxOp {
 
     fn get_carry_out(lhs: u32, _rhs: u32) -> Option<bool> {
         Some(lhs.get_bit(0))
+    }
+}
+
+impl BinaryOp for MulOp {
+    const HAS_RESULT: bool = true;
+
+    fn execute(_registers: &Registers, lhs: u32, rhs: u32) -> u32 {
+        lhs.wrapping_mul(rhs)
+    }
+}
+
+impl BinaryOp for NegOp {
+    const HAS_RESULT: bool = true;
+
+    fn execute(_registers: &Registers, _lhs: u32, rhs: u32) -> u32 {
+        RsbOp::execute(_registers, rhs, 0)
+    }
+
+    fn set_flags(registers: &mut Registers, _lhs: u32, rhs: u32, result: u32) {
+        RsbOp::set_flags(registers, rhs, 0, result)
     }
 }
 

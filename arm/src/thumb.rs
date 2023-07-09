@@ -1,11 +1,11 @@
 use util::bits::BitOps;
 
 use crate::{
-    alu::{BinaryOp, ExtractThumbOperand},
+    alu::{self, BinaryOp, ExtractThumbOperand},
     cpu::Cpu,
     memory::Memory,
     transfer::{Ldr, SingleDataTransfer},
-    CpuException, Cycles,
+    CpuException, Cycles, Registers,
 };
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
@@ -102,6 +102,53 @@ where
     debug_assert!(O::HAS_RESULT);
     cpu.registers.write(rd, result);
     Cycles::zero()
+}
+
+/// ALU operations
+pub fn thumb_alu_operation(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
+    let rd = instr.get_bit_range(0..=2);
+    let rs = instr.get_bit_range(3..=5);
+    let lhs = cpu.registers.read(rd);
+    let rhs = cpu.registers.read(rs);
+
+    let op = instr.get_bit_range(6..=9);
+    let registers = &mut cpu.registers;
+    match op {
+        0x0 => thumb_alu_operation_internal::<alu::AndOp>(lhs, rhs, rd, registers),
+        0x1 => thumb_alu_operation_internal::<alu::EorOp>(lhs, rhs, rd, registers),
+        0x2 => thumb_alu_operation_internal::<alu::LslOp>(lhs, rhs, rd, registers),
+        0x3 => thumb_alu_operation_internal::<alu::LsrOp>(lhs, rhs, rd, registers),
+        0x4 => thumb_alu_operation_internal::<alu::AsrOp>(lhs, rhs, rd, registers),
+        0x5 => thumb_alu_operation_internal::<alu::AdcOp>(lhs, rhs, rd, registers),
+        0x6 => thumb_alu_operation_internal::<alu::SbcOp>(lhs, rhs, rd, registers),
+        0x7 => thumb_alu_operation_internal::<alu::RorOp>(lhs, rhs, rd, registers),
+        0x8 => thumb_alu_operation_internal::<alu::TstOp>(lhs, rhs, rd, registers),
+        0x9 => thumb_alu_operation_internal::<alu::NegOp>(lhs, rhs, rd, registers),
+        0xA => thumb_alu_operation_internal::<alu::CmpOp>(lhs, rhs, rd, registers),
+        0xB => thumb_alu_operation_internal::<alu::CmnOp>(lhs, rhs, rd, registers),
+        0xC => thumb_alu_operation_internal::<alu::OrrOp>(lhs, rhs, rd, registers),
+        0xD => thumb_alu_operation_internal::<alu::MulOp>(lhs, rhs, rd, registers),
+        0xE => thumb_alu_operation_internal::<alu::BicOp>(lhs, rhs, rd, registers),
+        0xF => thumb_alu_operation_internal::<alu::MvnOp>(lhs, rhs, rd, registers),
+        _ => unreachable!(),
+    };
+
+    if op != 0xD {
+        Cycles::zero()
+    } else {
+        alu::multiply::internal_multiply_cycles(rhs)
+    }
+}
+
+fn thumb_alu_operation_internal<O>(lhs: u32, rhs: u32, rd: u32, registers: &mut Registers)
+where
+    O: BinaryOp,
+{
+    let result = O::execute(registers, lhs, rhs);
+    O::set_flags(registers, lhs, rhs, result);
+    if O::HAS_RESULT {
+        registers.write(rd, result)
+    }
 }
 
 /// Software Interrupt (SWI)
