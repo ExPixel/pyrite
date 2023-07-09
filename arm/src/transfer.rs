@@ -32,8 +32,8 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     const IS_LOAD: bool = true;
 
     fn transfer(
-        rd: u32,
-        src_addr: u32,
+        destination_register: u32,
+        source_address: u32,
         registers: &mut Registers,
         memory: &mut dyn Memory,
     ) -> Cycles {
@@ -44,11 +44,11 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
             //       write so that we would check things like the current address
             //       and mode.
             let old_mode = registers.write_mode(CpuMode::User);
-            let (value, wait) = memory.load32(src_addr & !0x3, AccessType::NonSequential);
+            let (value, wait) = memory.load32(source_address & !0x3, AccessType::NonSequential);
             registers.write_mode(old_mode);
             (value, wait)
         } else {
-            memory.load32(src_addr & !0x3, AccessType::NonSequential)
+            memory.load32(source_address & !0x3, AccessType::NonSequential)
         };
 
         // From the ARM7TDMI Documentation:
@@ -57,9 +57,9 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
         //  be rotated into the register so that the addressed byte occupies bit 0-7.
         // Basically we rotate the word to the right by the number of bits that the address
         // is unaligned by (offset from the word boundary).
-        value = value.rotate_right(8 * (src_addr % 4));
+        value = value.rotate_right(8 * (source_address % 4));
 
-        registers.write(rd, value);
+        registers.write(destination_register, value);
 
         Cycles::one() + wait
     }

@@ -303,6 +303,17 @@ impl BinaryOp for LsrOp {
             std::cmp::Ordering::Greater => Some(false),
         }
     }
+
+    #[inline]
+    fn transform_imm_rhs(rhs: u32) -> u32 {
+        // The form of the shift field which might be expected to correspond to LSR #0 is used to encode LSR #32,
+        // which has a zero result with bit 31 of Rm as the carry output.
+        if rhs == 0 {
+            32
+        } else {
+            rhs
+        }
+    }
 }
 
 impl BinaryOp for AsrOp {
@@ -329,6 +340,16 @@ impl BinaryOp for AsrOp {
             Some(lhs.get_bit(31))
         } else {
             Some(lhs.get_bit(rhs - 1))
+        }
+    }
+
+    #[inline]
+    fn transform_imm_rhs(rhs: u32) -> u32 {
+        // The form of the shift field which might be expected to give ASR #0 is used to encode ASR #32.
+        if rhs == 0 {
+            32
+        } else {
+            rhs
         }
     }
 }
@@ -410,5 +431,12 @@ pub trait BinaryOp {
         }
         registers.put_flag(CpsrFlag::N, (result >> 31) & 1);
         registers.put_flag(CpsrFlag::Z, result == 0);
+    }
+
+    /// Some immediate forms of the shift operations use #0 to encode
+    /// #32 (or RRX). This method is called to do this transformation.
+    #[inline]
+    fn transform_imm_rhs(rhs: u32) -> u32 {
+        rhs
     }
 }

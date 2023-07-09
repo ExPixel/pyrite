@@ -136,6 +136,13 @@ where
         cpu.registers.write(rn, address);
     }
 
+    // During the third cycle, the ARM7TDMI-S processor transfers the data to the
+    // destination register. (External memory is not used.) Normally, the ARM7TDMI-S
+    // core merges this third cycle with the next prefetch to form one memory N-cycle
+    if T::IS_LOAD {
+        cycles += Cycles::one();
+    }
+
     if T::IS_LOAD && (rd == 15 || (WRITEBACK && rn == 15)) {
         let destination = cpu.registers.read(15);
         cycles += cpu.branch_arm(destination, memory);

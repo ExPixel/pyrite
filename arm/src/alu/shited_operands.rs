@@ -58,7 +58,8 @@ impl ExtractOp2 for LliOp2 {
     const IS_REGISTER_SHIFT: bool = false;
 
     fn extract<const S: bool>(instr: u32, registers: &mut Registers) -> u32 {
-        let (lhs, rhs) = Self::get_operands(instr, registers);
+        let (lhs, mut rhs) = Self::get_operands(instr, registers);
+        rhs = LslOp::transform_imm_rhs(rhs);
         get_op2_using_binop::<LslOp, S>(lhs, rhs, registers)
     }
 }
@@ -76,15 +77,9 @@ impl ExtractOp2 for LriOp2 {
     const IS_REGISTER_SHIFT: bool = false;
 
     fn extract<const S: bool>(instr: u32, registers: &mut Registers) -> u32 {
-        let (lhs, rhs) = Self::get_operands(instr, registers);
-
-        // The form of the shift field which might be expected to correspond to LSR #0 is used to encode LSR #32,
-        // which has a zero result with bit 31 of Rm as the carry output.
-        if rhs == 0 {
-            get_op2_using_binop::<LsrOp, S>(lhs, 32, registers)
-        } else {
-            get_op2_using_binop::<LsrOp, S>(lhs, rhs, registers)
-        }
+        let (lhs, mut rhs) = Self::get_operands(instr, registers);
+        rhs = LsrOp::transform_imm_rhs(rhs);
+        get_op2_using_binop::<LsrOp, S>(lhs, rhs, registers)
     }
 }
 
@@ -101,16 +96,9 @@ impl ExtractOp2 for AriOp2 {
     const IS_REGISTER_SHIFT: bool = false;
 
     fn extract<const S: bool>(instr: u32, registers: &mut Registers) -> u32 {
-        let (lhs, rhs) = Self::get_operands(instr, registers);
-
-        // The form of the shift field which might be expected to give ASR #0 is used to encode ASR #32.
-        // Bit 31 of Rm is again used as the carry output, and each bit of operand 2 is also equal to bit 31 of Rm.
-        // The result is therefore all ones or all zeros, according to the value of bit 31 of Rm.
-        if rhs == 0 {
-            get_op2_using_binop::<AsrOp, S>(lhs, 32, registers)
-        } else {
-            get_op2_using_binop::<AsrOp, S>(lhs, rhs, registers)
-        }
+        let (lhs, mut rhs) = Self::get_operands(instr, registers);
+        rhs = AsrOp::transform_imm_rhs(rhs);
+        get_op2_using_binop::<AsrOp, S>(lhs, rhs, registers)
     }
 }
 

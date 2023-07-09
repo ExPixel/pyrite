@@ -227,7 +227,19 @@ def thumb_instr_data_to_lut_entry(data):
     subdesc = data["subdesc"].lower() if "subdesc" in data else ""
     _class = data["_class"].lower() if "_class" in data else ""
 
-    if name == "swi":
+    if name in ["lsl", "lsr", "asr"] and subname in "imm":
+        op_name = name.capitalize() + "Op"
+        return f"thumb::thumb_move_shifted_register::<alu::{op_name}>"
+    elif name in ["mov", "cmp", "add", "sub"] and subname.startswith("i8r"):
+        op_name = name.capitalize() + "Op"
+        register = int(subname[3:])
+        return (
+            f"thumb::thumb_mov_compare_add_subtract_imm::<{register}, alu::{op_name}>"
+        )
+    elif name == "ldrpc":
+        register = int(subname[1:])
+        return f"thumb::thumb_pc_relative_load::<{register}>"
+    elif name == "swi":
         return "thumb::thumb_swi"
     elif _class == "und":
         return "thumb::thumb_undefined"
