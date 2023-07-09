@@ -3,6 +3,8 @@ pub mod common;
 
 use arm::CpsrFlag;
 
+use crate::common::operands::{imm3, imm32};
+
 #[test]
 pub fn test_lsl_imm() {
     // The least significant **discarded** bit becomes the shifter carry output which may
@@ -129,4 +131,96 @@ pub fn test_asr_imm_by_32() {
     "};
     assert_eq!(cpu.registers.read(0), 0x00000000);
     assert!(!cpu.registers.get_flag(CpsrFlag::C));
+}
+
+test_combinations! {
+    #[test]
+    fn test_load_value_into_register(value in imm32()) {
+        let (cpu, _mem) = arm! {"ldr r0, =#{value}"};
+        assert_eq!(cpu.registers.read(0), value as u32);
+    }
+
+    #[test]
+    fn test_add_imm3(lhs in imm32(), rhs in imm3()) {
+        println!("lhs = {lhs}, rhs = {rhs}");
+        let (cpu, _mem) = thumb! {"
+                ldr r1, =#{lhs}
+                add r0, r1, #{rhs}
+            "};
+
+        let expected_result = lhs.wrapping_add(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32).overflowing_add(rhs as u32).1;
+        let expected_v = lhs.overflowing_add(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_add_reg3(lhs in imm32(), rhs in imm32()) {
+        println!("lhs = {lhs}, rhs = {rhs}");
+        let (cpu, _mem) = thumb! {"
+                ldr r1, =#{lhs}
+                ldr r2, =#{rhs}
+                add r0, r1, r2
+            "};
+
+        let expected_result = lhs.wrapping_add(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32).overflowing_add(rhs as u32).1;
+        let expected_v = lhs.overflowing_add(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_sub_imm3(lhs in imm32(), rhs in imm3()) {
+        let (cpu, _mem) = thumb! {"
+                ldr r1, =#{lhs}
+                sub r0, r1, #{rhs}
+            "};
+
+        let expected_result = lhs.wrapping_sub(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32) >= (rhs as u32);
+        let expected_v = lhs.overflowing_sub(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_sub_reg3(lhs in imm32(), rhs in imm32()) {
+        let (cpu, _mem) = thumb! {"
+                ldr r1, =#{lhs}
+                ldr r2, =#{rhs}
+                sub r0, r1, r2
+            "};
+
+        let expected_result = lhs.wrapping_sub(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32) >= (rhs as u32);
+        let expected_v = lhs.overflowing_sub(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
 }

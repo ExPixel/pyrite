@@ -1,7 +1,7 @@
 use util::bits::BitOps;
 
 use crate::{
-    alu::BinaryOp,
+    alu::{BinaryOp, ExtractThumbOperand},
     cpu::Cpu,
     memory::Memory,
     transfer::{Ldr, SingleDataTransfer},
@@ -81,6 +81,28 @@ pub fn thumb_pc_relative_load<const RD: u32>(
 
     let cycles = Ldr::<false>::transfer(RD, address, &mut cpu.registers, memory);
     cycles + Cycles::one()
+}
+
+/// add/subtract
+///
+/// `ADD Rd, Rs, Rn`  
+/// `ADD Rd, Rs, #Offset3`  
+/// `SUB Rd, Rs, Rn`  
+/// `SUB Rd, Rs, #Offset3`  
+pub fn thumb_add_subtract<E, O>(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles
+where
+    E: ExtractThumbOperand,
+    O: BinaryOp,
+{
+    let rs = instr.get_bit_range(3..=5);
+    let rd = instr.get_bit_range(0..=2);
+    let lhs = cpu.registers.read(rs);
+    let rhs = E::extract(instr, &cpu.registers);
+    let result = O::execute(&cpu.registers, lhs, rhs);
+    O::set_flags(&mut cpu.registers, lhs, rhs, result);
+    debug_assert!(O::HAS_RESULT);
+    cpu.registers.write(rd, result);
+    Cycles::zero()
 }
 
 /// Software Interrupt (SWI)

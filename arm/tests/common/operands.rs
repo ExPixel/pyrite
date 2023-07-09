@@ -1,7 +1,20 @@
 use rand::Rng;
 
-pub fn operands() -> impl Iterator<Item = i32> {
+pub fn imm32() -> impl Iterator<Item = i32> {
     [i32::MIN, 0, 1, i32::MAX / 2, i32::MAX].into_iter()
+}
+
+pub fn imm3() -> impl Iterator<Item = i32> {
+    let mut x = 0;
+    std::iter::from_fn(move || {
+        if x > 0b111 {
+            return None;
+        }
+
+        let ret = Some(x);
+        x += 1;
+        ret
+    })
 }
 
 pub fn bools() -> impl Iterator<Item = bool> {

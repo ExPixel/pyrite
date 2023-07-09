@@ -1,6 +1,6 @@
 use arm::{CpsrFlag, CpuMode};
 
-use crate::common::operands::{bools, operands, rand_operand};
+use crate::common::operands::{bools, imm32, rand_operand};
 
 #[macro_use]
 pub mod common;
@@ -586,13 +586,13 @@ pub fn test_data_processing_with_r15() {
 
 test_combinations! {
     #[test]
-    fn test_load_value_into_register(value in operands()) {
+    fn test_load_value_into_register(value in imm32()) {
         let (cpu, _mem) = arm! {"ldr r0, =#{value}"};
         assert_eq!(cpu.registers.read(0), value as u32);
     }
 
     #[test]
-    fn test_adds(lhs in operands(), rhs in operands()) {
+    fn test_adds(lhs in imm32(), rhs in imm32()) {
         println!("lhs = {lhs}, rhs = {rhs}");
         let (cpu, _mem) = arm! {"
                 ldr     r1, =#{lhs}
@@ -614,7 +614,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_adcs(lhs in operands(), rhs in operands(), initial_carry in bools()) {
+    fn test_adcs(lhs in imm32(), rhs in imm32(), initial_carry in bools()) {
         let (cpu, _mem) = if initial_carry {
             arm! {"
                     ldr     r0, =0x80000000
@@ -654,7 +654,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_subs(lhs in operands(), rhs in operands()) {
+    fn test_subs(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
                 ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}
@@ -675,7 +675,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_sbcs(lhs in operands(), rhs in operands(), initial_carry in bools()) {
+    fn test_sbcs(lhs in imm32(), rhs in imm32(), initial_carry in bools()) {
         let (cpu, _mem) = if initial_carry {
             arm! {"
                 ldr     r0, =0x80000000
@@ -707,7 +707,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_rsbs(lhs in operands(), rhs in operands()) {
+    fn test_rsbs(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
                 ldr     r1, =#{lhs}
                 ldr     r2, =#{rhs}
@@ -728,7 +728,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_rscs(lhs in operands(), rhs in operands(), initial_carry in bools()) {
+    fn test_rscs(lhs in imm32(), rhs in imm32(), initial_carry in bools()) {
         let (cpu, _mem) = if initial_carry {
             arm! {"
                     ldr     r0, =0x80000000
@@ -762,7 +762,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_movs(lhs in operands()) {
+    fn test_movs(lhs in imm32()) {
         let (cpu, _mem) = arm! {"
                 ldr     r1, =#{lhs}
                 movs    r0, r1
@@ -780,7 +780,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_mvns(lhs in operands()) {
+    fn test_mvns(lhs in imm32()) {
         let (cpu, _mem) = arm! {"
                 ldr     r1, =#{lhs}
                 mvns    r0, r1
@@ -798,7 +798,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_ands(lhs in operands(), rhs in operands()) {
+    fn test_ands(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -817,7 +817,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_bics(lhs in operands(), rhs in operands()) {
+    fn test_bics(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -836,7 +836,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_orrs(lhs in operands(), rhs in operands()) {
+    fn test_orrs(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -855,7 +855,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_eors(lhs in operands(), rhs in operands()) {
+    fn test_eors(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -874,7 +874,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_cmp(lhs in operands(), rhs in operands()) {
+    fn test_cmp(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -894,7 +894,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_cmn(lhs in operands(), rhs in operands()) {
+    fn test_cmn(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -914,7 +914,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_tsts(lhs in operands(), rhs in operands()) {
+    fn test_tsts(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -932,7 +932,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_teqs(lhs in operands(), rhs in operands()) {
+    fn test_teqs(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -950,7 +950,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_muls(lhs in operands(), rhs in operands()) {
+    fn test_muls(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -967,7 +967,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_mlas(lhs in operands(), rhs in operands(), acc in rand_operand::<i32>(2)) {
+    fn test_mlas(lhs in imm32(), rhs in imm32(), acc in rand_operand::<i32>(2)) {
         let (cpu, _mem) = arm! {"
             ldr     r1, =#{lhs}
             ldr     r2, =#{rhs}
@@ -985,7 +985,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_umulls(lhs in operands(), rhs in operands()) {
+    fn test_umulls(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r2, =#{lhs}
             ldr     r3, =#{rhs}
@@ -1005,7 +1005,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_umlals(lhs in operands(), rhs in operands(), acc in rand_operand::<u64>(2)) {
+    fn test_umlals(lhs in imm32(), rhs in imm32(), acc in rand_operand::<u64>(2)) {
         let acc_lo = acc as u32;
         let acc_hi = (acc >> 32) as u32;
 
@@ -1030,7 +1030,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_smulls(lhs in operands(), rhs in operands()) {
+    fn test_smulls(lhs in imm32(), rhs in imm32()) {
         let (cpu, _mem) = arm! {"
             ldr     r2, =#{lhs}
             ldr     r3, =#{rhs}
@@ -1050,7 +1050,7 @@ test_combinations! {
     }
 
     #[test]
-    fn test_smlals(lhs in operands(), rhs in operands(), acc in rand_operand::<u64>(2)) {
+    fn test_smlals(lhs in imm32(), rhs in imm32(), acc in rand_operand::<u64>(2)) {
         let acc_lo = acc as u32;
         let acc_hi = (acc >> 32) as u32;
 
