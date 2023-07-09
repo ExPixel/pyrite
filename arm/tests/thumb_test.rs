@@ -517,6 +517,7 @@ test_combinations! {
             mov     r0, #{rhs}
         "};
 
+        assert_eq!(cpu.registers.read(0), rhs as u32);
         assert_eq!(cpu.registers.get_flag(CpsrFlag::N), rhs < 0);
         assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), rhs == 0);
     }
@@ -803,6 +804,50 @@ test_combinations! {
         assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
         assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
     }
+
+    #[test]
+    fn test_add_hi(lhs in imm32(), rhs in imm32()) {
+        println!("lhs = {lhs}, rhs = {rhs}");
+        let (cpu, _mem) = thumb! {"
+                ldr r0, =#{lhs}
+                ldr r1, =#{rhs}
+                mov r9, r1
+                add r0, r9
+            "};
+
+        let expected_result = lhs.wrapping_add(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32).overflowing_add(rhs as u32).1;
+        let expected_v = lhs.overflowing_add(rhs).1;
+
+        assert_eq!(cpu.registers.read(0), expected_result as u32);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
+
+    #[test]
+    fn test_cmp_hi(lhs in imm32(), rhs in imm32()) {
+        let (cpu, _mem) = thumb! {"
+            ldr r0, =#{lhs}
+            ldr r1, =#{rhs}
+            mov r9, r1
+            cmp r0, r9
+        "};
+
+        let expected_result = lhs.wrapping_sub(rhs);
+        let expected_n = expected_result < 0;
+        let expected_z = expected_result == 0;
+        let expected_c = (lhs as u32) >= (rhs as u32);
+        let expected_v = (lhs as i32).overflowing_sub(rhs as i32).1;
+
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::N), expected_n);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::Z), expected_z);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::C), expected_c);
+        assert_eq!(cpu.registers.get_flag(CpsrFlag::V), expected_v);
+    }
 }
 
 #[test]
@@ -831,4 +876,32 @@ pub fn test_swi() {
 
     assert_eq!(cpu.registers.read(1), 14);
     assert_eq!(cpu.registers.read_mode(), CpuMode::System);
+}
+
+#[test]
+pub fn test_bx_arm() {
+    let (cpu, _mem) = thumb! {"
+    main:
+        ldr r0, =arm_main
+        bx  r0
+        b   _exit
+
+    .arm
+    arm_main:
+    "};
+    assert!(!cpu.registers.get_flag(CpsrFlag::T));
+}
+
+#[test]
+pub fn test_bx_thumb() {
+    let (cpu, _mem) = thumb! {"
+    main:
+        ldr r0, =thumb_main+1
+        bx  r0
+        b   _exit
+
+    .thumb
+    thumb_main:
+    "};
+    assert!(cpu.registers.get_flag(CpsrFlag::T));
 }

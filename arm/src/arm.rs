@@ -16,7 +16,7 @@ use crate::{
 
 /// Branch
 ///
-/// B <offset>
+/// `B <offset>`
 pub fn arm_b(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
     let pc = cpu.registers.read(15);
@@ -26,7 +26,7 @@ pub fn arm_b(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
 
 /// Branch and Link
 ///
-/// BL <offset>
+/// `BL <offset>`
 pub fn arm_bl(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
     let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
     let pc = cpu.registers.read(15);
@@ -282,7 +282,7 @@ where
 
 /// Move status word to register
 ///
-/// MRS{cond} Rd,<psr>
+/// `MRS{cond} Rd,<psr>`
 pub fn arm_mrs<P>(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles
 where
     P: Psr,

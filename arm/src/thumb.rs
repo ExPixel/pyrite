@@ -5,7 +5,7 @@ use crate::{
     cpu::Cpu,
     memory::Memory,
     transfer::{Ldr, SingleDataTransfer},
-    CpuException, Cycles, Registers,
+    CpsrFlag, CpuException, Cycles, Registers,
 };
 
 pub fn todo(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
@@ -105,6 +105,24 @@ where
 }
 
 /// ALU operations
+///
+/// `AND Rd, Rs`  
+/// `EOR Rd, Rs`  
+/// `LSL Rd, Rs`  
+/// `LSL Rd, Rs`  
+/// `LSR Rd, Rs`  
+/// `ASR Rd, Rs`  
+/// `ADC Rd, Rs`  
+/// `SBC Rd, Rs`  
+/// `ROR Rd, Rs`  
+/// `TST Rd, Rs`  
+/// `NEG Rd, Rs`  
+/// `CMP Rd, Rs`  
+/// `CMN Rd, Rs`  
+/// `ORR Rd, Rs`  
+/// `MUL Rd, Rs`  
+/// `BIC Rd, Rs`  
+/// `MVN Rd, Rs`  
 pub fn thumb_alu_operation(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles {
     let rd = instr.get_bit_range(0..=2);
     let rs = instr.get_bit_range(3..=5);
@@ -148,6 +166,54 @@ where
     O::set_flags(registers, lhs, rhs, result);
     if O::HAS_RESULT {
         registers.write(rd, result)
+    }
+}
+
+/// Hi register operations
+///
+/// `ADD Rd, Hs`  
+/// `ADD Hd, Rs`  
+/// `ADD Hd, Hs`  
+/// `CMP Rd, Hs`  
+/// `CMP Hd, Rs`  
+/// `CMP Hd, Hs`  
+/// `MOV Rd, Hs`  
+/// `MOV Hd, Rs`  
+/// `MOV Hd, Hs`  
+pub fn thumb_hi_register_op<O>(instr: u32, cpu: &mut Cpu, _memory: &mut dyn Memory) -> Cycles
+where
+    O: BinaryOp,
+{
+    let rs_hi = instr.get_bit(6);
+    let rd_hi = instr.get_bit(7);
+
+    let rd = instr.get_bit_range(0..=2) + (if rd_hi { 8 } else { 0 });
+    let rs = instr.get_bit_range(3..=5) + (if rs_hi { 8 } else { 0 });
+
+    let lhs = cpu.registers.read(rd);
+    let rhs = cpu.registers.read(rs);
+    let result = O::execute(&cpu.registers, lhs, rhs);
+    O::set_flags(&mut cpu.registers, lhs, rhs, result);
+    if O::HAS_RESULT {
+        cpu.registers.write(rd, result);
+    }
+    Cycles::zero()
+}
+
+/// branch exchange
+///
+/// `BX Rs`  
+/// `BX Hs`  
+pub fn thumb_bx(instr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+    let rs_hi = instr.get_bit(6);
+    let rs = instr.get_bit_range(3..=5) + (if rs_hi { 8 } else { 0 });
+    let destination = cpu.registers.read(rs);
+
+    if destination.get_bit(0) {
+        cpu.branch_thumb(destination, memory)
+    } else {
+        cpu.registers.clear_flag(CpsrFlag::T);
+        cpu.branch_arm(destination, memory)
     }
 }
 

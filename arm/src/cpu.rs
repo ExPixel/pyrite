@@ -206,12 +206,12 @@ impl Cpu {
     }
 
     /// Actions performed by CPU when entering an exception
-    ///   - R14_<new mode>=PC+nn   ;save old PC, ie. return address
-    ///   - SPSR_<new mode>=CPSR   ;save old flags
-    ///   - CPSR new T,M bits      ;set to T=0 (ARM state), and M4-0=new mode
-    ///   - CPSR new I bit         ;IRQs disabled (I=1), done by ALL exceptions
-    ///   - CPSR new F bit         ;FIQs disabled (F=1), done by Reset and FIQ only
-    ///   - PC=exception_vector
+    ///   - `R14_<new mode>=PC+nn   ;save old PC, ie. return address`
+    ///   - `SPSR_<new mode>=CPSR   ;save old flags`
+    ///   - `CPSR new T,M bits      ;set to T=0 (ARM state), and M4-0=new mode`
+    ///   - `CPSR new I bit         ;IRQs disabled (I=1), done by ALL exceptions`
+    ///   - `CPSR new F bit         ;FIQs disabled (F=1), done by Reset and FIQ only`
+    ///   - `PC=exception_vector`
     fn exception_with_ret(
         &mut self,
         exception: CpuException,
