@@ -13,6 +13,8 @@ impl Default for Config {
                 general: Some("debug".into()),
                 gba: Some("debug".into()),
                 arm: Some("debug".into()),
+                wgpu: Some("info".into()),
+                egui: Some("info".into()),
                 extra_filters: Vec::new(),
                 reload_handle: None,
             },
@@ -51,6 +53,18 @@ impl Config {
             write!(filters, ",gba={level}").unwrap();
         }
 
+        if self.logging.egui.is_some() {
+            let level =
+                get_level(&self.logging.egui.as_deref()).context("error parsing gba log level")?;
+            write!(filters, ",eframe={level},egui_winit={level}").unwrap();
+        }
+
+        if self.logging.wgpu.is_some() {
+            let level =
+                get_level(&self.logging.wgpu.as_deref()).context("error parsing gba log level")?;
+            write!(filters, ",wgpu_core={level},wgpu_hal={level},naga={level}").unwrap();
+        }
+
         for extra in self.logging.extra_filters.iter() {
             write!(filters, ",{extra}").unwrap();
         }
@@ -69,6 +83,8 @@ pub struct LoggingConfig {
     pub general: Option<String>,
     pub gba: Option<String>,
     pub arm: Option<String>,
+    pub egui: Option<String>,
+    pub wgpu: Option<String>,
 
     #[serde(default)]
     pub extra_filters: Vec<String>,

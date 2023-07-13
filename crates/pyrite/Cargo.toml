@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["gl"]
+default = ["wgpu"]
 wgpu = ["eframe/wgpu"]
 gl = ["eframe/glow"]
 
