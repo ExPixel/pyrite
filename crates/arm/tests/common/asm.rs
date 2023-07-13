@@ -13,7 +13,7 @@ use tempfile::{NamedTempFile, TempPath};
 fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
     let arm_none_eabi_name = PathBuf::from(&(format!("arm-none-eabi-{name}")));
 
-    #[cfg(target = "windows")]
+    #[cfg(target_os = "windows")]
     let arm_none_eabi_name_exe = PathBuf::from(&(format!("arm-none-eabi-{name}.exe")));
 
     if let Ok(path) = which::which(&arm_none_eabi_name) {
@@ -26,7 +26,7 @@ fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
             return Some(path);
         }
 
-        #[cfg(target = "windows")]
+        #[cfg(target_os = "windows")]
         {
             let path = PathBuf::from(&arm_binaries_path).join(&arm_none_eabi_name_exe);
             if path.exists() {
@@ -48,11 +48,19 @@ fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
         return Some(path);
     }
 
-    #[cfg(target = "windows")]
+    #[cfg(target_os = "windows")]
     {
         let path = devkitarm_path.join(&arm_none_eabi_name_exe);
         if path.exists() {
             return Some(path);
+        }
+
+        // The path for devkitPro is usually /opt/devkitPro
+        if let Ok(path_without_opt) = path.strip_prefix("/opt") {
+            let path_from_c = Path::new("C:\\").join(path_without_opt);
+            if path_from_c.exists() {
+                return Some(path_from_c);
+            }
         }
     }
 
@@ -63,11 +71,19 @@ fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
         return Some(path);
     }
 
-    #[cfg(target = "windows")]
+    #[cfg(target_os = "windows")]
     {
         let path = devkitarm_bin_path.join(&arm_none_eabi_name_exe);
         if path.exists() {
             return Some(path);
+        }
+
+        // The path for devkitARM is usually /opt/devkitPro/devkitARM
+        if let Ok(path_without_opt) = path.strip_prefix("/opt") {
+            let path_from_c = Path::new("C:\\").join(path_without_opt);
+            if path_from_c.exists() {
+                return Some(path_from_c);
+            }
         }
     }
 
