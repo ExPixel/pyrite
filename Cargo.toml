@@ -1,2 +1,3 @@
 [workspace]
-members = ["crates/arm", "crates/util"]
+members = ["crates/arm", "crates/util", "crates/gba", "crates/pyrite"]
+resolver = "2"
