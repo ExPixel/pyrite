@@ -1,0 +1,23 @@
+[package]
+name = "pyrite"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["glow"]
+wgpu = ["eframe/wgpu"]
+glow = ["eframe/glow"]
+
+[dependencies]
+anyhow = "1.0.71"
+dirs = { version = "5.0.1", default-features = false }
+eframe = { version = "0.22.0", default-features = false, features = ["accesskit", "default_fonts", "persistence"] }
+egui = { version = "0.22.0", default-features = false, features = ["default_fonts"] }
+serde = { version = "1", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1.0.100", default-features = false, features = ["std"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+gba = { path = "../gba" }
+arm = { path = "../arm" }
+parking_lot = "0.12"
+bytemuck = "1.13.1"

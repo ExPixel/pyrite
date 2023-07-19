@@ -7,7 +7,7 @@ use std::{
     sync::{atomic::AtomicU32, Mutex, OnceLock},
 };
 
-use arm::InstructionSet;
+use arm_emulator::InstructionSet;
 use tempfile::{NamedTempFile, TempPath};
 
 fn find_arm_binary_uncached(name: &str) -> Option<PathBuf> {
