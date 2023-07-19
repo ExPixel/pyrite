@@ -1,7 +1,7 @@
 #[macro_use]
 pub mod common;
 
-use arm::{CpsrFlag, CpuMode};
+use arm_emulator::{CpsrFlag, CpuMode};
 
 use crate::common::operands::{bools, imm3, imm32, imm8};
 

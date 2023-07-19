@@ -1,4 +1,4 @@
-use arm::{AccessType, CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
+use arm_emulator::{AccessType, CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
 
 use self::asm::assemble;
 

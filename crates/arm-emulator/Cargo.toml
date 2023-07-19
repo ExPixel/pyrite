@@ -1,0 +1,16 @@
+[package]
+name = "arm-emulator"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+track-register-writes = []
+
+[dependencies]
+tracing = { version = "0.1.37", default-features = false, features = ["std", "tracing-attributes", "valuable"] }
+util = { path = "../util" }
+
+[dev-dependencies]
+rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+which = { version = "4.4", default-features = false }
+tempfile = "3.6.0"

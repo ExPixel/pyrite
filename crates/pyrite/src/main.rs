@@ -1,5 +1,9 @@
+mod gba_runner;
+mod ui;
+
 use anyhow::Context as _;
-use config::Config;
+use eframe::Renderer;
+use gba_runner::SharedGba;
 mod config;
 mod logging;
 
@@ -7,11 +11,54 @@ fn main() -> anyhow::Result<()> {
     let mut config = config::load().context("error while loading config")?;
     logging::init(&mut config).context("error while initializing logging")?;
 
-    let native_options = eframe::NativeOptions::default();
+    let renderer = if let Some(ref renderer) = config.gui.renderer {
+        if renderer.eq_ignore_ascii_case("glow") || renderer.eq_ignore_ascii_case("gl") {
+            #[cfg(feature = "glow")]
+            {
+                Renderer::Glow
+            }
+
+            #[cfg(not(feature = "glow"))]
+            {
+                tracing::error!("requested glow gui renderer was not compiled, using fallback");
+                Renderer::default()
+            }
+        } else if renderer.eq_ignore_ascii_case("wgpu") {
+            #[cfg(feature = "wgpu")]
+            {
+                Renderer::Wgpu
+            }
+
+            #[cfg(not(feature = "wgpu"))]
+            {
+                tracing::error!("requested wgpu gui renderer was not compiled, using fallback");
+                Renderer::default()
+            }
+        } else {
+            anyhow::bail!("unknown gui renderer in config: {renderer:?}");
+        }
+    } else {
+        Renderer::default()
+    };
+
+    let native_options = eframe::NativeOptions {
+        app_id: Some("pyrite".into()),
+        renderer,
+        ..Default::default()
+    };
+
     eframe::run_native(
         "Pyrite",
         native_options,
-        Box::new(move |context| Box::new(App::new(config, context))),
+        Box::new(
+            move |context| match ui::App::new(config, SharedGba::new(), context) {
+                Ok(app) => Box::new(app),
+                Err(err) => {
+                    tracing::error!(error = debug(err), "error while initializing app");
+                    Box::new(AutocloseApp)
+                }
+            },
+        ),
     )
     .map_err(|current| {
         let mut ret_err = anyhow::Error::msg(current.to_string());
@@ -27,27 +74,10 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub struct App {
-    config: Config,
-}
+pub struct AutocloseApp;
 
-impl App {
-    pub fn new(config: Config, _context: &eframe::CreationContext<'_>) -> Self {
-        Self { config }
-    }
-}
-
-impl eframe::App for App {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello World!");
-        });
-    }
-
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-        tracing::debug!("writing config file");
-        if let Err(err) = config::store(&self.config).context("error while writing config file") {
-            tracing::error!(error = debug(err), "error while saving");
-        }
+impl eframe::App for AutocloseApp {
+    fn update(&mut self, _ctx: &egui::Context, frame: &mut eframe::Frame) {
+        frame.close();
     }
 }

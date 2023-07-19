@@ -1,4 +1,4 @@
-use arm::{CpsrFlag, CpuMode};
+use arm_emulator::{CpsrFlag, CpuMode};
 
 use crate::common::operands::{bools, imm32, rand_operand};
 

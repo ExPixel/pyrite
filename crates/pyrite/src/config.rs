@@ -9,6 +9,10 @@ use crate::logging::LoggingReloadHandle;
 impl Default for Config {
     fn default() -> Self {
         Config {
+            gui: GuiConfig {
+                renderer: Some("glow".into()),
+            },
+
             logging: LoggingConfig {
                 general: Some("debug".into()),
                 gba: Some("debug".into()),
@@ -75,7 +79,13 @@ impl Config {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
+    pub gui: GuiConfig,
     pub logging: LoggingConfig,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GuiConfig {
+    pub renderer: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
