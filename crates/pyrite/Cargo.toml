@@ -14,7 +14,7 @@ dirs = { version = "5.0.1", default-features = false }
 eframe = { version = "0.22.0", default-features = false, features = ["accesskit", "default_fonts", "persistence"] }
 egui = { version = "0.22.0", default-features = false, features = ["default_fonts"] }
 serde = { version = "1", default-features = false, features = ["derive", "std"] }
-serde_json = { version = "1.0.100", default-features = false, features = ["std"] }
+serde_json = { version = "1.0.103", default-features = false, features = ["std"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 gba = { path = "../gba" }
