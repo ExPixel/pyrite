@@ -1,10 +1,9 @@
 mod hardware;
 pub mod memory;
-pub mod video;
 
 use arm::emu::{Cpu, CpuMode, InstructionSet};
+pub use hardware::video;
 use hardware::GbaMemoryMappedHardware;
-use video::LineBuffer;
 
 pub struct Gba {
     cpu: Cpu,
@@ -57,13 +56,13 @@ impl Default for Gba {
 pub struct NoopGbaAudioOutput;
 
 pub trait GbaVideoOutput {
-    fn gba_line_ready(&mut self, line: usize, data: &LineBuffer);
+    fn gba_line_ready(&mut self, line: usize, data: &video::LineBuffer);
 }
 
 pub struct NoopGbaVideoOutput;
 
 impl GbaVideoOutput for NoopGbaVideoOutput {
-    fn gba_line_ready(&mut self, _line: usize, _data: &LineBuffer) {
+    fn gba_line_ready(&mut self, _line: usize, _data: &video::LineBuffer) {
         // NOOP
     }
 }

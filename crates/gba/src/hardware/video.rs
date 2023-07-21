@@ -1,7 +1,6 @@
 pub const VISIBLE_LINE_WIDTH: usize = 240;
 pub const VISIBLE_LINE_COUNT: usize = 160;
 pub const VISIBLE_PIXELS: usize = VISIBLE_LINE_WIDTH * VISIBLE_LINE_COUNT;
-pub const VISIBLE_PIXEL_COUNT: usize = VISIBLE_LINE_WIDTH * VISIBLE_LINE_COUNT;
 
 pub type LineBuffer = [u16; VISIBLE_LINE_WIDTH];
 pub type ScreenBuffer = [u16; VISIBLE_PIXELS];
@@ -17,6 +16,12 @@ impl GbaVideo {
             current_line: 240,
             line_buffer: [0; 240],
         }
+    }
+}
+
+impl Default for GbaVideo {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
