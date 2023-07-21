@@ -203,7 +203,9 @@ where
     let offset = Offset::calculate_offset(instr, &mut cpu.registers);
     let mut address = BaseAddress::extract(instr, &cpu.registers);
     address = Indexing::calculate_single_data_transfer_address(address, offset);
-    let mut cycles = Transfer::transfer(rd, address, &mut cpu.registers, memory);
+
+    cpu.access_type = AccessType::NonSequential;
+    let mut cycles = Transfer::transfer(rd, address, cpu, memory);
 
     // During the third cycle, the ARM7TDMI-S processor transfers the data to the
     // destination register. (External memory is not used.) Normally, the ARM7TDMI-S
@@ -218,7 +220,9 @@ where
     }
 
     if !Transfer::IS_LOAD {
-        cpu.next_fetch_access_type = AccessType::NonSequential;
+        cpu.access_type = AccessType::NonSequential;
+    } else {
+        cpu.access_type = AccessType::Sequential;
     }
 
     cycles
@@ -251,7 +255,9 @@ where
             continue;
         }
         address = address.wrapping_add(4);
-        cycles += Transfer::transfer(register, address, access_type, &mut cpu.registers, memory);
+
+        cpu.access_type = access_type;
+        cycles += Transfer::transfer(register, address, cpu, memory);
 
         if access_type == AccessType::NonSequential {
             access_type = AccessType::Sequential;
@@ -290,7 +296,9 @@ where
     }
 
     if !Transfer::IS_LOAD {
-        cpu.next_fetch_access_type = AccessType::NonSequential;
+        cpu.access_type = AccessType::NonSequential;
+    } else {
+        cpu.access_type = AccessType::Sequential;
     }
 
     cycles

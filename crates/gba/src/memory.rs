@@ -1,4 +1,4 @@
-use arm::emu::Memory;
+use arm::emu::{Cpu, Memory};
 
 use crate::hardware::GbaMemoryMappedHardware;
 
@@ -17,20 +17,11 @@ impl GbaMemoryMappedHardware {
 }
 
 impl Memory for GbaMemoryMappedHardware {
-    fn load8(
-        &mut self,
-        _address: u32,
-        _access: arm::emu::AccessType,
-    ) -> (u8, arm::emu::Waitstates) {
+    fn load8(&mut self, _address: u32, _cpu: &mut Cpu) -> (u8, arm::emu::Waitstates) {
         (0, arm::emu::Waitstates::zero())
     }
 
-    fn store8(
-        &mut self,
-        _address: u32,
-        _value: u8,
-        _access: arm::emu::AccessType,
-    ) -> arm::emu::Waitstates {
+    fn store8(&mut self, _address: u32, _value: u8, _cpu: &mut Cpu) -> arm::emu::Waitstates {
         arm::emu::Waitstates::zero()
     }
 }

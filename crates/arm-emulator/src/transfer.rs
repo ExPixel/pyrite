@@ -2,8 +2,7 @@ use util::bits::BitOps;
 
 use crate::{
     alu::{AriOp2, ExtractOp2, LliOp2, LriOp2, RriOp2},
-    memory::AccessType,
-    CpuMode, Cycles, Memory, Registers,
+    Cpu, CpuMode, Cycles, Memory, Registers,
 };
 
 pub struct Ldr<const USER_MODE: bool = false>;
@@ -41,7 +40,7 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
     fn transfer(
         destination_register: u32,
         source_address: u32,
-        registers: &mut Registers,
+        cpu: &mut Cpu,
         memory: &mut dyn Memory,
     ) -> Cycles {
         let (mut value, wait) = if USER_MODE {
@@ -50,12 +49,12 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
             //       passed the registers to memory whenever we made a read or
             //       write so that we would check things like the current address
             //       and mode.
-            let old_mode = registers.write_mode(CpuMode::User);
-            let (value, wait) = memory.load32(source_address & !0x3, AccessType::NonSequential);
-            registers.write_mode(old_mode);
+            let old_mode = cpu.registers.write_mode(CpuMode::User);
+            let (value, wait) = memory.load32(source_address & !0x3, cpu);
+            cpu.registers.write_mode(old_mode);
             (value, wait)
         } else {
-            memory.load32(source_address & !0x3, AccessType::NonSequential)
+            memory.load32(source_address & !0x3, cpu)
         };
 
         // From the ARM7TDMI Documentation:
@@ -66,7 +65,7 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
         // is unaligned by (offset from the word boundary).
         value = value.rotate_right(8 * (source_address % 4));
 
-        registers.write(destination_register, value);
+        cpu.registers.write(destination_register, value);
 
         Cycles::one() + wait
     }
@@ -75,14 +74,9 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldr<USER_MODE> {
 impl<const USER_MODE: bool> SingleDataTransfer for Ldrb<USER_MODE> {
     const IS_LOAD: bool = true;
 
-    fn transfer(
-        rd: u32,
-        src_addr: u32,
-        registers: &mut Registers,
-        memory: &mut dyn Memory,
-    ) -> Cycles {
-        let (value, wait) = memory.load8(src_addr, AccessType::NonSequential);
-        registers.write(rd, value as u32);
+    fn transfer(rd: u32, src_addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+        let (value, wait) = memory.load8(src_addr, cpu);
+        cpu.registers.write(rd, value as u32);
         Cycles::one() + wait
     }
 }
@@ -90,13 +84,8 @@ impl<const USER_MODE: bool> SingleDataTransfer for Ldrb<USER_MODE> {
 impl<const USER_MODE: bool> SingleDataTransfer for Str<USER_MODE> {
     const IS_LOAD: bool = false;
 
-    fn transfer(
-        rd: u32,
-        dst_addr: u32,
-        registers: &mut Registers,
-        memory: &mut dyn Memory,
-    ) -> Cycles {
-        let mut value = registers.read(rd);
+    fn transfer(rd: u32, dst_addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+        let mut value = cpu.registers.read(rd);
 
         // If the program counter is used as the source register in a word store, it will be
         // 12 bytes ahead instead of 8 when read.
@@ -112,20 +101,15 @@ impl<const USER_MODE: bool> SingleDataTransfer for Str<USER_MODE> {
         //      A word store (STR) should generate a word aligned address. The word presented to
         //      the data bus is not affected if the address is not word aligned. That is, bit 31 of the
         //      register being stored always appears on data bus output 31.
-        Cycles::one() + memory.store32(dst_addr & !0x3, value, AccessType::NonSequential)
+        Cycles::one() + memory.store32(dst_addr & !0x3, value, cpu)
     }
 }
 
 impl<const USER_MODE: bool> SingleDataTransfer for Strb<USER_MODE> {
     const IS_LOAD: bool = false;
 
-    fn transfer(
-        rd: u32,
-        dst_addr: u32,
-        registers: &mut Registers,
-        memory: &mut dyn Memory,
-    ) -> Cycles {
-        let mut value = registers.read(rd);
+    fn transfer(rd: u32, dst_addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+        let mut value = cpu.registers.read(rd);
 
         // If the program counter is used as the source register in a byte store, it will be
         // 12 bytes ahead instead of 8 when read.
@@ -133,18 +117,18 @@ impl<const USER_MODE: bool> SingleDataTransfer for Strb<USER_MODE> {
             value = value.wrapping_add(4);
         }
 
-        Cycles::one() + memory.store8(dst_addr, value as u8, AccessType::NonSequential)
+        Cycles::one() + memory.store8(dst_addr, value as u8, cpu)
     }
 }
 
 impl SingleDataTransfer for Ldrh {
     const IS_LOAD: bool = true;
 
-    fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
+    fn transfer(rd: u32, addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
         // We don't align the address here. If bit 0 is high then behavior is just
         // unpredictable (depends on memory hardware).
-        let (value, wait) = memory.load16(addr, AccessType::NonSequential);
-        registers.write(rd, value as u32);
+        let (value, wait) = memory.load16(addr, cpu);
+        cpu.registers.write(rd, value as u32);
         Cycles::one() + wait
     }
 }
@@ -152,8 +136,8 @@ impl SingleDataTransfer for Ldrh {
 impl SingleDataTransfer for Strh {
     const IS_LOAD: bool = false;
 
-    fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
-        let mut value = registers.read(rd);
+    fn transfer(rd: u32, addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+        let mut value = cpu.registers.read(rd);
 
         // If the program counter is used as the source register in a halfword store, it will
         // be 12 bytes ahead instead of 8 when read.
@@ -161,16 +145,16 @@ impl SingleDataTransfer for Strh {
             value = value.wrapping_add(4);
         }
 
-        Cycles::one() + memory.store16(addr, value as u16, AccessType::NonSequential)
+        Cycles::one() + memory.store16(addr, value as u16, cpu)
     }
 }
 
 impl SingleDataTransfer for Ldrsb {
     const IS_LOAD: bool = true;
 
-    fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
-        let (value, wait) = memory.load8(addr, AccessType::NonSequential);
-        registers.write(rd, value as i8 as i32 as u32);
+    fn transfer(rd: u32, addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
+        let (value, wait) = memory.load8(addr, cpu);
+        cpu.registers.write(rd, value as i8 as i32 as u32);
         Cycles::one() + wait
     }
 }
@@ -178,11 +162,11 @@ impl SingleDataTransfer for Ldrsb {
 impl SingleDataTransfer for Ldrsh {
     const IS_LOAD: bool = true;
 
-    fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles {
+    fn transfer(rd: u32, addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles {
         // We don't align the address here. If bit 0 is high then behavior is just
         // unpredictable (depends on memory hardware).
-        let (value, wait) = memory.load16(addr, AccessType::NonSequential);
-        registers.write(rd, value as i16 as i32 as u32);
+        let (value, wait) = memory.load16(addr, cpu);
+        cpu.registers.write(rd, value as i16 as i32 as u32);
         Cycles::one() + wait
     }
 }
@@ -368,12 +352,11 @@ impl BlockDataTransfer for Ldm {
     fn transfer(
         destination_register: u32,
         source_address: u32,
-        access_type: AccessType,
-        registers: &mut Registers,
+        cpu: &mut Cpu,
         memory: &mut dyn Memory,
     ) -> Cycles {
-        let (value, wait) = memory.load32(source_address, access_type);
-        registers.write(destination_register, value);
+        let (value, wait) = memory.load32(source_address, cpu);
+        cpu.registers.write(destination_register, value);
         Cycles::one() + wait
     }
 }
@@ -385,17 +368,16 @@ impl BlockDataTransfer for Stm {
     fn transfer(
         source_register: u32,
         destination_address: u32,
-        access_type: AccessType,
-        registers: &mut Registers,
+        cpu: &mut Cpu,
         memory: &mut dyn Memory,
     ) -> Cycles {
-        let mut value = registers.read(source_register);
+        let mut value = cpu.registers.read(source_register);
         // When r15 is stored as part of an STM instruction it will 12 bytes ahead instead of 8.
         // NOTE: Thumb mode cannot store r15 (only load), so we ignore it here and only handle ARM.
         if source_register == 15 {
             value = value.wrapping_add(4);
         }
-        let wait = memory.store32(destination_address, value, access_type);
+        let wait = memory.store32(destination_address, value, cpu);
         Cycles::one() + wait
     }
 }
@@ -403,17 +385,11 @@ impl BlockDataTransfer for Stm {
 pub trait SingleDataTransfer {
     const IS_LOAD: bool;
 
-    fn transfer(rd: u32, addr: u32, registers: &mut Registers, memory: &mut dyn Memory) -> Cycles;
+    fn transfer(rd: u32, addr: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles;
 }
 
 pub trait BlockDataTransfer {
     const IS_LOAD: bool;
 
-    fn transfer(
-        register: u32,
-        address: u32,
-        access_type: AccessType,
-        registers: &mut Registers,
-        memory: &mut dyn Memory,
-    ) -> Cycles;
+    fn transfer(register: u32, address: u32, cpu: &mut Cpu, memory: &mut dyn Memory) -> Cycles;
 }

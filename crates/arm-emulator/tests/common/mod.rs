@@ -1,4 +1,4 @@
-use arm_emulator::{AccessType, CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
+use arm_emulator::{CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
 
 use self::asm::assemble;
 
@@ -28,12 +28,12 @@ impl TestMemory {
 }
 
 impl Memory for TestMemory {
-    fn load8(&mut self, address: u32, _access: AccessType) -> (u8, Waitstates) {
+    fn load8(&mut self, address: u32, _cpu: &mut Cpu) -> (u8, Waitstates) {
         let address = address as usize % self.data.len();
         (self.data[address], Waitstates::zero())
     }
 
-    fn store8(&mut self, address: u32, value: u8, _access: AccessType) -> Waitstates {
+    fn store8(&mut self, address: u32, value: u8, _cpu: &mut Cpu) -> Waitstates {
         let address = address as usize % self.data.len();
         self.data[address] = value;
         Waitstates::zero()
