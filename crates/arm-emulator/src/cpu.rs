@@ -259,6 +259,11 @@ impl Cpu {
 
         self.branch_arm(exception_vector, memory) // PC = exception_vector
     }
+
+    #[inline(always)]
+    pub fn access_type(&self) -> AccessType {
+        self.access_type
+    }
 }
 
 /// Returns true if an instruction should run based

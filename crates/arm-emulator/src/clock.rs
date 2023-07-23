@@ -64,7 +64,7 @@ impl AddAssign<Waitstates> for Cycles {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Waitstates(u32);
 
 impl Waitstates {

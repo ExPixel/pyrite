@@ -1,6 +1,5 @@
+use crate::memory::{PAL_MASK, PAL_SIZE};
 use byteorder::{ByteOrder, LittleEndian};
-
-use super::{PAL_MASK, PAL_SIZE};
 
 pub struct Palette {
     pub(crate) data: [u8; PAL_SIZE],
