@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::{clock::Waitstates, Cpu};
 
 pub trait Memory {
@@ -28,6 +30,9 @@ pub trait Memory {
     }
 
     fn store8(&mut self, address: u32, value: u8, cpu: &mut Cpu) -> Waitstates;
+
+    fn as_any(&self) -> &dyn Any;
+    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]

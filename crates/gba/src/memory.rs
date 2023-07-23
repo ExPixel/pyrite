@@ -13,8 +13,33 @@ impl GbaMemoryMappedHardware {
         0
     }
 
-    pub fn view32(&self, _address: u32) -> u32 {
-        0
+    pub fn view32(&self, address: u32) -> u32 {
+        let address = address & !0x3;
+        match address >> 24 {
+            REGION_BIOS if address < 0x4000 => {
+                LittleEndian::read_u32(&self.bios[address as usize..])
+            }
+            // FIXME implement enable/disable from SystemControl
+            REGION_EWRAM => LittleEndian::read_u32(&self.ewram[(address & EWRAM_MASK) as usize..]),
+            // FIXME implement enable/disable from SystemControl
+            REGION_IWRAM => LittleEndian::read_u32(&self.iwram[(address & IWRAM_MASK) as usize..]),
+            REGION_IOREGS => 0,
+            REGION_PAL => self.palram.load32(address),
+            REGION_VRAM => LittleEndian::read_u32(&self.vram[vram_offset(address)..]),
+            REGION_OAM => LittleEndian::read_u32(&self.oam[(address & OAM_MASK) as usize..]),
+
+            REGION_GAMEPAK0_LO | REGION_GAMEPAK0_HI => {
+                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_GAMEPAK1_LO | REGION_GAMEPAK1_HI => {
+                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_GAMEPAK2_LO | REGION_GAMEPAK2_HI => {
+                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_SRAM => 0,
+            _ => 0,
+        }
     }
 
     fn ioreg_load32(&mut self, address: u32) -> u32 {
@@ -306,6 +331,14 @@ impl Memory for GbaMemoryMappedHardware {
             }
         }
         wait
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

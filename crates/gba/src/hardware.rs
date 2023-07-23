@@ -22,8 +22,8 @@ pub struct GbaMemoryMappedHardware {
     pub vram: Box<[u8; VRAM_SIZE]>,
     pub oam: Box<[u8; OAM_SIZE]>,
 
-    pub gamepak_mask: usize,
-    pub gamepak: Vec<u8>,
+    pub(crate) gamepak_mask: usize,
+    pub(crate) gamepak: Vec<u8>,
 
     /// The last value ready from memory.
     pub last_read_value: u32,
@@ -54,6 +54,14 @@ impl GbaMemoryMappedHardware {
     pub(crate) fn reset(&mut self) {
         self.system_control
             .write_internal_memory_control(RegInternalMemoryControl::DEFAULT);
+    }
+
+    pub fn set_gamepak(&mut self, mut new_gamepak: Vec<u8>) {
+        assert!(!new_gamepak.is_empty());
+        let gamepak_size = new_gamepak.len().next_power_of_two();
+        new_gamepak.resize(gamepak_size, 0);
+        self.gamepak = new_gamepak;
+        self.gamepak_mask = gamepak_size - 1;
     }
 }
 

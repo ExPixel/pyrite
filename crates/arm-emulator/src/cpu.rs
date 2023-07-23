@@ -180,6 +180,16 @@ impl Cpu {
         }
     }
 
+    /// The address at which an exception occurred. This is only really useful
+    /// from within an exception handler that was set via [`Cpu::set_exception_handler`]
+    pub fn exception_address(&self) -> u32 {
+        if self.registers.get_flag(CpsrFlag::T) {
+            self.registers.read(15).wrapping_sub(4)
+        } else {
+            self.registers.read(15).wrapping_sub(8)
+        }
+    }
+
     /// Sets the exception handler that will be called whenever the CPU encounters an
     /// exception such as an IRQ, SWI, ect.
     ///
@@ -239,6 +249,7 @@ impl Cpu {
         // doesn't like it anyway.
         if let Some(mut handler) = self.exception_handler.take() {
             let result = handler(self, memory, exception);
+            self.exception_handler = Some(handler); // put it back
             if let ExceptionHandlerResult::Handled(cycles) = result {
                 return cycles;
             }

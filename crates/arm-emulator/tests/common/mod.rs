@@ -38,6 +38,14 @@ impl Memory for TestMemory {
         self.data[address] = value;
         Waitstates::zero()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// An opcode that is actually an undefined instruction that is

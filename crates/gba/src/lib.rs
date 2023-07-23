@@ -2,12 +2,12 @@ mod hardware;
 pub mod memory;
 
 use arm::emu::{Cpu, CpuMode, InstructionSet};
-pub use hardware::video;
-use hardware::{GbaMemoryMappedHardware, CUSTOM_BIOS};
+use hardware::CUSTOM_BIOS;
+pub use hardware::{video, GbaMemoryMappedHardware};
 
 pub struct Gba {
-    cpu: Cpu,
-    mapped: GbaMemoryMappedHardware,
+    pub cpu: Cpu,
+    pub mapped: GbaMemoryMappedHardware,
 }
 
 impl Gba {
@@ -29,13 +29,7 @@ impl Gba {
     pub fn step(&mut self, video_out: &mut dyn GbaVideoOutput, audio_out: &mut dyn GbaAudioOutput) {
         let _unused = audio_out;
 
-        // FIXME debug code
-        if self.cpu.next_execution_address() < 0x08000004 {
-            if self.cpu.next_execution_address() == 0x08000000 {
-                tracing::debug!("GBA entry point reached");
-            }
-            self.cpu.step(&mut self.mapped);
-        }
+        self.cpu.step(&mut self.mapped);
 
         self.mapped.video.current_line = (self.mapped.video.current_line + 1) % 240;
         if self.mapped.video.current_line < 160 {
@@ -54,12 +48,8 @@ impl Gba {
         }
     }
 
-    pub fn cpu(&self) -> &Cpu {
-        &self.cpu
-    }
-
-    pub fn hardware(&self) -> &GbaMemoryMappedHardware {
-        &self.mapped
+    pub fn set_gamepak(&mut self, gamepak: Vec<u8>) {
+        self.mapped.set_gamepak(gamepak);
     }
 }
 
