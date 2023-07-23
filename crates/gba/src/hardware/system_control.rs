@@ -86,7 +86,7 @@ impl SystemControl {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SystemWaitstates {
     pub sram: Waitstates,
     pub gamepak: [(
@@ -94,16 +94,6 @@ pub struct SystemWaitstates {
         /* second access */ Waitstates,
     ); 3],
     pub ewram: Waitstates,
-}
-
-impl Default for SystemWaitstates {
-    fn default() -> Self {
-        Self {
-            sram: Default::default(),
-            gamepak: [Default::default(); 3],
-            ewram: Default::default(),
-        }
-    }
 }
 
 /// 4000204h - WAITCNT - Waitstate Control (R/W)
