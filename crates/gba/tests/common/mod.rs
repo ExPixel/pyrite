@@ -111,7 +111,7 @@ fn simple_linker_script() -> LinkerScript {
 }
 
 #[macro_export]
-macro_rules! emu {
+macro_rules! emu_arm {
     ($source:expr) => {
         $crate::common::execute(&format!($source))
     };

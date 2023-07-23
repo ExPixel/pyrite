@@ -3,7 +3,7 @@ mod common;
 
 #[test]
 fn test_simple_gba_emulation_run() {
-    let gba = emu! {"
+    let gba = emu_arm! {"
         ldr r0, =#0xDEADBEEF
         swi #0xCE
     "};
