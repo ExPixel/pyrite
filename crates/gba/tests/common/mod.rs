@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{self, AtomicBool},
+    Arc, Mutex,
+};
 
 use arm::emu::{CpuException, Cycles, ExceptionHandlerResult};
 use arm_devkit::{LinkerScript, LinkerScriptWeakRef};
@@ -39,7 +42,7 @@ impl Executor {
             .set_gamepak(arm_devkit::arm::assemble(&source, simple_linker_script()).unwrap());
         self.gba.reset();
 
-        let execution_ended: Arc<Mutex<bool>> = Arc::default();
+        let execution_ended: Arc<AtomicBool> = Arc::default();
         let execution_ended_from_handler = execution_ended.clone();
         self.gba
             .cpu
@@ -58,7 +61,7 @@ impl Executor {
                     };
 
                     if comment == 0xCE {
-                        *execution_ended_from_handler.lock().unwrap() = true;
+                        execution_ended_from_handler.store(true, atomic::Ordering::Release);
                         return ExceptionHandlerResult::Handled(Cycles::from(1));
                     }
                 }
@@ -69,7 +72,7 @@ impl Executor {
         let mut steps_since_time_chek = 0;
 
         loop {
-            if *execution_ended.lock().unwrap() {
+            if execution_ended.load(atomic::Ordering::Acquire) {
                 break;
             }
 
