@@ -203,14 +203,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "arm-devkit"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "which",
+]
+
+[[package]]
 name = "arm-emulator"
 version = "0.1.0"
 dependencies = [
+ "arm-devkit",
  "rand",
- "tempfile",
  "tracing",
  "util",
- "which",
 ]
 
 [[package]]

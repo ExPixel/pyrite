@@ -1,10 +1,11 @@
 [workspace]
 members = [
-    "crates/arm",
+    "crates/arm-devkit",
     "crates/arm-emulator",
-    "crates/util",
+    "crates/arm",
     "crates/gba",
-    "crates/pyrite",
     "crates/pyrite-derive",
+    "crates/pyrite",
+    "crates/util",
 ]
 resolver = "2"
