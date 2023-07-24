@@ -12,6 +12,6 @@ mod transfer;
 pub use alu::{ArithmeticShr, RotateRightExtended};
 pub use clock::{Cycles, Waitstates};
 pub use cpu::{Cpu, InstructionSet};
-pub use exception::{CpuException, ExceptionHandler};
+pub use exception::{CpuException, ExceptionHandler, ExceptionHandlerResult};
 pub use memory::{AccessType, Memory};
 pub use registers::{CpsrFlag, CpuMode, Registers};

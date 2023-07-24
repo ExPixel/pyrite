@@ -1,9 +1,9 @@
-use arm_emulator::{AccessType, CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
-
-use self::asm::assemble;
-
-pub mod asm;
 pub mod operands;
+
+use std::sync::Mutex;
+
+use arm_devkit::{LinkerScript, LinkerScriptWeakRef};
+use arm_emulator::{CpsrFlag, Cpu, CpuMode, InstructionSet, Memory, Waitstates};
 
 #[macro_use]
 mod test_combinations;
@@ -28,15 +28,23 @@ impl TestMemory {
 }
 
 impl Memory for TestMemory {
-    fn load8(&mut self, address: u32, _access: AccessType) -> (u8, Waitstates) {
+    fn load8(&mut self, address: u32, _cpu: &mut Cpu) -> (u8, Waitstates) {
         let address = address as usize % self.data.len();
         (self.data[address], Waitstates::zero())
     }
 
-    fn store8(&mut self, address: u32, value: u8, _access: AccessType) -> Waitstates {
+    fn store8(&mut self, address: u32, value: u8, _cpu: &mut Cpu) -> Waitstates {
         let address = address as usize % self.data.len();
         self.data[address] = value;
         Waitstates::zero()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
@@ -124,7 +132,17 @@ impl Executor {
             source.push_str(&self.data);
         }
         println!("source:\n{source}\n");
-        self.mem.data = assemble(self.base_isa, &source).unwrap();
+
+        // Use cargo's temp file directory. Good to have this set epecially on Windows
+        // where you're likely to have your code ignored by your antivirus (e.g. Windows Defender)
+        // but not your temporary directory.
+        arm_devkit::set_internal_tempfile_directory(env!("CARGO_TARGET_TMPDIR"));
+
+        self.mem.data = if self.base_isa == InstructionSet::Arm {
+            arm_devkit::arm::assemble(&source, simple_linker_script()).unwrap()
+        } else {
+            arm_devkit::thumb::assemble(&source, simple_linker_script()).unwrap()
+        };
 
         self.cpu
             .registers
@@ -163,6 +181,27 @@ impl Executor {
             self.cpu.step(&mut self.mem);
         }
     }
+}
+
+fn simple_linker_script() -> LinkerScript {
+    let mut locked = match SCRIPT.lock() {
+        Ok(lock) => lock,
+        Err(err) => err.into_inner(),
+    };
+
+    if let Some(script) = locked
+        .as_ref()
+        .and_then(|maybe_script| maybe_script.upgrade())
+    {
+        return script;
+    }
+
+    let script = LinkerScript::new(SOURCE).expect("failed to create linker script");
+    *locked = Some(script.weak());
+    return script;
+
+    static SCRIPT: Mutex<Option<LinkerScriptWeakRef>> = Mutex::new(None);
+    static SOURCE: &str = include_str!("../data/simple.ld");
 }
 
 #[macro_export]

@@ -122,7 +122,9 @@ where
     let offset = O::calculate_offset(instr, &mut cpu.registers);
     let mut address = cpu.registers.read(rn);
     address = I::calculate_single_data_transfer_address(address, offset);
-    let mut cycles = T::transfer(rd, address, &mut cpu.registers, memory);
+
+    cpu.access_type = AccessType::NonSequential;
+    let mut cycles = T::transfer(rd, address, cpu, memory);
 
     if WRITEBACK {
         // FIXME At this point Rn is not allowed be r15 but I'm not sure if I should
@@ -149,7 +151,9 @@ where
     }
 
     if !T::IS_LOAD {
-        cpu.next_fetch_access_type = AccessType::NonSequential;
+        cpu.access_type = AccessType::NonSequential;
+    } else {
+        cpu.access_type = AccessType::Sequential;
     }
 
     cycles
@@ -192,7 +196,9 @@ where
             continue;
         }
         address = address.wrapping_add(4);
-        cycles += T::transfer(register, address, access_type, &mut cpu.registers, memory);
+
+        cpu.access_type = access_type;
+        cycles += T::transfer(register, address, cpu, memory);
 
         if access_type == AccessType::NonSequential {
             access_type = AccessType::Sequential;
@@ -245,7 +251,9 @@ where
     }
 
     if !T::IS_LOAD {
-        cpu.next_fetch_access_type = AccessType::NonSequential;
+        cpu.access_type = AccessType::NonSequential;
+    } else {
+        cpu.access_type = AccessType::Sequential;
     }
 
     cycles
@@ -379,15 +387,16 @@ pub fn arm_swp<const BYTE: bool>(instr: u32, cpu: &mut Cpu, memory: &mut dyn Mem
     let address = cpu.registers.read(rn);
     let source = cpu.registers.read(rm);
 
+    cpu.access_type = AccessType::NonSequential;
     if BYTE {
-        let (temp, wait_load) = memory.load8(address, AccessType::NonSequential);
+        let (temp, wait_load) = memory.load8(address, cpu);
         cpu.registers.write(rd, temp as u32);
-        let wait_store = memory.store8(address, source as u8, AccessType::NonSequential);
+        let wait_store = memory.store8(address, source as u8, cpu);
         Cycles::one() + wait_load + wait_store
     } else {
-        let (temp, wait_load) = memory.load32(address, AccessType::NonSequential);
+        let (temp, wait_load) = memory.load32(address, cpu);
         cpu.registers.write(rd, temp);
-        let wait_store = memory.store32(address, source, AccessType::NonSequential);
+        let wait_store = memory.store32(address, source, cpu);
         Cycles::one() + wait_load + wait_store
     }
 }

@@ -32,10 +32,10 @@ fn render_register_grid(ui: &mut Ui, gba: &Gba) {
                 15 => "PC".to_owned(),
                 _ => format!("R{register}"),
             };
-            add_register_row(label, gba.cpu().registers.read(register));
+            add_register_row(label, gba.cpu.registers.read(register));
         }
 
-        add_register_row("CPSR".to_owned(), gba.cpu().registers.read_cpsr());
-        add_register_row("SPSR".to_owned(), gba.cpu().registers.read_spsr());
+        add_register_row("CPSR".to_owned(), gba.cpu.registers.read_cpsr());
+        add_register_row("SPSR".to_owned(), gba.cpu.registers.read_spsr());
     });
 }

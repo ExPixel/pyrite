@@ -1,28 +1,37 @@
 mod hardware;
 pub mod memory;
-pub mod video;
 
 use arm::emu::{Cpu, CpuMode, InstructionSet};
-use hardware::GbaMemoryMappedHardware;
-use video::LineBuffer;
+use hardware::CUSTOM_BIOS;
+pub use hardware::{video, GbaMemoryMappedHardware};
 
 pub struct Gba {
-    cpu: Cpu,
-    mapped: GbaMemoryMappedHardware,
+    pub cpu: Cpu,
+    pub mapped: GbaMemoryMappedHardware,
 }
 
 impl Gba {
     pub fn new() -> Self {
         let mut mmh = GbaMemoryMappedHardware::new();
+        assert!(CUSTOM_BIOS.len() <= memory::BIOS_SIZE);
+        mmh.bios[..CUSTOM_BIOS.len()].copy_from_slice(CUSTOM_BIOS);
+
         let cpu = Cpu::new(InstructionSet::Arm, CpuMode::System, &mut mmh);
         Self { cpu, mapped: mmh }
+    }
+
+    /// Hard reset.
+    pub fn reset(&mut self) {
+        self.cpu.branch(0, &mut self.mapped);
+        self.mapped.reset();
     }
 
     pub fn step(&mut self, video_out: &mut dyn GbaVideoOutput, audio_out: &mut dyn GbaAudioOutput) {
         let _unused = audio_out;
 
-        self.mapped.video.current_line = (self.mapped.video.current_line + 1) % 240;
+        self.cpu.step(&mut self.mapped);
 
+        self.mapped.video.current_line = (self.mapped.video.current_line + 1) % 240;
         if self.mapped.video.current_line < 160 {
             static mut COLOR: u16 = 0;
             for c in self.mapped.video.line_buffer.iter_mut() {
@@ -39,12 +48,8 @@ impl Gba {
         }
     }
 
-    pub fn cpu(&self) -> &Cpu {
-        &self.cpu
-    }
-
-    pub fn hardware(&self) -> &GbaMemoryMappedHardware {
-        &self.mapped
+    pub fn set_gamepak(&mut self, gamepak: Vec<u8>) {
+        self.mapped.set_gamepak(gamepak);
     }
 }
 
@@ -57,13 +62,13 @@ impl Default for Gba {
 pub struct NoopGbaAudioOutput;
 
 pub trait GbaVideoOutput {
-    fn gba_line_ready(&mut self, line: usize, data: &LineBuffer);
+    fn gba_line_ready(&mut self, line: usize, data: &video::LineBuffer);
 }
 
 pub struct NoopGbaVideoOutput;
 
 impl GbaVideoOutput for NoopGbaVideoOutput {
-    fn gba_line_ready(&mut self, _line: usize, _data: &LineBuffer) {
+    fn gba_line_ready(&mut self, _line: usize, _data: &video::LineBuffer) {
         // NOOP
     }
 }

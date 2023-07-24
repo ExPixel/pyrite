@@ -7,3 +7,10 @@ edition = "2021"
 
 [dependencies]
 arm = { path = "../arm" }
+util = { path = "../util" }
+pyrite-derive = { path = "../pyrite-derive" }
+byteorder = "1.4.3"
+tracing = { version = "0.1" }
+
+[dev-dependencies]
+arm-devkit = { path = "../arm-devkit" }

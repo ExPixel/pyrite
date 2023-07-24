@@ -17,7 +17,10 @@ const THUMB_NOOP_OPCODE: u16 = 0x46c0;
 pub struct Cpu {
     pub registers: Registers,
     fetched: u32,
-    pub(crate) next_fetch_access_type: AccessType,
+
+    /// Access type of the next memory operation.
+    pub(crate) access_type: AccessType,
+
     decoded: u32,
     exception_handler: Option<ExceptionHandler>,
 }
@@ -46,7 +49,7 @@ impl Cpu {
         Cpu {
             registers,
             exception_handler: None,
-            next_fetch_access_type: AccessType::NonSequential,
+            access_type: AccessType::NonSequential,
             fetched: noop_opcode,
             decoded: noop_opcode,
         }
@@ -84,9 +87,9 @@ impl Cpu {
         let fetch_pc = (self.registers.read(15) & !0x3).wrapping_add(4);
         self.registers.write(15, fetch_pc);
 
-        let fetch_access_type =
-            std::mem::replace(&mut self.next_fetch_access_type, AccessType::Sequential);
-        let (fetched, wait) = memory.load32(fetch_pc, fetch_access_type);
+        let (fetched, wait) = memory.load32(fetch_pc, self);
+        self.access_type = AccessType::Sequential;
+
         self.fetched = fetched;
         cycles += Cycles::one() + wait;
 
@@ -109,7 +112,9 @@ impl Cpu {
         let fetch_pc = (self.registers.read(15) & !0x1).wrapping_add(2);
         self.registers.write(15, fetch_pc);
 
-        let (fetched, wait) = memory.load16(fetch_pc, self.next_fetch_access_type);
+        let (fetched, wait) = memory.load16(fetch_pc, self);
+        self.access_type = AccessType::Sequential;
+
         self.fetched = fetched as u32;
         cycles += Cycles::one() + wait;
 
@@ -128,9 +133,13 @@ impl Cpu {
         let address = address & !0x3;
 
         let mut cycles = Cycles::zero();
-        let (decoded, wait) = memory.load32(address, AccessType::NonSequential);
+
+        self.access_type = AccessType::NonSequential;
+        let (decoded, wait) = memory.load32(address, self);
         cycles += Cycles::one() + wait;
-        let (fetched, wait) = memory.load32(address.wrapping_add(4), AccessType::Sequential);
+
+        self.access_type = AccessType::Sequential;
+        let (fetched, wait) = memory.load32(address.wrapping_add(4), self);
         cycles += Cycles::one() + wait;
 
         self.decoded = decoded;
@@ -145,9 +154,13 @@ impl Cpu {
         let address = address & !0x1;
 
         let mut cycles = Cycles::zero();
-        let (decoded, wait) = memory.load16(address, AccessType::NonSequential);
+
+        self.access_type = AccessType::NonSequential;
+        let (decoded, wait) = memory.load16(address, self);
         cycles += Cycles::one() + wait;
-        let (fetched, wait) = memory.load16(address.wrapping_add(2), AccessType::Sequential);
+
+        self.access_type = AccessType::Sequential;
+        let (fetched, wait) = memory.load16(address.wrapping_add(2), self);
         cycles += Cycles::one() + wait;
 
         self.decoded = decoded as u32;
@@ -164,6 +177,16 @@ impl Cpu {
             self.registers.read(15).wrapping_sub(2)
         } else {
             self.registers.read(15).wrapping_sub(4)
+        }
+    }
+
+    /// The address at which an exception occurred. This is only really useful
+    /// from within an exception handler that was set via [`Cpu::set_exception_handler`]
+    pub fn exception_address(&self) -> u32 {
+        if self.registers.get_flag(CpsrFlag::T) {
+            self.registers.read(15).wrapping_sub(4)
+        } else {
+            self.registers.read(15).wrapping_sub(8)
         }
     }
 
@@ -226,6 +249,7 @@ impl Cpu {
         // doesn't like it anyway.
         if let Some(mut handler) = self.exception_handler.take() {
             let result = handler(self, memory, exception);
+            self.exception_handler = Some(handler); // put it back
             if let ExceptionHandlerResult::Handled(cycles) = result {
                 return cycles;
             }
@@ -245,6 +269,11 @@ impl Cpu {
         }
 
         self.branch_arm(exception_vector, memory) // PC = exception_vector
+    }
+
+    #[inline(always)]
+    pub fn access_type(&self) -> AccessType {
+        self.access_type
     }
 }
 

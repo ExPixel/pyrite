@@ -203,14 +203,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "arm-devkit"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "which",
+]
+
+[[package]]
 name = "arm-emulator"
 version = "0.1.0"
 dependencies = [
+ "arm-devkit",
  "rand",
- "tempfile",
  "tracing",
  "util",
- "which",
 ]
 
 [[package]]
@@ -336,7 +343,7 @@ checksum = "0e97ce7de6cf12de5d7226c73f5ba9811622f4db3a5b91b55c53e987e5f91cba"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -353,7 +360,7 @@ checksum = "a564d521dd56509c4c47480d00b80ee55f7e385ae48db5744c67ad50c92d2ebf"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -521,7 +528,7 @@ checksum = "fdde5c9cd29ebd706ce1b35600920a33550e402fc998a2e53ad3b42c3c47a192"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -982,7 +989,7 @@ checksum = "5e9a1f9f7d83e59740248a6e14ecf93929ade55027844dfcea78beafccc15745"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -993,7 +1000,7 @@ checksum = "c9838a970f5de399d3070ae1739e131986b2f5dcc223c7423ca0927e3a878522"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -1175,6 +1182,11 @@ name = "gba"
 version = "0.1.0"
 dependencies = [
  "arm",
+ "arm-devkit",
+ "byteorder",
+ "pyrite-derive",
+ "tracing",
+ "util",
 ]
 
 [[package]]
@@ -1875,7 +1887,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -2110,9 +2122,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.64"
+version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78803b62cbf1f46fde80d7c0e803111524b9877184cfe7c3033659490ac7a7da"
+checksum = "18fb31db3f9bddb2ea821cde30a9f70117e3f119938b5ee630b7403aa6e2ead9"
 dependencies = [
  "unicode-ident",
 ]
@@ -2142,10 +2154,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pyrite-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.27",
+]
+
+[[package]]
 name = "quote"
-version = "1.0.29"
+version = "1.0.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "573015e8ab27661678357f27dc26460738fd2b6c86e46f386fde94cb5d913105"
+checksum = "5fe8a65d69dd0808184ebb5f836ab526bb259db23c657efa38711b1072ee47f0"
 dependencies = [
  "proc-macro2",
 ]
@@ -2378,7 +2399,7 @@ checksum = "6e5c3a298c7f978e53536f95a63bdc4c4a64550582f31a0359a9afda6aede62e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -2400,7 +2421,7 @@ checksum = "1d89a8107374290037607734c0b73a85db7ed80cae314b3c5791f192a496e731"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -2552,9 +2573,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.25"
+version = "2.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15e3fc8c0c74267e2df136e5e5fb656a464158aa57624053375eb9c8c6e25ae2"
+checksum = "b60f673f44a8255b9c8c657daf66a596d435f2da81a555b06dc644d080ba45e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2600,7 +2621,7 @@ checksum = "463fe12d7993d3b327787537ce8dd4dfa058de32fc2b195ef3cde03dc4771e8f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -2691,7 +2712,7 @@ checksum = "5f4f31f56159e98206da9efd823404b79b6ef3143b4a7ab76e67b1751b25a4ab"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -2873,7 +2894,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
  "wasm-bindgen-shared",
 ]
 
@@ -2907,7 +2928,7 @@ checksum = "54681b18a46765f095758388f2d0cf16eb8d4169b639ab575a8f5693af210c7b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.25",
+ "syn 2.0.27",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
