@@ -1,4 +1,4 @@
-use arm::emu::{AccessType, Cpu, Memory, RotateRightExtended, Waitstates};
+use arm::emu::{AccessType, Cpu, Memory, Waitstates};
 use byteorder::{ByteOrder, LittleEndian};
 use util::bits::BitOps;
 
@@ -42,21 +42,21 @@ impl GbaMemoryMappedHardware {
         }
     }
 
-    fn ioreg_load32(&mut self, address: u32) -> u32 {
+    fn ioreg_load32(&mut self, _address: u32) -> u32 {
         0
     }
 
-    fn ioreg_load16(&mut self, address: u32) -> u16 {
+    fn ioreg_load16(&mut self, _address: u32) -> u16 {
         0
     }
 
-    fn ioreg_load8(&mut self, address: u32) -> u8 {
+    fn ioreg_load8(&mut self, _address: u32) -> u8 {
         0
     }
 
-    fn ioreg_store32(&mut self, address: u32, value: u32) {}
-    fn ioreg_store16(&mut self, address: u32, value: u32) {}
-    fn ioreg_store8(&mut self, address: u32, value: u32) {}
+    fn ioreg_store32(&mut self, _address: u32, _value: u32) {}
+    fn ioreg_store16(&mut self, _address: u32, _value: u16) {}
+    fn ioreg_store8(&mut self, _address: u32, _value: u8) {}
 
     fn gamepak_load32<const AREA: usize>(
         &mut self,
@@ -105,38 +105,43 @@ impl GbaMemoryMappedHardware {
         &mut self,
         address: u32,
         value: u32,
-        access_type: AccessType,
-        wait: &mut Waitstates,
+        _access_type: AccessType,
+        _wait: &mut Waitstates,
     ) {
+        tracing::debug!("unimplemented gamepak store32: [0x{address:08X}] = 0x{value:08X}");
     }
 
     fn gamepak_store16<const AREA: usize>(
         &mut self,
         address: u32,
         value: u16,
-        access_type: AccessType,
-        wait: &mut Waitstates,
+        _access_type: AccessType,
+        _wait: &mut Waitstates,
     ) {
+        tracing::debug!("unimplemented gamepak store16: [0x{address:08X}] = 0x{value:04X}");
     }
 
     fn gamepak_store8<const AREA: usize>(
         &mut self,
         address: u32,
         value: u8,
-        access_type: AccessType,
-        wait: &mut Waitstates,
+        _access_type: AccessType,
+        _wait: &mut Waitstates,
     ) {
+        tracing::debug!("unimplemented gamepak store8: [0x{address:08X}] = 0x{value:02X}");
     }
 
     fn load_sram8<T>(&mut self, address: u32, wait: &mut Waitstates) -> T
     where
         T: From<u8>,
     {
+        tracing::debug!("unimplemented sram load8: [0x{address:08X}]");
         *wait += self.system_control.waitstates.sram;
         (0u8).into()
     }
 
     fn store_sram8(&mut self, address: u32, value: u8, wait: &mut Waitstates) {
+        tracing::debug!("unimplemented sram store8: [0x{address:08X}] = 0x{value:02X}");
         *wait += self.system_control.waitstates.sram;
     }
 }
@@ -146,8 +151,14 @@ impl Memory for GbaMemoryMappedHardware {
         let address = address & !0x3;
         let mut wait = Waitstates::zero();
         let value = match address >> 24 {
-            REGION_BIOS if cpu.registers.read(15) < 0x4008 && address < 0x4000 => {
-                LittleEndian::read_u32(&self.bios[address as usize..])
+            REGION_BIOS if address < 0x4000 => {
+                if cpu.next_execution_address() < 0x4000 {
+                    let value = LittleEndian::read_u32(&self.bios[address as usize..]);
+                    self.last_bios_value = value;
+                    value
+                } else {
+                    self.last_bios_value
+                }
             }
             // FIXME implement enable/disable from SystemControl
             REGION_EWRAM => {
@@ -194,12 +205,19 @@ impl Memory for GbaMemoryMappedHardware {
         let address = address & !0x1;
         let mut wait = Waitstates::zero();
         let value = match address >> 24 {
-            REGION_BIOS if cpu.next_execution_address() < 0x4000 && address < 0x4000 => {
-                LittleEndian::read_u16(&self.bios[address as usize..])
+            REGION_BIOS if address < 0x4000 => {
+                if cpu.next_execution_address() < 0x4000 {
+                    let value = LittleEndian::read_u32(&self.bios[(address & !0x3) as usize..]);
+                    self.last_bios_value = value;
+                    value.rotate_right(((address & 0x2) >> 1) * 16) as u16
+                } else {
+                    self.last_bios_value
+                        .rotate_right(((address & 0x2) >> 1) * 16) as u16
+                }
             }
             // FIXME implement enable/disable from SystemControl
             REGION_EWRAM => {
-                wait += self.system_control.waitstates.ewram + self.system_control.waitstates.ewram;
+                wait += self.system_control.waitstates.ewram;
                 LittleEndian::read_u16(&self.ewram[(address & EWRAM_MASK) as usize..])
             }
             // FIXME implement enable/disable from SystemControl
@@ -226,15 +244,20 @@ impl Memory for GbaMemoryMappedHardware {
                 self.last_read_value as u16
             }
         };
-        self.last_read_value = value as u32;
         (value, wait)
     }
 
     fn load8(&mut self, address: u32, cpu: &mut Cpu) -> (u8, arm::emu::Waitstates) {
         let mut wait = Waitstates::zero();
         let value = match address >> 24 {
-            0x0 if cpu.next_execution_address() < 0x4000 && address < 0x4000 => {
-                self.bios[address as usize]
+            0x0 if address < 0x4000 => {
+                if cpu.next_execution_address() < 0x4000 {
+                    let value = LittleEndian::read_u32(&self.bios[(address & !0x3) as usize..]);
+                    self.last_bios_value = value;
+                    value.rotate_right((address & 0x3) * 8) as u8
+                } else {
+                    self.last_bios_value.rotate_right((address & 0x3) * 8) as u8
+                }
             }
             // FIXME implement enable/disable from SystemControl
             REGION_EWRAM => {
@@ -302,7 +325,7 @@ impl Memory for GbaMemoryMappedHardware {
             }
             REGION_SRAM => self.store_sram8(
                 address,
-                value.rotate_right((address & 0x7) * 8) as u8,
+                value.rotate_right((address & 0x3) * 8) as u8,
                 &mut wait,
             ),
             _ => {
@@ -314,8 +337,37 @@ impl Memory for GbaMemoryMappedHardware {
 
     fn store16(&mut self, address: u32, value: u16, cpu: &mut Cpu) -> arm::emu::Waitstates {
         let address = address & !0x1;
-        let wait = Waitstates::zero();
+        let mut wait = Waitstates::zero();
         match address >> 24 {
+            // FIXME implement enable/disable from SystemControl
+            REGION_EWRAM => {
+                wait += self.system_control.waitstates.ewram;
+                LittleEndian::write_u16(&mut self.ewram[(address & EWRAM_MASK) as usize..], value);
+            }
+            // FIXME implement enable/disable from SystemControl
+            REGION_IWRAM => {
+                LittleEndian::write_u16(&mut self.iwram[(address & IWRAM_MASK) as usize..], value);
+            }
+            REGION_IOREGS => self.ioreg_store16(address, value),
+            REGION_PAL => self.palram.store16(address, value),
+            REGION_VRAM => LittleEndian::write_u16(&mut self.vram[vram_offset(address)..], value),
+            REGION_OAM => {
+                LittleEndian::write_u16(&mut self.oam[(address & OAM_MASK) as usize..], value)
+            }
+            REGION_GAMEPAK0_LO | REGION_GAMEPAK0_HI => {
+                self.gamepak_store16::<0>(address, value, cpu.access_type(), &mut wait);
+            }
+            REGION_GAMEPAK1_LO | REGION_GAMEPAK1_HI => {
+                self.gamepak_store16::<1>(address, value, cpu.access_type(), &mut wait);
+            }
+            REGION_GAMEPAK2_LO | REGION_GAMEPAK2_HI => {
+                self.gamepak_store16::<2>(address, value, cpu.access_type(), &mut wait);
+            }
+            REGION_SRAM => self.store_sram8(
+                address,
+                value.rotate_right((address & 0x1) * 8) as u8,
+                &mut wait,
+            ),
             _ => {
                 tracing::debug!("16-bit write to unused memory: [0x{address:08X}] = 0x{value:04X}");
             }
@@ -324,8 +376,45 @@ impl Memory for GbaMemoryMappedHardware {
     }
 
     fn store8(&mut self, address: u32, value: u8, cpu: &mut Cpu) -> arm::emu::Waitstates {
-        let wait = Waitstates::zero();
+        let mut wait = Waitstates::zero();
         match address >> 24 {
+            // FIXME implement enable/disable from SystemControl
+            REGION_EWRAM => {
+                wait += self.system_control.waitstates.ewram;
+                self.ewram[(address & EWRAM_MASK) as usize] = value
+            }
+            // FIXME implement enable/disable from SystemControl
+            REGION_IWRAM => self.iwram[(address & IWRAM_MASK) as usize] = value,
+
+            // Writing 8bit Data to Video Memory
+            //      Video Memory (BG, OBJ, OAM, Palette) can be written to in 16bit and 32bit units only.
+            //      Attempts to write 8bit data (by STRB opcode) won't work:
+            //
+            //      Writes to BG (6000000h-600FFFFh) (or 6000000h-6013FFFh in Bitmap mode) and to Palette (5000000h-50003FFh)
+            //      are writing the new 8bit value to BOTH upper and lower 8bits of the addressed halfword, ie. "[addr AND NOT 1]=data*101h".
+            //
+            //      Writes to OBJ (6010000h-6017FFFh) (or 6014000h-6017FFFh in Bitmap mode) and to OAM (7000000h-70003FFh) are ignored,
+            //      the memory content remains unchanged.
+            // FIXME at the moment I just always mirror the byte for VRAM.
+            REGION_IOREGS => self.ioreg_store8(address, value),
+            REGION_PAL => self.palram.store8(address, value),
+            REGION_VRAM => LittleEndian::write_u16(
+                &mut self.vram[vram_offset(address & !0x1)..],
+                (value as u16).wrapping_mul(0x0101),
+            ),
+            REGION_OAM => { /* IGNORED */ }
+
+            REGION_GAMEPAK0_LO | REGION_GAMEPAK0_HI => {
+                self.gamepak_store8::<0>(address, value, cpu.access_type(), &mut wait);
+            }
+            REGION_GAMEPAK1_LO | REGION_GAMEPAK1_HI => {
+                self.gamepak_store8::<1>(address, value, cpu.access_type(), &mut wait);
+            }
+            REGION_GAMEPAK2_LO | REGION_GAMEPAK2_HI => {
+                self.gamepak_store8::<2>(address, value, cpu.access_type(), &mut wait);
+            }
+            REGION_SRAM => self.store_sram8(address, value, &mut wait),
+
             _ => {
                 tracing::debug!("8-bit write to unused memory: [0x{address:08X}] = 0x{value:02X}");
             }

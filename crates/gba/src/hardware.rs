@@ -26,7 +26,9 @@ pub struct GbaMemoryMappedHardware {
     pub(crate) gamepak: Vec<u8>,
 
     /// The last value ready from memory.
-    pub last_read_value: u32,
+    pub(crate) last_read_value: u32,
+    /// The last value read from BIOS.
+    pub(crate) last_bios_value: u32,
 }
 
 impl GbaMemoryMappedHardware {
@@ -47,6 +49,7 @@ impl GbaMemoryMappedHardware {
             gamepak: vec![0; 4],
 
             last_read_value: 0,
+            last_bios_value: 0,
         }
     }
 

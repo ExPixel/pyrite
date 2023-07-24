@@ -13,38 +13,41 @@
 @@  Return: Does not return to calling procedure, instead, loads the above return address into R14, and then jumps to that address by a "BX R14" opcode.
 swi_soft_reset:
 
-    mrs     r1, cpsr            @ save the mode bits from CPSR
-    bic     r0, r1, #MODE_MASK
-    orr     r0, r0, #MODE_SVC
-    ldr     sp, =0x3007FE0      @ sp_svc = 0x3007FE0
-    mov     lr, #0              @ lr_svc = 0
-    msr     spsr, lr            @ spsr_svc = 0
-    bic     r0, r1, #MODE_MASK
-    orr     r0, r0, #MODE_IRQ
-    ldr     sp, =0x3007FA0      @ sp_irq = 0x3007FA0
-    mov     lr, #0              @ lr_irq = 0
-    msr     spsr, lr            @ spsr_irq = 0
-    bic     r0, r1, #MODE_MASK
-    orr     r0, r0, #MODE_SYS
-    ldr     sp, =0x3007F00      @ sp_sys = 0x3007F00
+    mrs r1, cpsr            @ save the mode bits from CPSR
+    bic r0, r1, #MODE_MASK
+    orr r0, r0, #MODE_SVC
+    ldr sp, =0x3007FE0      @ sp_svc = 0x3007FE0
+    mov lr, #0              @ lr_svc = 0
+    msr spsr, lr            @ spsr_svc = 0
+    bic r0, r1, #MODE_MASK
+    orr r0, r0, #MODE_IRQ
+    ldr sp, =0x3007FA0      @ sp_irq = 0x3007FA0
+    mov lr, #0              @ lr_irq = 0
+    msr spsr, lr            @ spsr_irq = 0
+    bic r0, r1, #MODE_MASK
+    orr r0, r0, #MODE_SYS
+    ldr sp, =0x3007F00      @ sp_sys = 0x3007F00
 
-    ldr     r0, =0x3007E00
-    mov     r1, #0
-    mov     r2, #0x200
-    bl      memset
+    ldr r0, =0x3007E00
+    mov r1, #0
+    mov r2, #0x200
+    bl memset
 
-    mov     r0, #0
-    mov     r1, #0
-    mov     r2, #0
-    mov     r3, #0
-    mov     r4, #0
-    mov     r5, #0
-    mov     r6, #0
-    mov     r7, #0
-    mov     r9, #0
-    mov     r10, #0
-    mov     r11, #0
-    mov     r12, #0
+    mov r0, #0
+    mov r1, #0
+    mov r2, #0
+    mov r3, #0
+    mov r4, #0
+    mov r5, #0
+    mov r6, #0
+    mov r7, #0
+    mov r9, #0
+    mov r10, #0
+    mov r11, #0
+    mov r12, #0
 
-    ldr     lr, =0x08000000
-    bx      lr
+    ldr lr, =0x08000000
+    bx lr
+@@ Reset padding. Used for testing.
+    mov r0, #0
+    bx r0

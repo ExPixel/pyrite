@@ -15,21 +15,21 @@ _start:
 
 .section ".text"
 ev_reset:
-    ldr     r0, =swi_soft_reset
-    bx      r0
+    ldr r0, =swi_soft_reset
+    bx r0
 ev_undefined_instruction:
-    movs    pc, lr
+    movs pc, lr
 ev_software_interrupt:
-    movs    pc, lr
+    movs pc, lr
 ev_prefetch_abort:
-    subs    pc, lr, #4
+    subs pc, lr, #4
 ev_irq_interrupt:
-    subs    pc, lr, #4
+    subs pc, lr, #4
 
 ev_fiq_interrupt:
-    subs    pc, lr, #4
+    subs pc, lr, #4
 
 ev_data_abort:
-    subs    pc, lr, #8          @ this would retry the instruction, GBA has no data aborts though
+    subs pc, lr, #8          @ this would retry the instruction, GBA has no data aborts though
 ev_adress_exceeeds_26bit:
-    subs    pc, lr, #4
+    subs pc, lr, #4
