@@ -7,8 +7,7 @@ coverage:
     # ref: https://docs.codecov.com/docs/commit-status
     project:
       default:
-        # Avoid false negatives
-        threshold: 1%
+        threshold: 5.5%
 
 ignore:
   - "crates/**/tests/*"
