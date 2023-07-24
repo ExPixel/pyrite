@@ -120,3 +120,242 @@ fn test_ewram_mirror_8bit() {
     assert_eq!(gba.cpu.registers.read(0), 0xEF);
     assert_eq!(gba.cpu.registers.read(3), 0xEF);
 }
+
+#[test]
+fn test_iwram_mirror_32bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0300000C
+        ldr r2, =#0xDEADBEEF
+        str r2, [r1]
+        ldr r1, =#0x0300800C
+        ldr r0, [r1]
+        ldr r1, =#0x0301000C
+        ldr r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xDEADBEEF);
+}
+
+#[test]
+fn test_iwram_mirror_16bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0300000C
+        ldr r2, =#0xDEADBEEF
+        strh r2, [r1]
+        ldr r1, =#0x0300800C
+        ldrh r0, [r1]
+        ldr r1, =#0x0301000C
+        ldrh r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xBEEF);
+}
+
+#[test]
+fn test_iwram_mirror_8bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0300000C
+        ldr r2, =#0xDEADBEEF
+        strb r2, [r1]
+        ldr r1, =#0x0300800C
+        ldrb r0, [r1]
+        ldr r1, =#0x0301000C
+        ldrb r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xEF);
+}
+
+#[test]
+fn test_palette_mirror_32bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0500000C
+        ldr r2, =#0xDEADBEEF
+        str r2, [r1]
+        ldr r1, =#0x0500400C
+        ldr r0, [r1]
+        ldr r1, =#0x0500800C
+        ldr r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xDEADBEEF);
+}
+
+#[test]
+fn test_palette_mirror_16bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0500000C
+        ldr r2, =#0xDEADBEEF
+        strh r2, [r1]
+        ldr r1, =#0x0500400C
+        ldrh r0, [r1]
+        ldr r1, =#0x0500800C
+        ldrh r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xBEEF);
+}
+
+#[test]
+fn test_palette_mirror_8bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0500000C
+        ldr r2, =#0xDEADBEEF
+        strb r2, [r1]
+        ldr r1, =#0x0500400C
+        ldrb r0, [r1]
+        ldr r1, =#0x0500800C
+        ldrb r3, [r1], #1
+        ldrb r4, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xEF);
+
+    // Writes to palette RAM can only be don in 16 or 32 bit increments (only 16bits really)
+    // and 8bit writes just have the value copied to both bytes of the aligned halfword address.
+    assert_eq!(gba.cpu.registers.read(3), 0xEF);
+    assert_eq!(gba.cpu.registers.read(4), 0xEF);
+}
+
+#[test]
+fn test_oam_mirror_32bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0700000C
+        ldr r2, =#0xDEADBEEF
+        str r2, [r1]
+        ldr r1, =#0x0700400C
+        ldr r0, [r1]
+        ldr r1, =#0x0700800C
+        ldr r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xDEADBEEF);
+}
+
+#[test]
+fn test_oam_mirror_16bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0700000C
+        ldr r2, =#0xDEADBEEF
+        strh r2, [r1]
+        ldr r1, =#0x0700400C
+        ldrh r0, [r1]
+        ldr r1, =#0x0700800C
+        ldrh r3, [r1]
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xBEEF);
+}
+
+#[test]
+fn test_oam_mirror_8bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0700000C
+        ldr r2, =#0xDEADBEEF
+        strb r2, [r1]
+        ldr r1, =#0x0700400C
+        ldrb r0, [r1]
+        ldr r1, =#0x0700800C
+        ldrb r3, [r1], #1
+        ldrb r4, [r1]
+        swi #0xCE
+    "};
+
+    // 8bit writes to OAM are ignored.
+    assert_eq!(gba.cpu.registers.read(0), 0x00);
+    assert_eq!(gba.cpu.registers.read(3), 0x00);
+    assert_eq!(gba.cpu.registers.read(4), 0x00);
+}
+
+#[test]
+fn test_vram_mirror_32bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0600000C
+        ldr r4, =#0x00010000    @ 64K
+        ldr r2, =#0xDEADBEEF
+        str r2, [r1]
+        ldr r2, =#0xBEEFDEAD
+        str r2, [r1, r4]
+
+        ldr r4, =#0x00020000    @ 128K
+        add r1, r1, r4
+        ldr r0, [r1]
+
+        ldr r4, =#0x00018000    @ 96K (64K+32K)
+        ldr r1, =#0x0600000C
+        add r1, r1, r4
+        ldr r3, [r1]
+
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xDEADBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xBEEFDEAD);
+}
+
+#[test]
+fn test_vram_mirror_16bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0600000C
+        ldr r4, =#0x00010000    @ 64K
+        ldr r2, =#0xDEADBEEF
+        strh r2, [r1]
+        ldr r2, =#0xBEEFDEAD
+        strh r2, [r1, r4]
+
+        ldr r4, =#0x00020000    @ 128K
+        add r1, r1, r4
+        ldrh r0, [r1]
+
+        ldr r4, =#0x00018000    @ 96K (64K+32K)
+        ldr r1, =#0x0600000C
+        add r1, r1, r4
+        ldrh r3, [r1]
+
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xBEEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xDEAD);
+}
+
+#[test]
+fn test_vram_mirror_8bit() {
+    let gba = emu_arm! {"
+        ldr r1, =#0x0600000C
+        ldr r4, =#0x00010000    @ 64K
+        ldr r2, =#0xDEADBEEF
+        strh r2, [r1]
+        ldr r2, =#0xBEEFDEAD
+        strh r2, [r1, r4]
+
+        ldr r4, =#0x00020000    @ 128K
+        add r1, r1, r4
+        ldrb r0, [r1]
+
+        ldr r4, =#0x00018000    @ 96K (64K+32K)
+        ldr r1, =#0x0600000C
+        add r1, r1, r4
+        ldrb r3, [r1]
+
+        swi #0xCE
+    "};
+
+    assert_eq!(gba.cpu.registers.read(0), 0xEF);
+    assert_eq!(gba.cpu.registers.read(3), 0xAD);
+}
