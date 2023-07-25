@@ -74,4 +74,4 @@ impl Default for GbaMemoryMappedHardware {
     }
 }
 
-pub const CUSTOM_BIOS: &[u8] = include_bytes!("../../../roms/misc/custom-bios.bin");
+pub const CUSTOM_BIOS: &[u8] = include_bytes!("../../../roms/custom/custom-bios.bin");
