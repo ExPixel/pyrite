@@ -1,9 +1,10 @@
 TARGET		:= bios
 BUILD		:= build
 SOURCE		:= source
+INCLUDE		:= include
 
 ASFLAGS     := -mcpu=arm7tdmi -march=armv4t -mthumb-interwork
-CFLAGS      := -mcpu=arm7tdmi -march=armv4t -mthumb-interwork -ffreestanding -static -nostdlib -c -O2
+CFLAGS      := -I$(INCLUDE) -mcpu=arm7tdmi -march=armv4t -mthumb-interwork -ffreestanding -static -nostdlib -c -Os
 AS          := $(DEVKITARM)/bin/arm-none-eabi-as
 CC          := $(DEVKITARM)/bin/arm-none-eabi-gcc
 LD          := $(DEVKITARM)/bin/arm-none-eabi-ld

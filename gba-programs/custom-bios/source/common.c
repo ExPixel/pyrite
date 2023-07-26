@@ -11,14 +11,14 @@
 #endif
 
 inhibit_loop_to_libcall
-void* memset(void *dest, int val, size_t len) {
+void* ep_memset(void *dest, int val, size_t len) {
     unsigned char *ptr = dest;
     while (len-- > 0) *ptr++ = val;
     return dest;
 }
 
 inhibit_loop_to_libcall
-void* memcpy(void *dest, const void *src, size_t len) {
+void* ep_memcpy(void *dest, const void *src, size_t len) {
     char *d = dest;
     const char *s = src;
     while (len--)
@@ -27,7 +27,7 @@ void* memcpy(void *dest, const void *src, size_t len) {
 }
 
 inhibit_loop_to_libcall
-void* memmove(void *dest, const void *src, size_t len) {
+void* ep_memmove(void *dest, const void *src, size_t len) {
     char *d = dest;
     const char *s = src;
     if (d < s)
