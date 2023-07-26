@@ -38,6 +38,8 @@ ev_software_interrupt:
     ldr r11, [r11]
     mov lr, pc
     bx r11
+    mov r11, pc
+    movs pc, r11
 
     pop {r11}
     msr spsr, r11

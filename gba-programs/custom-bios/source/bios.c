@@ -16,7 +16,6 @@ void irq_handler() {
 
 void swi_Debug(int arg0, int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
     *((volatile int*)0x02000000) = arg0;
-    SWI_RETURN();
 }
 
 // SWI 00h (GBA/NDS7/NDS9) - SoftReset
@@ -88,169 +87,127 @@ __asm__ (
 );
 
 void swi_RegisterRamReset(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Halt(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Stop_or_Sleep(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_IntrWait(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_VBlankIntrWait(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Div(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_DivArm(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Sqrt(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_ArcTan(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_ArcTan2(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_CpuSet(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_CpuFastSet(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_GetBiosChecksum(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_BgAffineSet(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_ObjAffineSet(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_BitUnPack(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_LZ77UnCompReadNormalWrite8bit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_LZ77UnCompReadNormalWrite16bit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_HuffUnCompReadNormal(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_RLUnCompReadNormalWrite8bit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_RLUnCompReadNormalWrite16bit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Diff8bitUnFilterWrite8bit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Diff8bitUnFilterWrite16bit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_Diff16bitUnFilter(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundBias(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundDriverInit(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundDriverMode(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundDriverMain(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundDriverVSync(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundChannelClear(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_MidiKey2Freq(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundWhatever0(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundWhatever1(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundWhatever2(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundWhatever3(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundWhatever4(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_MultiBoot(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_HardReset(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_CustomHalt(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundDriverVSyncOff(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundDriverVSyncOn(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
 
 void swi_SoundGetJumpList(int UNUSED(arg0), int UNUSED(arg1), int UNUSED(arg2), int UNUSED(arg3)) {
-    SWI_RETURN();
 }
