@@ -130,22 +130,21 @@ impl Cpu {
     }
 
     pub(crate) fn branch_arm(&mut self, address: u32, memory: &mut dyn Memory) -> Cycles {
-        let address = address & !0x3;
+        let address = (address & !0x3).wrapping_add(4);
 
         let mut cycles = Cycles::zero();
 
+        self.registers.write(15, address);
         self.access_type = AccessType::NonSequential;
-        let (decoded, wait) = memory.load32(address, self);
+        let (decoded, wait) = memory.load32(address.wrapping_sub(4), self);
         cycles += Cycles::one() + wait;
 
         self.access_type = AccessType::Sequential;
-        let (fetched, wait) = memory.load32(address.wrapping_add(4), self);
+        let (fetched, wait) = memory.load32(address, self);
         cycles += Cycles::one() + wait;
 
         self.decoded = decoded;
         self.fetched = fetched;
-
-        self.registers.write(15, address.wrapping_add(4));
 
         cycles
     }
@@ -258,6 +257,10 @@ impl Cpu {
         let cpsr = self.registers.read_cpsr();
         self.registers.write_mode(exception_info.mode_on_entry); // Set the entry mode.
         self.registers.write_spsr(cpsr); // Set the CPSR of the old mode to the SPSR of the new mode.
+        eprintln!(
+            "return_addr: 0x{return_addr:08X} (adjust = {})",
+            exception_info.pc_adjust
+        );
         self.registers
             .write(14, return_addr.wrapping_add(exception_info.pc_adjust)); // Save the return address.
         self.registers.clear_flag(CpsrFlag::T); // Go into ARM mode.

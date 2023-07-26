@@ -359,3 +359,13 @@ fn test_vram_mirror_8bit() {
     assert_eq!(gba.cpu.registers.read(0), 0xEF);
     assert_eq!(gba.cpu.registers.read(3), 0xAD);
 }
+
+#[test]
+fn test_swi_using_custom_bios() {
+    let gba = emu_arm! {"
+        ldr r0, =0xDEADBEEF
+        swi #0x2B
+        swi #0xCE
+    "};
+    assert_eq!(gba.mapped.view32(0x02000000), 0xDEADBEEF);
+}
