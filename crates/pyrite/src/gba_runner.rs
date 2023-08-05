@@ -33,7 +33,9 @@ impl SharedGba {
     }
 
     pub fn unpause(&self) {
-        self.inner.write().current_mode = GbaRunMode::Run;
+        let mut inner = self.inner.write();
+        inner.current_mode = GbaRunMode::Run;
+        inner.paused_cond.1.notify_all();
     }
 
     #[allow(dead_code)]
