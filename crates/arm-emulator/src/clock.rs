@@ -5,6 +5,11 @@ pub struct Cycles(u32);
 
 impl Cycles {
     #[inline]
+    pub const fn new(cycles: u32) -> Self {
+        Cycles(cycles)
+    }
+
+    #[inline]
     pub const fn zero() -> Self {
         Cycles(0)
     }
@@ -17,6 +22,11 @@ impl Cycles {
     #[inline]
     pub const fn is_zero(self) -> bool {
         self.0 == 0
+    }
+
+    #[inline]
+    pub const fn saturating_sub(self, other: Cycles) -> Cycles {
+        Cycles(self.0.saturating_sub(other.0))
     }
 }
 

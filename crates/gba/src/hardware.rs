@@ -37,13 +37,13 @@ pub struct GbaMemoryMappedHardware {
 }
 
 impl GbaMemoryMappedHardware {
-    pub fn new(scheduler: SharedGbaScheduler) -> Self {
+    pub(crate) fn new(scheduler: SharedGbaScheduler) -> Self {
         Self {
             bios: Box::new([0; BIOS_SIZE]),
             ewram: Box::new([0; EWRAM_SIZE]),
             iwram: Box::new([0; IWRAM_SIZE]),
 
-            video: Box::default(),
+            video: Box::new(GbaVideo::new(scheduler.clone())),
             system_control: SystemControl::default(),
 
             palram: Box::default(),
@@ -63,6 +63,7 @@ impl GbaMemoryMappedHardware {
     pub(crate) fn reset(&mut self) {
         self.system_control
             .write_internal_memory_control(RegInternalMemoryControl::DEFAULT);
+        self.video.reset();
     }
 
     pub fn set_gamepak(&mut self, mut new_gamepak: Vec<u8>) {

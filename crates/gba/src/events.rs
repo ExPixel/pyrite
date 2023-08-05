@@ -4,7 +4,7 @@ use arm::emu::Cycles;
 use arrayvec::ArrayVec;
 
 #[derive(Default, Clone)]
-pub struct SharedGbaScheduler {
+pub(crate) struct SharedGbaScheduler {
     inner: Rc<RefCell<GbaScheduler>>,
 }
 
@@ -16,12 +16,16 @@ impl SharedGbaScheduler {
     pub fn tick(&mut self, cycles: &mut Cycles) -> Option<GbaEvent> {
         self.inner.borrow_mut().tick(cycles)
     }
+
+    pub fn clear(&mut self) {
+        self.inner.borrow_mut().clear();
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GbaEvent {
+    HDraw,
     HBlank,
-    VBlank,
 
     // FIXME replace this with something else once we have
     //       another event. Right now it's only used in tests.
@@ -74,6 +78,10 @@ impl GbaScheduler {
         }
         None
     }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
 }
 
 #[cfg(test)]
@@ -87,11 +95,11 @@ mod test {
     #[test]
     fn test_scheduling_empty() {
         let mut scheduler = GbaScheduler::default();
-        scheduler.schedule(GbaEvent::HBlank, Cycles::from(12));
+        scheduler.schedule(GbaEvent::HDraw, Cycles::from(12));
         assert_eq!(
             scheduler.entries.last(),
             Some(&Entry {
-                event: GbaEvent::HBlank,
+                event: GbaEvent::HDraw,
                 cycles: Cycles::from(12)
             })
         );
@@ -100,13 +108,13 @@ mod test {
     #[test]
     fn test_scheduling_after() {
         let mut scheduler = GbaScheduler::default();
-        scheduler.schedule(GbaEvent::HBlank, Cycles::from(12));
-        scheduler.schedule(GbaEvent::VBlank, Cycles::from(16));
+        scheduler.schedule(GbaEvent::HDraw, Cycles::from(12));
+        scheduler.schedule(GbaEvent::HBlank, Cycles::from(16));
 
         assert_eq!(
             scheduler.entries.get(1),
             Some(&Entry {
-                event: GbaEvent::HBlank,
+                event: GbaEvent::HDraw,
                 cycles: Cycles::from(12)
             })
         );
@@ -114,7 +122,7 @@ mod test {
         assert_eq!(
             scheduler.entries.get(0),
             Some(&Entry {
-                event: GbaEvent::VBlank,
+                event: GbaEvent::HBlank,
                 cycles: Cycles::from(4)
             })
         );
@@ -123,13 +131,13 @@ mod test {
     #[test]
     fn test_scheduling_before() {
         let mut scheduler = GbaScheduler::default();
-        scheduler.schedule(GbaEvent::VBlank, Cycles::from(16));
-        scheduler.schedule(GbaEvent::HBlank, Cycles::from(12));
+        scheduler.schedule(GbaEvent::HBlank, Cycles::from(16));
+        scheduler.schedule(GbaEvent::HDraw, Cycles::from(12));
 
         assert_eq!(
             scheduler.entries.get(1),
             Some(&Entry {
-                event: GbaEvent::HBlank,
+                event: GbaEvent::HDraw,
                 cycles: Cycles::from(12)
             })
         );
@@ -137,7 +145,7 @@ mod test {
         assert_eq!(
             scheduler.entries.get(0),
             Some(&Entry {
-                event: GbaEvent::VBlank,
+                event: GbaEvent::HBlank,
                 cycles: Cycles::from(4)
             })
         );
@@ -146,14 +154,14 @@ mod test {
     #[test]
     fn test_scheduling_between() {
         let mut scheduler = GbaScheduler::default();
-        scheduler.schedule(GbaEvent::VBlank, Cycles::from(16));
-        scheduler.schedule(GbaEvent::HBlank, Cycles::from(12));
+        scheduler.schedule(GbaEvent::HBlank, Cycles::from(16));
+        scheduler.schedule(GbaEvent::HDraw, Cycles::from(12));
         scheduler.schedule(GbaEvent::Test, Cycles::from(14));
 
         assert_eq!(
             scheduler.entries.get(2),
             Some(&Entry {
-                event: GbaEvent::HBlank,
+                event: GbaEvent::HDraw,
                 cycles: Cycles::from(12)
             })
         );
@@ -169,7 +177,7 @@ mod test {
         assert_eq!(
             scheduler.entries.get(0),
             Some(&Entry {
-                event: GbaEvent::VBlank,
+                event: GbaEvent::HBlank,
                 cycles: Cycles::from(2)
             })
         );
@@ -178,21 +186,21 @@ mod test {
     #[test]
     fn test_scheduling_tick() {
         let mut scheduler = GbaScheduler::default();
-        scheduler.schedule(GbaEvent::VBlank, Cycles::from(16));
-        scheduler.schedule(GbaEvent::HBlank, Cycles::from(12));
+        scheduler.schedule(GbaEvent::HBlank, Cycles::from(16));
+        scheduler.schedule(GbaEvent::HDraw, Cycles::from(12));
         scheduler.schedule(GbaEvent::Test, Cycles::from(14));
 
         let mut cycles = Cycles::from(1);
         assert_eq!(scheduler.tick(&mut cycles), None);
 
         let mut cycles = Cycles::from(11);
-        assert_eq!(scheduler.tick(&mut cycles), Some(GbaEvent::HBlank));
+        assert_eq!(scheduler.tick(&mut cycles), Some(GbaEvent::HDraw));
         assert_eq!(cycles, Cycles::zero());
 
         let mut cycles = Cycles::from(4);
         assert_eq!(scheduler.tick(&mut cycles), Some(GbaEvent::Test));
         assert_eq!(cycles, Cycles::from(2));
-        assert_eq!(scheduler.tick(&mut cycles), Some(GbaEvent::VBlank));
+        assert_eq!(scheduler.tick(&mut cycles), Some(GbaEvent::HBlank));
         assert_eq!(cycles, Cycles::zero());
     }
 }

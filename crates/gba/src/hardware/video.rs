@@ -1,29 +1,73 @@
+use arm::emu::Cycles;
 use pyrite_derive::IoRegister;
+
+use crate::{
+    events::{GbaEvent, SharedGbaScheduler},
+    GbaVideoOutput,
+};
 
 pub const VISIBLE_LINE_WIDTH: usize = 240;
 pub const VISIBLE_LINE_COUNT: usize = 160;
+pub const LINE_COUNT: usize = 228;
 pub const VISIBLE_PIXELS: usize = VISIBLE_LINE_WIDTH * VISIBLE_LINE_COUNT;
+pub const HDRAW_CYCLES: Cycles = Cycles::new(960);
+pub const HBLANK_CYCLES: Cycles = Cycles::new(272);
 
 pub type LineBuffer = [u16; VISIBLE_LINE_WIDTH];
 pub type ScreenBuffer = [u16; VISIBLE_PIXELS];
 
 pub struct GbaVideo {
-    pub(crate) current_line: usize,
     pub(crate) line_buffer: [u16; VISIBLE_LINE_WIDTH],
+    scheduler: SharedGbaScheduler,
+
+    pub(crate) reg_dispcnt: RegDispcnt,
+    pub(crate) reg_dispstat: RegDispstat,
+    pub(crate) reg_vcount: RegVcount,
 }
 
 impl GbaVideo {
-    pub(crate) fn new() -> GbaVideo {
+    pub(crate) fn new(scheduler: SharedGbaScheduler) -> GbaVideo {
         GbaVideo {
-            current_line: 240,
-            line_buffer: [0; 240],
+            line_buffer: [0; VISIBLE_LINE_WIDTH],
+            scheduler,
+
+            reg_dispcnt: Default::default(),
+            reg_dispstat: Default::default(),
+            reg_vcount: Default::default(),
         }
     }
-}
 
-impl Default for GbaVideo {
-    fn default() -> Self {
-        Self::new()
+    fn render_line(&mut self, line: u16, video: &mut dyn GbaVideoOutput) {
+        let d = std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap();
+        self.line_buffer
+            .fill(line.wrapping_mul(d.as_millis() as u16));
+        video.gba_line_ready(line as usize, &self.line_buffer);
+    }
+
+    pub(crate) fn reset(&mut self) {
+        self.reg_vcount.set_current_scanline(LINE_COUNT as u16 - 1);
+        self.begin_hdraw();
+    }
+
+    pub(crate) fn begin_hdraw(&mut self) {
+        self.scheduler.schedule(GbaEvent::HBlank, HDRAW_CYCLES);
+
+        let mut current_scanline = self.reg_vcount.current_scanline();
+        if current_scanline >= (LINE_COUNT - 1) as u16 {
+            current_scanline = 0;
+        } else {
+            current_scanline += 1;
+        }
+        self.reg_vcount.set_current_scanline(current_scanline);
+    }
+
+    pub(crate) fn begin_hblank(&mut self, video: &mut dyn GbaVideoOutput) {
+        self.scheduler.schedule(GbaEvent::HDraw, HBLANK_CYCLES);
+
+        let current_scanline = self.reg_vcount.current_scanline();
+        if current_scanline < VISIBLE_LINE_COUNT as _ {
+            self.render_line(current_scanline, video);
+        }
     }
 }
 
@@ -84,6 +128,20 @@ pub struct RegDispcnt {
 #[field(v_counter_irq_enable: bool = 3)]
 #[field(v_count_setting: u16 = 8..=15)]
 pub struct RegDispstat {
+    value: u16,
+}
+
+/// 4000006h - VCOUNT - Vertical Counter (Read only)
+/// Indicates the currently drawn scanline, values in range from 160..227 indicate 'hidden' scanlines within VBlank area.
+///   Bit   Expl.
+///   0-7   Current Scanline (LY)      (0..227)                              (R)
+///   8     Not used (0) / NDS: MSB of Current Scanline (LY.Bit8) (0..262)   (R)
+///   9-15  Not Used (0)
+/// Note: This is much the same than the 'LY' register of older gameboys.
+#[derive(IoRegister, Copy, Clone)]
+#[field(current_scanline: readonly<u16> = 0..=7)]
+#[field(not_used_bit_8: readonly<u16> = 8)]
+pub struct RegVcount {
     value: u16,
 }
 

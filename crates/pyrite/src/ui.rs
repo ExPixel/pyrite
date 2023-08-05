@@ -50,7 +50,10 @@ impl App {
             anyhow::bail!("no renderer to construct screen texture");
         };
 
-        gba.with_mut(|data| data.gba.reset());
+        gba.with_mut(|data| {
+            data.gba.set_noop_gamepak();
+            data.gba.reset();
+        });
         gba.unpause();
 
         Ok(Self {

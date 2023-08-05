@@ -2,15 +2,17 @@ mod events;
 mod hardware;
 pub mod memory;
 
-use arm::emu::{Cpu, CpuMode, InstructionSet};
-use events::SharedGbaScheduler;
+use arm::emu::{Cpu, CpuMode, Cycles, InstructionSet};
+use events::{GbaEvent, SharedGbaScheduler};
 use hardware::CUSTOM_BIOS;
 pub use hardware::{video, GbaMemoryMappedHardware};
+
+pub const NOP_ROM: [u8; 4] = [0xFE, 0xFF, 0xFF, 0xEA];
 
 pub struct Gba {
     pub cpu: Cpu,
     pub mapped: GbaMemoryMappedHardware,
-    pub scheduler: SharedGbaScheduler,
+    scheduler: SharedGbaScheduler,
 }
 
 impl Gba {
@@ -32,33 +34,33 @@ impl Gba {
     /// Hard reset.
     pub fn reset(&mut self) {
         self.cpu.branch(0, &mut self.mapped);
+        self.scheduler.clear();
         self.mapped.reset();
     }
 
     pub fn step(&mut self, video_out: &mut dyn GbaVideoOutput, audio_out: &mut dyn GbaAudioOutput) {
         let _unused = audio_out;
 
-        self.cpu.step(&mut self.mapped);
+        let mut cycles = self.cpu.step(&mut self.mapped);
+        while let Some(event) = self.scheduler.tick(&mut cycles) {
+            self.handle_event(event, cycles, video_out);
+        }
+    }
 
-        self.mapped.video.current_line = (self.mapped.video.current_line + 1) % 240;
-        if self.mapped.video.current_line < 160 {
-            static mut COLOR: u16 = 0;
-            for c in self.mapped.video.line_buffer.iter_mut() {
-                unsafe {
-                    COLOR = COLOR.wrapping_add(self.mapped.video.current_line as u16 % 4);
-                };
-                *c = unsafe { COLOR };
-            }
-
-            video_out.gba_line_ready(
-                self.mapped.video.current_line,
-                &self.mapped.video.line_buffer,
-            );
+    fn handle_event(&mut self, event: GbaEvent, _late: Cycles, video_out: &mut dyn GbaVideoOutput) {
+        match event {
+            GbaEvent::HDraw => self.mapped.video.begin_hdraw(),
+            GbaEvent::HBlank => self.mapped.video.begin_hblank(video_out),
+            GbaEvent::Test => unreachable!(),
         }
     }
 
     pub fn set_gamepak(&mut self, gamepak: Vec<u8>) {
         self.mapped.set_gamepak(gamepak);
+    }
+
+    pub fn set_noop_gamepak(&mut self) {
+        self.mapped.set_gamepak(NOP_ROM.to_vec());
     }
 }
 
@@ -68,7 +70,7 @@ impl Default for Gba {
     }
 }
 
-// SAFETY: don't let the scheduler escape the GBA step function
+// SAFETY: don't let the scheduler escape the GBA
 unsafe impl Send for Gba {}
 unsafe impl Sync for Gba {}
 
