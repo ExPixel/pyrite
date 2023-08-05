@@ -13,6 +13,9 @@ use eframe::glow::{
     Texture as GlTexture, VertexArray as GlVertexArray,
 };
 
+#[cfg(feature = "wgpu")]
+use gba::video::{VISIBLE_LINE_COUNT, VISIBLE_LINE_WIDTH};
+
 pub struct GbaImage {
     callback: Arc<dyn Any + Send + Sync>,
 }

@@ -39,8 +39,7 @@ impl GbaVideo {
 
     fn render_line(&mut self, line: u16, video: &mut dyn GbaVideoOutput) {
         let d = std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap();
-        self.line_buffer
-            .fill(line.wrapping_mul(d.as_millis() as u16));
+        self.line_buffer.fill(d.as_nanos() as u16);
         video.gba_line_ready(line as usize, &self.line_buffer);
     }
 
