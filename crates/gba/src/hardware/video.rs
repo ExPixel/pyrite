@@ -78,6 +78,11 @@ pub struct RegDispcnt {
 #[derive(IoRegister, Copy, Clone)]
 #[field(vblank_flag: readonly<bool> = 0)]
 #[field(hblank_flag: readonly<bool> = 1)]
+#[field(v_counter_flag: readonly<bool> = 2)]
+#[field(vblank_irq_enable: bool = 3)]
+#[field(hblank_irq_enable: bool = 3)]
+#[field(v_counter_irq_enable: bool = 3)]
+#[field(v_count_setting: u16 = 8..=15)]
 pub struct RegDispstat {
     value: u16,
 }

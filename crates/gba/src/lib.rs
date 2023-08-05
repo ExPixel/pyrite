@@ -1,23 +1,32 @@
+mod events;
 mod hardware;
 pub mod memory;
 
 use arm::emu::{Cpu, CpuMode, InstructionSet};
+use events::SharedGbaScheduler;
 use hardware::CUSTOM_BIOS;
 pub use hardware::{video, GbaMemoryMappedHardware};
 
 pub struct Gba {
     pub cpu: Cpu,
     pub mapped: GbaMemoryMappedHardware,
+    pub scheduler: SharedGbaScheduler,
 }
 
 impl Gba {
     pub fn new() -> Self {
-        let mut mmh = GbaMemoryMappedHardware::new();
+        let scheduler = SharedGbaScheduler::default();
+
+        let mut mmh = GbaMemoryMappedHardware::new(scheduler.clone());
         assert!(CUSTOM_BIOS.len() <= memory::BIOS_SIZE);
         mmh.bios[..CUSTOM_BIOS.len()].copy_from_slice(CUSTOM_BIOS);
 
         let cpu = Cpu::new(InstructionSet::Arm, CpuMode::System, &mut mmh);
-        Self { cpu, mapped: mmh }
+        Self {
+            cpu,
+            mapped: mmh,
+            scheduler,
+        }
     }
 
     /// Hard reset.
@@ -58,6 +67,10 @@ impl Default for Gba {
         Self::new()
     }
 }
+
+// SAFETY: don't let the scheduler escape the GBA step function
+unsafe impl Send for Gba {}
+unsafe impl Sync for Gba {}
 
 pub struct NoopGbaAudioOutput;
 

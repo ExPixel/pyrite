@@ -2,7 +2,10 @@ pub mod palette;
 pub mod system_control;
 pub mod video;
 
-use crate::memory::{BIOS_SIZE, EWRAM_SIZE, IWRAM_SIZE, OAM_SIZE, VRAM_SIZE};
+use crate::{
+    events::SharedGbaScheduler,
+    memory::{BIOS_SIZE, EWRAM_SIZE, IWRAM_SIZE, OAM_SIZE, VRAM_SIZE},
+};
 
 use self::{
     palette::Palette,
@@ -29,10 +32,12 @@ pub struct GbaMemoryMappedHardware {
     pub(crate) last_read_value: u32,
     /// The last value read from BIOS.
     pub(crate) last_bios_value: u32,
+
+    pub(crate) scheduler: SharedGbaScheduler,
 }
 
 impl GbaMemoryMappedHardware {
-    pub fn new() -> Self {
+    pub fn new(scheduler: SharedGbaScheduler) -> Self {
         Self {
             bios: Box::new([0; BIOS_SIZE]),
             ewram: Box::new([0; EWRAM_SIZE]),
@@ -50,6 +55,7 @@ impl GbaMemoryMappedHardware {
 
             last_read_value: 0,
             last_bios_value: 0,
+            scheduler,
         }
     }
 
@@ -65,12 +71,6 @@ impl GbaMemoryMappedHardware {
         new_gamepak.resize(gamepak_size, 0);
         self.gamepak = new_gamepak;
         self.gamepak_mask = gamepak_size - 1;
-    }
-}
-
-impl Default for GbaMemoryMappedHardware {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
