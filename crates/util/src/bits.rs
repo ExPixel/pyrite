@@ -25,6 +25,11 @@ pub trait BitOps:
     }
 
     #[inline(always)]
+    fn get_bit_int<I: IntoBitIndex>(self, index: I) -> Self {
+        (self >> index.into_bit_index()) & Self::ONE
+    }
+
+    #[inline(always)]
     fn put_bit<I: IntoBitIndex, B: IntoBit>(self, index: I, bit: B) -> Self {
         if bit.into_bit() {
             self.set_bit(index)
@@ -92,6 +97,40 @@ pub trait BitOps:
         let mask = Self::mask(end - start + 1);
 
         (self & !(mask << start)) | ((value & mask) << start)
+    }
+
+    #[inline]
+    fn set_bit_range<R: RangeBounds<I>, I: IntoBitIndex + Copy>(self, range: R) -> Self {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(v) => v.into_bit_index(),
+            std::ops::Bound::Excluded(v) => v.into_bit_index() + 1,
+            std::ops::Bound::Unbounded => 0u32,
+        };
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(v) => v.into_bit_index(),
+            std::ops::Bound::Excluded(v) => v.into_bit_index() - 1,
+            std::ops::Bound::Unbounded => Self::BITS - 1,
+        };
+        let mask = Self::mask(end - start + 1);
+
+        (self & !(mask << start)) | (mask << start)
+    }
+
+    #[inline]
+    fn clear_bit_range<R: RangeBounds<I>, I: IntoBitIndex + Copy>(self, range: R) -> Self {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(v) => v.into_bit_index(),
+            std::ops::Bound::Excluded(v) => v.into_bit_index() + 1,
+            std::ops::Bound::Unbounded => 0u32,
+        };
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(v) => v.into_bit_index(),
+            std::ops::Bound::Excluded(v) => v.into_bit_index() - 1,
+            std::ops::Bound::Unbounded => Self::BITS - 1,
+        };
+        let mask = Self::mask(end - start + 1);
+
+        self & !(mask << start)
     }
 
     fn sign_extend(self, signed_size: impl IntoBitIndex) -> Self;

@@ -1,8 +1,26 @@
-use proc_macro2::TokenStream;
+use std::{cell::RefCell, ops::Range};
+
+use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 use syn::{
-    parse::Parse, parse_macro_input, Data, DeriveInput, Expr, Ident, Lit, MetaList, Token, Type,
+    parse::Parse, parse_macro_input, token::DotDotEq, Data, DeriveInput, Expr, ExprLit, ExprRange,
+    GenericArgument, Ident, Lit, PathArguments, Token, Type, TypePath,
 };
+use util::bits::BitOps;
+
+const PRIMITIVES: [(&str, u32); 11] = [
+    ("i8", 8),
+    ("u8", 9),
+    ("i16", 16),
+    ("u16", 16),
+    ("i32", 32),
+    ("u32", 32),
+    ("i64", 64),
+    ("u64", 64),
+    ("i128", 128),
+    ("u128", 128),
+    ("bool", 1),
+];
 
 #[proc_macro_derive(IoRegister, attributes(field))]
 pub fn io_register_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -44,27 +62,85 @@ fn try_io_register_macro(input: DeriveInput) -> syn::Result<TokenStream> {
         ));
     };
 
-    let mut field_attrs = input.attrs.iter().filter_map(|attr| {
+    let value_field_bits = PRIMITIVES
+        .into_iter()
+        .find(|&(p, _)| {
+            if p == "bool" {
+                return false;
+            }
+
+            if let Type::Path(path) = value_field_type {
+                matches!(path.path.get_ident(), Some(ident) if ident == p)
+            } else {
+                false
+            }
+        })
+        .ok_or_else(|| {
+            syn::Error::new_spanned(&input, "value field must be a primitive integer type")
+        })?
+        .1;
+
+    let mut ioreg_fields = input.attrs.iter().filter_map(|attr| {
         attr.meta
             .path()
             .get_ident()
             .filter(|ident| *ident == "field")?;
 
-        match attr.meta.require_list() {
-            Ok(attr) => Some(Ok(attr)),
+        let attr = match attr.meta.require_list() {
+            Ok(attr) => attr,
+            Err(err) => return Some(Err(err)),
+        };
+
+        match attr.parse_args::<IoRegisterField>() {
+            Ok(field) => Some(Ok(field)),
             Err(err) => Some(Err(err)),
         }
     });
 
-    let functions = std::iter::from_fn(|| match field_attrs.next()? {
-        Ok(attr) => Some(get_fns_for_register_field(
-            attr,
-            value_field_name,
-            value_field_type,
-        )),
+    let r_bits = RefCell::new(u128::mask(value_field_bits));
+    let w_bits = RefCell::new(u128::mask(value_field_bits));
+
+    let functions = std::iter::from_fn(|| match ioreg_fields.next()? {
+        Ok(field) => {
+            if !field.flags.contains(IoRegisterFlags::READ) {
+                let mut r_bits = r_bits.borrow_mut();
+                *r_bits = r_bits.clear_bit_range(field.bit_range.clone());
+            }
+
+            if !field.flags.contains(IoRegisterFlags::WRITE) {
+                let mut w_bits = w_bits.borrow_mut();
+                *w_bits = w_bits.clear_bit_range(field.bit_range.clone());
+            }
+
+            let getter = field.getter(value_field_name, value_field_type);
+            let setter = field.setter(value_field_name, value_field_type);
+            Some(quote! { #getter #setter })
+        }
+
         Err(err) => {
             let compile_error = err.into_compile_error();
             Some(quote! { #compile_error })
+        }
+    });
+
+    let ioreg_read_fn = std::iter::once_with(|| {
+        let read_bits = Literal::u128_unsuffixed(*r_bits.borrow());
+        quote! {
+            #[inline]
+            fn read(self) -> #value_field_type {
+                self.#value_field_name & #read_bits
+            }
+        }
+    });
+
+    let ioreg_write_fn = std::iter::once_with(|| {
+        let write_bits = Literal::u128_unsuffixed(*w_bits.borrow());
+        quote! {
+            #[inline]
+            fn write(&mut self, value: #value_field_type) {
+                self.#value_field_name &= !#write_bits;
+                self.#value_field_name |= value & #write_bits;
+            }
         }
     });
 
@@ -84,15 +160,8 @@ fn try_io_register_macro(input: DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::memory::IoRegister<#value_field_type> for #name #ty_generics #where_clause {
-            #[inline]
-            fn read(self) -> #value_field_type {
-                self.#value_field_name
-            }
-
-            #[inline]
-            fn write(&mut self, value: #value_field_type) {
-                self.#value_field_name = value;
-            }
+            #(#ioreg_read_fn)*
+            #(#ioreg_write_fn)*
         }
 
         impl #impl_generics From<#value_field_type> for #name #ty_generics #where_clause {
@@ -114,98 +183,206 @@ fn try_io_register_macro(input: DeriveInput) -> syn::Result<TokenStream> {
     Ok(expanded)
 }
 
-fn get_fns_for_register_field(
-    attr: &MetaList,
-    value_field_name: &Ident,
-    value_field_type: &Type,
-) -> TokenStream {
-    let arg: IoRegisterField = match attr.parse_args() {
-        Ok(arg) => arg,
-        Err(err) => {
-            let compile_error = err.into_compile_error();
-            return quote! { #compile_error };
+struct IoRegisterField {
+    range: ExprRange,
+    bit_range: Range<u32>,
+    flags: IoRegisterFlags,
+    ty: Type,
+    is_primitive: bool,
+    is_bool: bool,
+    name: Ident,
+}
+
+impl IoRegisterField {
+    fn getter(&self, value_field_name: &Ident, value_field_type: &Type) -> TokenStream {
+        let field_getter = &self.name;
+        let field_type = &self.ty;
+        let range = &self.range;
+
+        if self.is_bool {
+            quote! {
+                #[inline]
+                fn #field_getter(self) -> #field_type {
+                    <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range) != 0
+                }
+            }
+        } else if self.is_primitive {
+            quote! {
+                #[inline]
+                fn #field_getter(self) -> #field_type {
+                    <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range) as #field_type
+                }
+            }
+        } else {
+            quote! {
+                #[inline]
+                fn #field_getter(self) -> #field_type {
+                    <#field_type as From<#value_field_type>>::from(
+                        <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range)
+                    )
+                }
+            }
         }
-    };
+    }
 
-    let field_getter = arg.name;
-    let field_setter = Ident::new(&format!("set_{field_getter}"), field_getter.span());
-    let field_type = arg.ty;
+    fn setter(&self, value_field_name: &Ident, value_field_type: &Type) -> TokenStream {
+        let field_getter = &self.name;
+        let field_setter = Ident::new(&format!("set_{field_getter}"), self.name.span());
+        let field_type = &self.ty;
+        let range = &self.range;
 
-    match *arg.expr {
-        Expr::Lit(literal) => match literal.lit {
-            Lit::Int(int) => {
-                quote! {
-                    #[inline]
-                    fn #field_getter(self) -> #field_type {
-                        <#value_field_type as ::util::bits::BitOps>::get_bit(self.#value_field_name, #int) as #field_type
+        if self.is_primitive {
+            quote! {
+                #[inline]
+                fn #field_setter(&mut self, value: #field_type) {
+                    self.#value_field_name =
+                        <#value_field_type as ::util::bits::BitOps>::put_bit_range(self.#value_field_name, #range, value as #value_field_type);
+                }
+            }
+        } else {
+            quote! {
+                #[inline]
+                fn #field_setter(&mut self, value: #field_type) {
+                    let value = <#value_field_type as From<#field_type>>::from(value);
+                    self.#value_field_name =
+                        <#value_field_type as ::util::bits::BitOps>::put_bit_range(self.#value_field_name, #range, value);
+                }
+            }
+        }
+    }
+
+    fn extract_range_or_index(expr: Expr) -> syn::Result<(ExprRange, Range<u32>)> {
+        match expr {
+            start_end_expr @ Expr::Lit(ExprLit {
+                lit: Lit::Int(..), ..
+            }) => {
+                let Expr::Lit(ExprLit {
+                    lit: Lit::Int(ref int),
+                    ..
+                }) = start_end_expr else { unreachable!() };
+                let bit_range_int: u32 = int.base10_parse()?;
+                let bit_range = bit_range_int..(bit_range_int + 1);
+                let limits_inner = DotDotEq {
+                    spans: [int.span(); 3],
+                };
+                let range = ExprRange {
+                    attrs: Vec::new(),
+                    start: Some(Box::new(start_end_expr.clone())),
+                    limits: syn::RangeLimits::Closed(limits_inner),
+                    end: Some(Box::new(start_end_expr)),
+                };
+                Ok((range, bit_range))
+            }
+
+            Expr::Range(
+                range @ ExprRange {
+                    start: Some(_),
+                    end: Some(_),
+                    ..
+                },
+            ) => {
+                match (
+                    range.start.as_deref().unwrap(),
+                    range.end.as_deref().unwrap(),
+                ) {
+                    (
+                        Expr::Lit(ExprLit {
+                            lit: Lit::Int(start),
+                            ..
+                        }),
+                        Expr::Lit(ExprLit {
+                            lit: Lit::Int(end), ..
+                        }),
+                    ) => {
+                        let bit_range_start: u32 = start.base10_parse()?;
+                        let bit_range_end: u32 = end.base10_parse()?;
+                        let bit_range = match &range.limits {
+                            syn::RangeLimits::HalfOpen(_) => bit_range_start..bit_range_end,
+                            syn::RangeLimits::Closed(_) => bit_range_start..(bit_range_end + 1),
+                        };
+                        Ok((range, bit_range))
                     }
 
-                    #[inline]
-                    fn #field_setter(&mut self, value: #field_type) {
-                        self.#value_field_name =
-                            <#value_field_type as ::util::bits::BitOps>::put_bit(self.#value_field_name, #int, value);
-                    }
+                    _ => Err(syn::Error::new_spanned(
+                        range,
+                        "only closed/half-closed integer ranges allowed",
+                    )),
                 }
             }
 
-            lit => {
-                let err = syn::Error::new_spanned(lit, "literal field value must be an integer");
-                let compile_error = err.into_compile_error();
-                quote! { #compile_error }
-            }
-        },
+            _ => todo!(),
+        }
+    }
 
-        Expr::Range(range) => quote! {
-            #[inline]
-            fn #field_getter(self) -> #field_type {
-                <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range) as #field_type
-            }
+    fn extract_type(base: Type, flags: &mut IoRegisterFlags) -> syn::Result<Type> {
+        let is_flag_type_ident =
+            |ident: &Ident| -> bool { ident == "readonly" || ident == "writeonly" };
 
-            #[inline]
-            fn #field_setter(&mut self, value: #field_type) {
-                self.#value_field_name =
-                    <#value_field_type as ::util::bits::BitOps>::put_bit_range(self.#value_field_name, #range, value as #value_field_type);
-            }
-        },
+        match base {
+            Type::Path(TypePath { path, .. })
+                if path.segments.len() == 1
+                    && is_flag_type_ident(&path.segments.first().unwrap().ident)
+                    && matches!(
+                        &path.segments.first().unwrap().arguments,
+                        PathArguments::AngleBracketed(args) if args.args.len() == 1 &&
+                            matches!(args.args.first().unwrap(), GenericArgument::Type(..))
+                    ) =>
+            {
+                let flag_type = path.segments.into_iter().next().unwrap();
 
-        Expr::Path(path) => quote! {
-            #[inline]
-            fn #field_getter(self) -> #field_type {
-                self.#path
-            }
+                if flag_type.ident == "readonly" {
+                    flags.remove(IoRegisterFlags::WRITE);
+                } else if flag_type.ident == "writeonly" {
+                    flags.remove(IoRegisterFlags::READ);
+                } else {
+                    unreachable!();
+                }
 
-            #[inline]
-            fn #field_setter(&mut self, value: #field_type) {
-                self.#path = value as #field_type;
+                let PathArguments::AngleBracketed(args) = flag_type.arguments else { unreachable!() };
+                let GenericArgument::Type(ty) = args.args.into_iter().next().unwrap() else { unreachable!() };
+                Ok(ty)
             }
-        },
-
-        _ => {
-            let err =
-                syn::Error::new_spanned(arg.expr, "value of field must be a literal or range");
-            let compile_error = err.into_compile_error();
-            quote! { #compile_error }
+            base => Ok(base),
         }
     }
 }
 
-#[derive(Debug)]
-struct IoRegisterField {
-    name: Ident,
-    _colon_token: Token![:],
-    ty: Type,
-    _eq_token: Token![=],
-    expr: Box<Expr>,
-}
-
 impl Parse for IoRegisterField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name: Ident = input.parse()?;
+        let _colon: Token![:] = input.parse()?;
+        let mut flags = IoRegisterFlags::ALL;
+        let ty: Type = Self::extract_type(input.parse()?, &mut flags)?;
+        let _equals: Token![=] = input.parse()?;
+        let (range, bit_range): (ExprRange, Range<u32>) =
+            Self::extract_range_or_index(input.parse()?)?;
+
+        let mut is_primitive = false;
+        let mut is_bool = false;
+
+        if let Type::Path(ref path) = ty {
+            if let Some(ident) = path.path.get_ident() {
+                is_primitive = PRIMITIVES.into_iter().any(|(p, _)| ident == p);
+                is_bool = ident == "bool";
+            }
+        }
+
         Ok(IoRegisterField {
-            name: input.parse()?,
-            _colon_token: input.parse()?,
-            ty: input.parse()?,
-            _eq_token: input.parse()?,
-            expr: input.parse()?,
+            range,
+            bit_range,
+            flags,
+            name,
+            is_primitive,
+            is_bool,
+            ty,
         })
+    }
+}
+
+bitflags::bitflags! {
+    struct IoRegisterFlags: u8 {
+        const READ = 0x1;
+        const WRITE = 0x2;
+        const ALL = Self::READ.bits() | Self::WRITE.bits();
     }
 }
