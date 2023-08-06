@@ -202,21 +202,21 @@ impl IoRegisterField {
         if self.is_bool {
             quote! {
                 #[inline]
-                fn #field_getter(self) -> #field_type {
+                pub fn #field_getter(self) -> #field_type {
                     <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range) != 0
                 }
             }
         } else if self.is_primitive {
             quote! {
                 #[inline]
-                fn #field_getter(self) -> #field_type {
+                pub fn #field_getter(self) -> #field_type {
                     <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range) as #field_type
                 }
             }
         } else {
             quote! {
                 #[inline]
-                fn #field_getter(self) -> #field_type {
+                pub fn #field_getter(self) -> #field_type {
                     <#field_type as From<#value_field_type>>::from(
                         <#value_field_type as ::util::bits::BitOps>::get_bit_range(self.#value_field_name, #range)
                     )
@@ -234,7 +234,7 @@ impl IoRegisterField {
         if self.is_primitive {
             quote! {
                 #[inline]
-                fn #field_setter(&mut self, value: #field_type) {
+                pub fn #field_setter(&mut self, value: #field_type) {
                     self.#value_field_name =
                         <#value_field_type as ::util::bits::BitOps>::put_bit_range(self.#value_field_name, #range, value as #value_field_type);
                 }
@@ -242,7 +242,7 @@ impl IoRegisterField {
         } else {
             quote! {
                 #[inline]
-                fn #field_setter(&mut self, value: #field_type) {
+                pub fn #field_setter(&mut self, value: #field_type) {
                     let value = <#value_field_type as From<#field_type>>::from(value);
                     self.#value_field_name =
                         <#value_field_type as ::util::bits::BitOps>::put_bit_range(self.#value_field_name, #range, value);

@@ -32,8 +32,6 @@ pub struct GbaMemoryMappedHardware {
     pub(crate) last_read_value: u32,
     /// The last value read from BIOS.
     pub(crate) last_bios_value: u32,
-
-    pub(crate) scheduler: SharedGbaScheduler,
 }
 
 impl GbaMemoryMappedHardware {
@@ -43,7 +41,7 @@ impl GbaMemoryMappedHardware {
             ewram: Box::new([0; EWRAM_SIZE]),
             iwram: Box::new([0; IWRAM_SIZE]),
 
-            video: Box::new(GbaVideo::new(scheduler.clone())),
+            video: Box::new(GbaVideo::new(scheduler)),
             system_control: SystemControl::default(),
 
             palram: Box::default(),
@@ -55,7 +53,6 @@ impl GbaMemoryMappedHardware {
 
             last_read_value: 0,
             last_bios_value: 0,
-            scheduler,
         }
     }
 
