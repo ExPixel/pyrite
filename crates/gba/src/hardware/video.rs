@@ -1,15 +1,21 @@
 pub mod line;
+mod mode3;
 pub mod registers;
 
 use arm::emu::Cycles;
-use pyrite_derive::IoRegister;
 
 use crate::{
     events::{GbaEvent, SharedGbaScheduler},
+    memory::VRAM_SIZE,
     GbaVideoOutput,
 };
 
-use self::registers::GbaVideoRegisters;
+use self::{
+    line::{BlendContext, GbaLine},
+    registers::{BgMode, GbaVideoRegisters},
+};
+
+use super::palette::Palette;
 
 pub const VISIBLE_LINE_WIDTH: usize = 240;
 pub const VISIBLE_LINE_COUNT: usize = 160;
@@ -22,7 +28,7 @@ pub type LineBuffer = [u16; VISIBLE_LINE_WIDTH];
 pub type ScreenBuffer = [u16; VISIBLE_PIXELS];
 
 pub struct GbaVideo {
-    pub(crate) line_buffer: [u16; VISIBLE_LINE_WIDTH],
+    pub(crate) line: GbaLine,
     scheduler: SharedGbaScheduler,
     registers: GbaVideoRegisters,
 }
@@ -30,16 +36,35 @@ pub struct GbaVideo {
 impl GbaVideo {
     pub(crate) fn new(scheduler: SharedGbaScheduler) -> GbaVideo {
         GbaVideo {
-            line_buffer: [0; VISIBLE_LINE_WIDTH],
+            line: GbaLine::default(),
             scheduler,
             registers: GbaVideoRegisters::default(),
         }
     }
 
-    fn render_line(&mut self, line: u16, video: &mut dyn GbaVideoOutput) {
-        let d = std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap();
-        self.line_buffer.fill(d.as_nanos() as u16);
-        video.gba_line_ready(line as usize, &self.line_buffer);
+    fn render_line(&mut self, line: u16, video: &mut dyn GbaVideoOutput, context: HBlankContext) {
+        let mut unhandled_mode = false;
+
+        let render_context = RenderContext::new(line, &self.registers, context.vram);
+        match self.registers.reg_dispcnt.bg_mode() {
+            BgMode::Mode0 => unhandled_mode = true,
+            BgMode::Mode1 => unhandled_mode = true,
+            BgMode::Mode3 => mode3::render(&mut self.line, render_context),
+            BgMode::Mode2 => unhandled_mode = true,
+            BgMode::Mode4 => unhandled_mode = true,
+            BgMode::Mode5 => unhandled_mode = true,
+            BgMode::Invalid6 => unhandled_mode = true,
+            BgMode::Invalid7 => unhandled_mode = true,
+        }
+
+        let mut buffer = [0u16; VISIBLE_LINE_WIDTH];
+        if unhandled_mode {
+            buffer.fill(rgb16(0x1F, 0, 0x1F));
+        } else {
+            let context = BlendContext::with_hblank(&self.registers, context);
+            self.line.blend(&mut buffer, context);
+        }
+        video.gba_line_ready(line as usize, &buffer);
     }
 
     pub(crate) fn reset(&mut self) {
@@ -63,12 +88,35 @@ impl GbaVideo {
             .set_current_scanline(current_scanline);
     }
 
-    pub(crate) fn begin_hblank(&mut self, video: &mut dyn GbaVideoOutput) {
+    pub(crate) fn begin_hblank(&mut self, video: &mut dyn GbaVideoOutput, context: HBlankContext) {
         self.scheduler.schedule(GbaEvent::HDraw, HBLANK_CYCLES);
 
         let current_scanline = self.registers.reg_vcount.current_scanline();
         if current_scanline < VISIBLE_LINE_COUNT as _ {
-            self.render_line(current_scanline, video);
+            self.render_line(current_scanline, video, context);
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct HBlankContext<'a> {
+    pub palette: &'a Palette,
+    pub vram: &'a [u8; VRAM_SIZE],
+}
+
+#[derive(Copy, Clone)]
+struct RenderContext<'a> {
+    pub vram: &'a [u8; VRAM_SIZE],
+    pub line: u16,
+    pub registers: &'a GbaVideoRegisters,
+}
+
+impl<'a> RenderContext<'a> {
+    pub fn new(line: u16, registers: &'a GbaVideoRegisters, vram: &'a [u8; VRAM_SIZE]) -> Self {
+        Self {
+            line,
+            vram,
+            registers,
         }
     }
 }

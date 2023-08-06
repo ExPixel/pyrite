@@ -4,8 +4,8 @@ pub mod memory;
 
 use arm::emu::{Cpu, CpuMode, Cycles, InstructionSet};
 use events::{GbaEvent, SharedGbaScheduler};
-use hardware::CUSTOM_BIOS;
 pub use hardware::{video, GbaMemoryMappedHardware};
+use hardware::{video::HBlankContext, CUSTOM_BIOS};
 
 pub const NOP_ROM: [u8; 4] = [0xFE, 0xFF, 0xFF, 0xEA];
 
@@ -50,7 +50,13 @@ impl Gba {
     fn handle_event(&mut self, event: GbaEvent, _late: Cycles, video_out: &mut dyn GbaVideoOutput) {
         match event {
             GbaEvent::HDraw => self.mapped.video.begin_hdraw(),
-            GbaEvent::HBlank => self.mapped.video.begin_hblank(video_out),
+            GbaEvent::HBlank => {
+                let context = HBlankContext {
+                    palette: &self.mapped.palram,
+                    vram: &self.mapped.vram,
+                };
+                self.mapped.video.begin_hblank(video_out, context);
+            }
             GbaEvent::Test => unreachable!(),
         }
     }

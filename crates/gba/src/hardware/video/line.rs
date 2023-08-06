@@ -1,20 +1,68 @@
-use super::VISIBLE_LINE_WIDTH;
+use util::bits::BitOps;
+
+use crate::{hardware::palette::Palette, memory::VRAM_SIZE};
+
+use super::{registers::GbaVideoRegisters, HBlankContext, VISIBLE_LINE_WIDTH};
 
 #[derive(Default)]
 pub struct GbaLine {
-    pixels: [Layer; 5],
+    layers: [LayerLine; 5],
     objwin: LineBits,
     layer_attrs: [LayerAttrs; 5],
 }
 
-impl GbaLine {}
+impl GbaLine {
+    pub fn put(&mut self, layer: Layer, x: usize, pixel: impl Into<Pixel>) {
+        self.layers[layer as usize].pixels[x] = pixel.into();
+    }
 
-struct Layer {
+    pub fn blend(&mut self, output: &mut [u16; VISIBLE_LINE_WIDTH], context: BlendContext) {
+        for (x, output) in output.iter_mut().enumerate() {
+            let pixel = self.layers[2].pixels[x];
+            *output = pixel.value;
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct BlendContext<'a> {
+    pub registers: &'a GbaVideoRegisters,
+    pub vram: &'a [u8; VRAM_SIZE],
+    pub palette: &'a Palette,
+}
+
+impl<'a> BlendContext<'a> {
+    pub fn with_hblank(registers: &'a GbaVideoRegisters, context: HBlankContext<'a>) -> Self {
+        Self::new(registers, context.vram, context.palette)
+    }
+
+    pub fn new(
+        registers: &'a GbaVideoRegisters,
+        vram: &'a [u8; VRAM_SIZE],
+        palette: &'a Palette,
+    ) -> Self {
+        Self {
+            registers,
+            vram,
+            palette,
+        }
+    }
+}
+
+pub enum Layer {
+    Bg0 = 0,
+    Bg1 = 1,
+    Bg2 = 2,
+    Bg3 = 3,
+    Obj = 4,
+}
+
+struct LayerLine {
     attrs: LayerAttrs,
     pixels: [Pixel; VISIBLE_LINE_WIDTH],
 }
 
-impl Default for Layer {
+impl Default for LayerLine {
     fn default() -> Self {
         Self {
             pixels: [Pixel::default(); VISIBLE_LINE_WIDTH],
@@ -24,17 +72,25 @@ impl Default for Layer {
 }
 
 #[derive(Default, Clone, Copy)]
-pub struct Pixel(u16);
+pub struct Pixel {
+    value: u16,
+}
+
+impl Pixel {
+    pub const fn new(value: u16) -> Self {
+        Self { value }
+    }
+}
 
 impl From<ObjPixel8Bpp> for Pixel {
     fn from(value: ObjPixel8Bpp) -> Self {
-        Self(value.0)
+        Self { value: value.0 }
     }
 }
 
 impl From<ObjPixel4Bpp> for Pixel {
     fn from(value: ObjPixel4Bpp) -> Self {
-        Self(value.0)
+        Self { value: value.0 }
     }
 }
 
@@ -48,8 +104,8 @@ impl ObjPixel8Bpp {
 }
 
 impl From<Pixel> for ObjPixel8Bpp {
-    fn from(value: Pixel) -> Self {
-        Self(value.0)
+    fn from(pixel: Pixel) -> Self {
+        Self(pixel.value)
     }
 }
 
@@ -63,8 +119,8 @@ impl ObjPixel4Bpp {
 }
 
 impl From<Pixel> for ObjPixel4Bpp {
-    fn from(value: Pixel) -> Self {
-        Self(value.0)
+    fn from(pixel: Pixel) -> Self {
+        Self(pixel.value)
     }
 }
 
@@ -75,11 +131,15 @@ impl BgPixel8Bpp {
     pub fn new(entry: u8) -> Self {
         Self(entry as u16)
     }
+
+    pub fn entry(&self) -> u8 {
+        self.0.get_bit_range(0..8) as u8
+    }
 }
 
 impl From<Pixel> for BgPixel8Bpp {
-    fn from(value: Pixel) -> Self {
-        Self(value.0)
+    fn from(pixel: Pixel) -> Self {
+        Self(pixel.value)
     }
 }
 
@@ -93,8 +153,8 @@ impl BgPixel4Bpp {
 }
 
 impl From<Pixel> for BgPixel4Bpp {
-    fn from(value: Pixel) -> Self {
-        Self(value.0)
+    fn from(pixel: Pixel) -> Self {
+        Self(pixel.value)
     }
 }
 
