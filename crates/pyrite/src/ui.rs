@@ -2,6 +2,7 @@ mod gba_cpu_panel;
 mod gba_image;
 
 use crate::{
+    cli::PyriteCli,
     config::{self, Config},
     gba_runner::SharedGba,
 };
@@ -19,6 +20,7 @@ pub struct App {
 
 impl App {
     pub fn new(
+        cli: PyriteCli,
         config: Config,
         gba: SharedGba,
         context: &eframe::CreationContext<'_>,
@@ -50,8 +52,19 @@ impl App {
             anyhow::bail!("no renderer to construct screen texture");
         };
 
+        let rom = if let Some(path) = cli.rom {
+            Some(std::fs::read(&path).with_context(|| format!("error reading ROM from {path:?}"))?)
+        } else {
+            None
+        };
+
         gba.with_mut(|data| {
-            data.gba.set_noop_gamepak();
+            if let Some(rom) = rom {
+                data.gba.set_gamepak(rom);
+            } else {
+                data.gba.set_noop_gamepak();
+            }
+
             data.gba.reset();
         });
         gba.unpause();

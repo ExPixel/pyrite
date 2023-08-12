@@ -30,7 +30,7 @@ pub type ScreenBuffer = [u16; VISIBLE_PIXELS];
 pub struct GbaVideo {
     pub(crate) line: GbaLine,
     scheduler: SharedGbaScheduler,
-    registers: GbaVideoRegisters,
+    pub(crate) registers: GbaVideoRegisters,
 }
 
 impl GbaVideo {
@@ -46,7 +46,7 @@ impl GbaVideo {
         let mut unhandled_mode = false;
 
         let render_context = RenderContext::new(line, &self.registers, context.vram);
-        match self.registers.reg_dispcnt.bg_mode() {
+        match self.registers.dispcnt.bg_mode() {
             BgMode::Mode0 => unhandled_mode = true,
             BgMode::Mode1 => unhandled_mode = true,
             BgMode::Mode3 => mode3::render(&mut self.line, render_context),
@@ -69,7 +69,7 @@ impl GbaVideo {
 
     pub(crate) fn reset(&mut self) {
         self.registers
-            .reg_vcount
+            .vcount
             .set_current_scanline(LINE_COUNT as u16 - 1);
         self.begin_hdraw();
     }
@@ -77,21 +77,19 @@ impl GbaVideo {
     pub(crate) fn begin_hdraw(&mut self) {
         self.scheduler.schedule(GbaEvent::HBlank, HDRAW_CYCLES);
 
-        let mut current_scanline = self.registers.reg_vcount.current_scanline();
+        let mut current_scanline = self.registers.vcount.current_scanline();
         if current_scanline >= (LINE_COUNT - 1) as u16 {
             current_scanline = 0;
         } else {
             current_scanline += 1;
         }
-        self.registers
-            .reg_vcount
-            .set_current_scanline(current_scanline);
+        self.registers.vcount.set_current_scanline(current_scanline);
     }
 
     pub(crate) fn begin_hblank(&mut self, video: &mut dyn GbaVideoOutput, context: HBlankContext) {
         self.scheduler.schedule(GbaEvent::HDraw, HBLANK_CYCLES);
 
-        let current_scanline = self.registers.reg_vcount.current_scanline();
+        let current_scanline = self.registers.vcount.current_scanline();
         if current_scanline < VISIBLE_LINE_COUNT as _ {
             self.render_line(current_scanline, video, context);
         }

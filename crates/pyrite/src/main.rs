@@ -1,13 +1,17 @@
+mod cli;
 mod gba_runner;
 mod ui;
 
 use anyhow::Context as _;
+use clap::Parser;
+use cli::PyriteCli;
 use eframe::Renderer;
 use gba_runner::SharedGba;
 mod config;
 mod logging;
 
 fn main() -> anyhow::Result<()> {
+    let cli = PyriteCli::parse();
     let mut config = config::load().context("error while loading config")?;
     logging::init(&mut config).context("error while initializing logging")?;
 
@@ -51,7 +55,7 @@ fn main() -> anyhow::Result<()> {
         "Pyrite",
         native_options,
         Box::new(
-            move |context| match ui::App::new(config, SharedGba::new(), context) {
+            move |context| match ui::App::new(cli, config, SharedGba::new(), context) {
                 Ok(app) => Box::new(app),
                 Err(err) => {
                     tracing::error!(error = debug(err), "error while initializing app");

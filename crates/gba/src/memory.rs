@@ -1,3 +1,5 @@
+mod io_registers;
+
 use arm::emu::{AccessType, Cpu, Memory, Waitstates};
 use byteorder::{ByteOrder, LittleEndian};
 use util::bits::BitOps;
@@ -41,22 +43,6 @@ impl GbaMemoryMappedHardware {
             _ => 0,
         }
     }
-
-    fn ioreg_load32(&mut self, _address: u32) -> u32 {
-        0
-    }
-
-    fn ioreg_load16(&mut self, _address: u32) -> u16 {
-        0
-    }
-
-    fn ioreg_load8(&mut self, _address: u32) -> u8 {
-        0
-    }
-
-    fn ioreg_store32(&mut self, _address: u32, _value: u32) {}
-    fn ioreg_store16(&mut self, _address: u32, _value: u16) {}
-    fn ioreg_store8(&mut self, _address: u32, _value: u8) {}
 
     fn gamepak_load32<const AREA: usize>(
         &mut self,

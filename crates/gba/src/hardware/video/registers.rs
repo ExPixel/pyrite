@@ -2,9 +2,10 @@ use pyrite_derive::IoRegister;
 
 #[derive(Default)]
 pub struct GbaVideoRegisters {
-    pub(crate) reg_dispcnt: RegDispcnt,
-    pub(crate) reg_dispstat: RegDispstat,
-    pub(crate) reg_vcount: RegVcount,
+    pub(crate) dispcnt: RegDispcnt,
+    pub(crate) green_swap: RegGreenSwap,
+    pub(crate) dispstat: RegDispstat,
+    pub(crate) vcount: RegVcount,
 }
 
 /// 4000000h - DISPCNT - LCD Control (Read/Write)
@@ -78,6 +79,23 @@ pub struct RegDispstat {
 #[field(current_scanline: readonly<u16> = 0..=7)]
 #[field(not_used_bit_8: readonly<u16> = 8)]
 pub struct RegVcount {
+    value: u16,
+}
+
+/// 4000002h - Undocumented - Green Swap (R/W)
+/// Normally, red green blue intensities for a group of two pixels is output as BGRbgr
+/// (uppercase for left pixel at even xloc, lowercase for right pixel at odd xloc).
+/// When the Green Swap bit is set, each pixel group is output as BgRbGr (ie. green intensity of each two pixels exchanged).
+///   Bit   Expl.
+///   0     Green Swap  (0=Normal, 1=Swap)
+///   1-15  Not used
+/// This feature appears to be applied to the final picture (ie. after mixing the separate BG and OBJ layers).
+/// Eventually intended for other display types (with other pin-outs).
+/// With normal GBA hardware it is just producing an interesting dirt effect.
+/// The NDS DISPCNT registers are 32bit (4000000h..4000003h), so Green Swap doesn't exist in NDS mode, however,
+/// the NDS does support Green Swap in GBA mode.
+#[derive(IoRegister, Copy, Clone)]
+pub struct RegGreenSwap {
     value: u16,
 }
 

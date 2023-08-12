@@ -123,6 +123,7 @@ pub struct SystemWaitstates {
 /// using the following settings: WS0/ROM=3,1 clks; SRAM=8 clks; WS2/EEPROM: 8,8 clks;
 /// prefetch enabled; that is, WAITCNT=4317h, for more info see "GBA Cartridges" chapter.
 #[derive(IoRegister, Copy, Clone)]
+#[repr(C)]
 #[field(sram_wait_control: u32 = 0..=1)]
 #[field(waitstate_0_first_access: u32 = 2..=3)]
 #[field(waitstate_0_second_access: u32 = 4)]
@@ -165,6 +166,7 @@ pub struct RegWaitcnt {
 /// The fastest possible setting would be 0Eh (1 waitstate, 2/2/4 cycles for 8/16/32bit), that works on GBA and GBA SP only,
 /// the GBA Micro locks up with that setting (it's on-chip RAM is too slow, and works only with 2 or more waitstates).
 #[derive(IoRegister, Copy, Clone)]
+#[repr(C)]
 #[field(ram_disabled: bool = 0)]
 #[field(external_ram_enabled: bool = 5)]
 #[field(wait_control_ewram: u32 = 24..=27)]
