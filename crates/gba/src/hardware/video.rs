@@ -31,6 +31,7 @@ pub struct GbaVideo {
     pub(crate) line: GbaLine,
     scheduler: SharedGbaScheduler,
     pub(crate) registers: GbaVideoRegisters,
+    pub(crate) frame: u64,
 }
 
 impl GbaVideo {
@@ -39,6 +40,7 @@ impl GbaVideo {
             line: GbaLine::default(),
             scheduler,
             registers: GbaVideoRegisters::default(),
+            frame: 0,
         }
     }
 
@@ -59,12 +61,16 @@ impl GbaVideo {
 
         let mut buffer = [0u16; VISIBLE_LINE_WIDTH];
         if unhandled_mode {
-            buffer.fill(rgb16(0x1F, 0, 0x1F));
+            buffer.fill(rgb5(0x1F, 0, 0x1F));
         } else {
             let context = BlendContext::with_hblank(&self.registers, context);
             self.line.blend(&mut buffer, context);
         }
         video.gba_line_ready(line as usize, &buffer);
+
+        if line == (VISIBLE_LINE_COUNT - 1) as u16 {
+            self.frame += 1;
+        }
     }
 
     pub(crate) fn reset(&mut self) {
@@ -120,6 +126,6 @@ impl<'a> RenderContext<'a> {
 }
 
 #[inline]
-pub const fn rgb16(r: u16, g: u16, b: u16) -> u16 {
+pub const fn rgb5(r: u16, g: u16, b: u16) -> u16 {
     (r & 0x1F) | ((g & 0x1F) << 5) | ((b & 0x1F) << 10)
 }

@@ -2,8 +2,11 @@
 #include <gba_video.h>
 
 void poke(int x, int y, u16 color);
+void wait_line(u8 line);
 
 int main(void) {
+	wait_line(SCREEN_HEIGHT);
+
 	SetMode(MODE_3 | BG2_ENABLE);
 
 	int center = SCREEN_HEIGHT / 2;
@@ -18,10 +21,18 @@ int main(void) {
 		}
 	}
 
+	wait_line(SCREEN_HEIGHT);
+	*((vu32*)0x02000000) = 0xDEADBEEF;
+
 	while (1);
 	return 0;
 }
 
 void poke(int x, int y, u16 color) {
 	MODE3_FB[y][x] = color;
+}
+
+void wait_line(u8 line) {
+	while ((u8)REG_VCOUNT == line);
+	while ((u8)REG_VCOUNT != line);
 }

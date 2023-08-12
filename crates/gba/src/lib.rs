@@ -68,6 +68,10 @@ impl Gba {
     pub fn set_noop_gamepak(&mut self) {
         self.mapped.set_gamepak(NOP_ROM.to_vec());
     }
+
+    pub fn frame_count(&self) -> u64 {
+        self.mapped.video.frame
+    }
 }
 
 impl Default for Gba {

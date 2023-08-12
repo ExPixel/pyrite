@@ -15,7 +15,6 @@ pub(super) fn render(line: &mut GbaLine, context: RenderContext) {
     }
 }
 
-#[derive(Copy, Clone)]
 struct Mode3FrameBuffer<'a> {
     buffer: &'a [u8; 0x12C00],
 }
