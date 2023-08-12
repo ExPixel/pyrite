@@ -15,8 +15,8 @@ impl SharedGba {
         let shared = SharedGba {
             inner: Arc::new(RwLock::new(GbaData {
                 gba: Gba::new(),
-                frame_buffer: Box::new([gba::video::rgb16(31, 0, 31); VISIBLE_PIXELS]),
-                ready_buffer: Box::new([gba::video::rgb16(31, 0, 31); VISIBLE_PIXELS]),
+                frame_buffer: Box::new([gba::video::rgb5(31, 0, 31); VISIBLE_PIXELS]),
+                ready_buffer: Box::new([gba::video::rgb5(31, 0, 31); VISIBLE_PIXELS]),
                 current_mode: GbaRunMode::Paused,
                 paused_cond: Arc::default(),
                 request_repaint: None,
@@ -33,7 +33,9 @@ impl SharedGba {
     }
 
     pub fn unpause(&self) {
-        self.inner.write().current_mode = GbaRunMode::Run;
+        let mut inner = self.inner.write();
+        inner.current_mode = GbaRunMode::Run;
+        inner.paused_cond.1.notify_all();
     }
 
     #[allow(dead_code)]

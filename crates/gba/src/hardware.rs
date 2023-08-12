@@ -2,7 +2,10 @@ pub mod palette;
 pub mod system_control;
 pub mod video;
 
-use crate::memory::{BIOS_SIZE, EWRAM_SIZE, IWRAM_SIZE, OAM_SIZE, VRAM_SIZE};
+use crate::{
+    events::SharedGbaScheduler,
+    memory::{BIOS_SIZE, EWRAM_SIZE, IWRAM_SIZE, OAM_SIZE, VRAM_SIZE},
+};
 
 use self::{
     palette::Palette,
@@ -32,13 +35,13 @@ pub struct GbaMemoryMappedHardware {
 }
 
 impl GbaMemoryMappedHardware {
-    pub fn new() -> Self {
+    pub(crate) fn new(scheduler: SharedGbaScheduler) -> Self {
         Self {
             bios: Box::new([0; BIOS_SIZE]),
             ewram: Box::new([0; EWRAM_SIZE]),
             iwram: Box::new([0; IWRAM_SIZE]),
 
-            video: Box::default(),
+            video: Box::new(GbaVideo::new(scheduler)),
             system_control: SystemControl::default(),
 
             palram: Box::default(),
@@ -57,6 +60,7 @@ impl GbaMemoryMappedHardware {
     pub(crate) fn reset(&mut self) {
         self.system_control
             .write_internal_memory_control(RegInternalMemoryControl::DEFAULT);
+        self.video.reset();
     }
 
     pub fn set_gamepak(&mut self, mut new_gamepak: Vec<u8>) {
@@ -65,12 +69,6 @@ impl GbaMemoryMappedHardware {
         new_gamepak.resize(gamepak_size, 0);
         self.gamepak = new_gamepak;
         self.gamepak_mask = gamepak_size - 1;
-    }
-}
-
-impl Default for GbaMemoryMappedHardware {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

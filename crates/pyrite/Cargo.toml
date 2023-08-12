@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["glow"]
+default = ["glow", "wgpu"]
 wgpu = ["eframe/wgpu"]
 glow = ["eframe/glow"]
 
@@ -21,3 +21,4 @@ gba = { path = "../gba" }
 arm = { path = "../arm" }
 parking_lot = "0.12"
 bytemuck = "1.13.1"
+clap = { version = "4.3.19", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }

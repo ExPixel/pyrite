@@ -1,9 +1,14 @@
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, PartialOrd, Ord)]
 pub struct Cycles(u32);
 
 impl Cycles {
+    #[inline]
+    pub const fn new(cycles: u32) -> Self {
+        Cycles(cycles)
+    }
+
     #[inline]
     pub const fn zero() -> Self {
         Cycles(0)
@@ -17,6 +22,11 @@ impl Cycles {
     #[inline]
     pub const fn is_zero(self) -> bool {
         self.0 == 0
+    }
+
+    #[inline]
+    pub const fn saturating_sub(self, other: Cycles) -> Cycles {
+        Cycles(self.0.saturating_sub(other.0))
     }
 }
 
@@ -47,6 +57,22 @@ impl AddAssign for Cycles {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
+    }
+}
+
+impl Sub for Cycles {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Cycles(self.0 - rhs.0)
+    }
+}
+
+impl SubAssign for Cycles {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
     }
 }
 
