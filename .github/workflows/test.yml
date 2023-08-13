@@ -14,7 +14,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: ubuntu / stable / test
+    name: ubuntu / ${{ matrix.toolchain }} / test
+    strategy:
+      matrix:
+        toolchain: [stable]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -27,7 +30,7 @@ jobs:
       - name: Install
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
       - name: Install latest nextest release
         uses: taiki-e/install-action@nextest
 
@@ -41,7 +44,7 @@ jobs:
           path: |
             target
             /home/runner/.cargo
-          key: stable-target
+          key: ${{ matrix.toolchain }}-target
 
       - name: cargo nextest run 
         run: cargo nextest run --workspace --exclude pyrite
@@ -54,48 +57,3 @@ jobs:
             target
             /home/runner/.cargo
           key: ${{ steps.target-cache-restore.outputs.cache-primary-key }}
-  coverage:
-    runs-on: ubuntu-latest
-    name: ubuntu / stable / coverage
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install Packages
-        run: |
-          sudo apt install -y binutils-arm-none-eabi
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - name: Restore cached target/
-        id: target-cache-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            target
-            /home/runner/.cargo
-          key: coverage-target
-      - name: cargo llvm-cov clean
-        run: cargo llvm-cov clean --workspace
-      - name: cargo llvm-cov
-        run: cargo llvm-cov --locked --all-features --no-report --release --workspace --exclude pyrite
-      - name: Save cached target/
-        id: target-cache-save
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            target
-            /home/runner/.cargo
-          key: ${{ steps.target-cache-restore.outputs.cache-primary-key }}
-      - name: cargo llvm-cov report
-        run: cargo llvm-cov report --release --lcov --output-path lcov.info
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
