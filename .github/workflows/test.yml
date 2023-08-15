@@ -47,7 +47,7 @@ jobs:
           key: ${{ matrix.toolchain }}-target
 
       - name: cargo nextest run 
-        run: cargo nextest run --workspace --exclude pyrite
+        run: cargo nextest run --cargo-profile ci --workspace --exclude pyrite
 
       - name: Save cached target/
         id: target-cache-save

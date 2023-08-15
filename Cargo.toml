@@ -9,3 +9,35 @@ members = [
     "crates/util",
 ]
 resolver = "2"
+
+[profile.dev.package.arm]
+opt-level=2
+debug-assertions = false
+[profile.dev.package.arm-emulator]
+opt-level=2
+debug-assertions = false
+[profile.dev.package.gba]
+opt-level=2
+debug-assertions = false
+[profile.dev.package."*"]
+opt-level = 3
+debug = "line-tables-only"
+debug-assertions = true
+
+
+[profile.ci]
+inherits = "dev"
+debug-assertions = true
+[profile.ci.package.arm]
+opt-level=0
+debug-assertions = true
+[profile.ci.package.arm-emulator]
+opt-level=0
+debug-assertions = true
+[profile.ci.package.gba]
+opt-level=0
+debug-assertions = true
+[profile.ci.package."*"]
+opt-level = 0
+debug = "line-tables-only"
+debug-assertions = true
