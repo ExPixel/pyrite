@@ -53,6 +53,7 @@ jobs:
       - name: cargo clippy
         uses: actions-rs/clippy-check@v1
         with:
+          args: "--profile ci"
           token: ${{ secrets.GITHUB_TOKEN }}
 
   coverage:
