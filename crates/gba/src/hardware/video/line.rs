@@ -17,6 +17,9 @@ impl GbaLine {
     }
 
     pub fn blend(&mut self, output: &mut [u16; VISIBLE_LINE_WIDTH], context: BlendContext) {
+        #[cfg(feature = "puffin")]
+        puffin::profile_function!();
+
         for (x, output) in output.iter_mut().enumerate() {
             let pixel = self.layers[2].pixels[x];
             *output = pixel.value;

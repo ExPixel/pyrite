@@ -8,6 +8,9 @@ use super::{
 };
 
 pub(super) fn render(line: &mut GbaLine, context: RenderContext) {
+    #[cfg(feature = "puffin")]
+    puffin::profile_function!();
+
     assert!(context.line < 160);
     let frame_buffer = Mode3FrameBuffer::new(context.vram);
     for x in 0..VISIBLE_LINE_WIDTH {

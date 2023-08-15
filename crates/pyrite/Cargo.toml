@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["glow", "wgpu"]
+default = ["glow", "wgpu", "profiling"]
 wgpu = ["eframe/wgpu"]
 glow = ["eframe/glow"]
+profiling = ["puffin", "gba/puffin", "puffin_egui"]
 
 [dependencies]
 anyhow = "1.0.72"
@@ -22,3 +23,6 @@ arm = { path = "../arm" }
 parking_lot = "0.12"
 bytemuck = "1.13.1"
 clap = { version = "4.3.19", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
+spin_sleep = { version = "1.1.1", default-features = false }
+puffin = { version = "0.16.0", default-features = false, optional = true }
+puffin_egui = { version = "0.22.0", default-features = false, optional = true, features = ["serde"] }

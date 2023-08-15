@@ -1,5 +1,6 @@
 mod gba_cpu_panel;
 mod gba_image;
+mod profiler;
 
 use crate::{
     cli::PyriteCli,
@@ -9,13 +10,15 @@ use crate::{
 use anyhow::Context as _;
 use egui::{epaint::Shadow, Rounding, Ui, Vec2};
 
-use self::gba_image::GbaImage;
+use self::{gba_image::GbaImage, profiler::Profiler};
 
 pub struct App {
     config: Config,
     gba: SharedGba,
     screen: GbaImage,
     main_content: TabContentType,
+    #[cfg(feature = "profiling")]
+    profiler: Profiler,
 }
 
 impl App {
@@ -74,6 +77,9 @@ impl App {
             gba,
             screen,
             main_content: TabContentType::EmuGbaCpu,
+
+            #[cfg(feature = "profiling")]
+            profiler: Profiler::new(context.storage),
         })
     }
 
@@ -128,7 +134,7 @@ impl App {
     fn render_center_panel_tabs(&mut self, ui: &mut Ui) {
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
             ui.horizontal(|ui| {
-                for &view_item in TabContentType::emulator_views() {
+                for &view_item in TabContentType::tab_views() {
                     let clicked = ui
                         .selectable_label(self.main_content == view_item, view_item.name())
                         .clicked();
@@ -152,6 +158,7 @@ impl App {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                     match self.main_content {
                         TabContentType::EmuGbaCpu => gba_cpu_panel::render(ui, &self.gba),
+                        TabContentType::EmuProfiler => profiler::render(ui, &mut self.profiler),
 
                         TabContentType::EguiSettingsUi => ui.ctx().clone().settings_ui(ui),
                         TabContentType::EguiInspectionUi => ui.ctx().clone().inspection_ui(ui),
@@ -191,8 +198,9 @@ impl eframe::App for App {
             .show(ctx, |ui| self.render_center_panel(ui));
     }
 
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
         tracing::debug!("writing config file");
+        self.profiler.save(storage);
         if let Err(err) = config::store(&self.config).context("error while writing config file") {
             tracing::error!(error = debug(err), "error while saving");
         }
@@ -202,6 +210,7 @@ impl eframe::App for App {
 #[derive(PartialEq, Clone, Copy)]
 enum TabContentType {
     EmuGbaCpu,
+    EmuProfiler,
 
     EguiSettingsUi,
     EguiInspectionUi,
@@ -212,7 +221,11 @@ enum TabContentType {
 
 impl TabContentType {
     pub fn emulator_views() -> &'static [TabContentType] {
-        &[TabContentType::EmuGbaCpu]
+        &[TabContentType::EmuGbaCpu, TabContentType::EmuProfiler]
+    }
+
+    pub fn tab_views() -> &'static [TabContentType] {
+        &[TabContentType::EmuGbaCpu, TabContentType::EmuProfiler]
     }
 
     pub fn egui_views() -> &'static [TabContentType] {
@@ -228,6 +241,7 @@ impl TabContentType {
     pub fn name(self) -> &'static str {
         match self {
             TabContentType::EmuGbaCpu => "CPU",
+            TabContentType::EmuProfiler => "Profiler",
             TabContentType::EguiSettingsUi => "Egui Settings",
             TabContentType::EguiInspectionUi => "Egui Inspection",
             TabContentType::EguiTextureUi => "Egui Textures",

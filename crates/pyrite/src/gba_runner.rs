@@ -3,6 +3,7 @@ use gba::{
     Gba, GbaVideoOutput,
 };
 use parking_lot::{Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use spin_sleep::LoopHelper;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -21,12 +22,18 @@ impl SharedGba {
                 paused_cond: Arc::default(),
                 request_repaint: None,
                 painted: false,
+                profling_enabled: false,
             })),
         };
 
         let locked = shared.inner.write();
         let cloned_instance = shared.clone();
-        std::thread::spawn(move || gba_run_loop(cloned_instance));
+
+        std::thread::Builder::new()
+            .name("gba".into())
+            .spawn(move || gba_run_loop(cloned_instance))
+            .unwrap();
+
         drop(locked);
 
         shared
@@ -93,12 +100,18 @@ pub struct GbaData {
     /// the responsibility of whatever is doing the painting to set and maintain
     /// this flag in order to reduce work done.
     pub painted: bool,
+
+    pub profling_enabled: bool,
 }
 
 fn gba_run_loop(gba: SharedGba) {
     tracing::debug!("starting GBA run loop");
 
+    let mut loop_helper = LoopHelper::builder()
+        .report_interval_s(1.0)
+        .build_with_target_rate(60.0);
     loop {
+        loop_helper.loop_start();
         if Arc::strong_count(&gba.inner) == 0 {
             tracing::debug!("no more references to shared GBA");
             break;
@@ -106,7 +119,10 @@ fn gba_run_loop(gba: SharedGba) {
 
         let mut data = gba.inner.write();
         match data.current_mode {
-            GbaRunMode::Run => gba_frame_tick(&mut data),
+            GbaRunMode::Run => {
+                gba_frame_tick(&mut data);
+                loop_helper.loop_sleep();
+            }
             GbaRunMode::Frame => {
                 gba_frame_tick(&mut data);
                 data.current_mode = GbaRunMode::Paused;
@@ -138,8 +154,16 @@ fn gba_frame_tick(data: &mut GbaData) {
     let mut fb = FrameBuffer::new(&mut data.frame_buffer);
     let mut ab = gba::NoopGbaAudioOutput;
 
-    while !fb.ready {
-        data.gba.step(&mut fb, &mut ab);
+    {
+        #[cfg(feature = "puffin")]
+        puffin::GlobalProfiler::lock().new_frame();
+
+        #[cfg(feature = "puffin")]
+        puffin::profile_scope!("render_frame");
+
+        while !fb.ready {
+            data.gba.step(&mut fb, &mut ab);
+        }
     }
 
     std::mem::swap::<Box<ScreenBuffer>>(&mut data.frame_buffer, &mut data.ready_buffer);

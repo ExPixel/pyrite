@@ -12,6 +12,7 @@ pyrite-derive = { path = "../pyrite-derive" }
 byteorder = "1.4.3"
 tracing = { version = "0.1" }
 arrayvec = "0.7.4"
+puffin = { version = "0.16.0", default-features = false, optional = true }
 
 [dev-dependencies]
 arm-devkit = { path = "../arm-devkit" }
