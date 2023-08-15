@@ -7,7 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-bitflags = "2.3.3"
+bitflags = "2.4.0"
 either = "1.9.0"
 proc-macro2 = "1"
 quote = { version = "1", default-features = false }
