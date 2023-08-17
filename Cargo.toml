@@ -2,6 +2,7 @@
 members = [
     "crates/arm-devkit",
     "crates/arm-emulator",
+    "crates/arm-disassembler",
     "crates/arm",
     "crates/gba",
     "crates/pyrite-derive",
