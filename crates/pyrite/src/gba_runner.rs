@@ -121,7 +121,7 @@ fn gba_run_loop(gba: SharedGba) {
         match data.current_mode {
             GbaRunMode::Run => {
                 gba_frame_tick(&mut data);
-                loop_helper.loop_sleep();
+                RwLockWriteGuard::unlocked(&mut data, || loop_helper.loop_sleep());
             }
             GbaRunMode::Frame => {
                 gba_frame_tick(&mut data);
