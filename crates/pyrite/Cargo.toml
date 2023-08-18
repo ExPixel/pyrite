@@ -26,3 +26,5 @@ clap = { version = "4.3.21", default-features = false, features = ["std", "color
 spin_sleep = { version = "1.1.1", default-features = false }
 puffin = { version = "0.16.0", default-features = false, optional = true }
 puffin_egui = { version = "0.22.0", default-features = false, optional = true, features = ["serde"] }
+ahash = { version = "0.8.3", default-features = false, features = ["std"] }
+egui_extras = { version = "0.22.0", default-features = false }

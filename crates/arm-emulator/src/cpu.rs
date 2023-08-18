@@ -31,6 +31,16 @@ pub enum InstructionSet {
     Thumb,
 }
 
+impl InstructionSet {
+    /// Size of an instruction in bytes.
+    pub fn instruction_size(self) -> u32 {
+        match self {
+            InstructionSet::Arm => 4,
+            InstructionSet::Thumb => 2,
+        }
+    }
+}
+
 impl Cpu {
     /// **IMPORTANT**: [`Cpu::branch`] must always be called with the starting address of the CPU
     /// before [`Cpu::step`] if this method is used to construct a [`Cpu`]. If not the PC
@@ -277,6 +287,14 @@ impl Cpu {
     #[inline(always)]
     pub fn access_type(&self) -> AccessType {
         self.access_type
+    }
+
+    pub fn get_instruction_set(&self) -> InstructionSet {
+        if self.registers.get_flag(CpsrFlag::T) {
+            InstructionSet::Thumb
+        } else {
+            InstructionSet::Arm
+        }
     }
 }
 

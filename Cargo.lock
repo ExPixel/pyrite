@@ -248,6 +248,7 @@ dependencies = [
 name = "arm"
 version = "0.1.0"
 dependencies = [
+ "arm-disassembler",
  "arm-emulator",
 ]
 
@@ -1057,6 +1058,16 @@ dependencies = [
  "smithay-clipboard",
  "webbrowser",
  "winit",
+]
+
+[[package]]
+name = "egui_extras"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9278f4337b526f0d57e5375e5a7340a311fa6ee8f9fcc75721ac50af13face02"
+dependencies = [
+ "egui",
+ "serde",
 ]
 
 [[package]]
@@ -2324,6 +2335,7 @@ dependencies = [
 name = "pyrite"
 version = "0.1.0"
 dependencies = [
+ "ahash 0.8.3",
  "anyhow",
  "arm",
  "bytemuck",
@@ -2331,6 +2343,7 @@ dependencies = [
  "dirs",
  "eframe",
  "egui",
+ "egui_extras",
  "gba",
  "parking_lot",
  "puffin",

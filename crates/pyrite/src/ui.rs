@@ -1,4 +1,5 @@
 mod gba_cpu_panel;
+mod gba_disassembler;
 mod gba_image;
 mod profiler;
 
@@ -10,7 +11,7 @@ use crate::{
 use anyhow::Context as _;
 use egui::{epaint::Shadow, Rounding, Ui, Vec2};
 
-use self::{gba_image::GbaImage, profiler::Profiler};
+use self::{gba_disassembler::GbaDisassemblerUi, gba_image::GbaImage, profiler::Profiler};
 
 pub struct App {
     config: Config,
@@ -19,6 +20,7 @@ pub struct App {
     main_content: TabContentType,
     #[cfg(feature = "profiling")]
     profiler: Profiler,
+    disassembler: GbaDisassemblerUi,
 }
 
 impl App {
@@ -74,9 +76,10 @@ impl App {
 
         Ok(Self {
             config,
-            gba,
             screen,
             main_content: TabContentType::EmuGbaCpu,
+            disassembler: GbaDisassemblerUi::new(gba.clone()),
+            gba,
 
             #[cfg(feature = "profiling")]
             profiler: Profiler::new(context.storage),
@@ -159,6 +162,7 @@ impl App {
                     match self.main_content {
                         TabContentType::EmuGbaCpu => gba_cpu_panel::render(ui, &self.gba),
                         TabContentType::EmuProfiler => profiler::render(ui, &mut self.profiler),
+                        TabContentType::EmuDisassembler => self.disassembler.ui(ui),
 
                         TabContentType::EguiSettingsUi => ui.ctx().clone().settings_ui(ui),
                         TabContentType::EguiInspectionUi => ui.ctx().clone().inspection_ui(ui),
@@ -210,6 +214,7 @@ impl eframe::App for App {
 #[derive(PartialEq, Clone, Copy)]
 enum TabContentType {
     EmuGbaCpu,
+    EmuDisassembler,
     EmuProfiler,
 
     EguiSettingsUi,
@@ -221,11 +226,19 @@ enum TabContentType {
 
 impl TabContentType {
     pub fn emulator_views() -> &'static [TabContentType] {
-        &[TabContentType::EmuGbaCpu, TabContentType::EmuProfiler]
+        &[
+            TabContentType::EmuGbaCpu,
+            TabContentType::EmuDisassembler,
+            TabContentType::EmuProfiler,
+        ]
     }
 
     pub fn tab_views() -> &'static [TabContentType] {
-        &[TabContentType::EmuGbaCpu, TabContentType::EmuProfiler]
+        &[
+            TabContentType::EmuGbaCpu,
+            TabContentType::EmuDisassembler,
+            TabContentType::EmuProfiler,
+        ]
     }
 
     pub fn egui_views() -> &'static [TabContentType] {
@@ -241,6 +254,7 @@ impl TabContentType {
     pub fn name(self) -> &'static str {
         match self {
             TabContentType::EmuGbaCpu => "CPU",
+            TabContentType::EmuDisassembler => "Disassembler",
             TabContentType::EmuProfiler => "Profiler",
             TabContentType::EguiSettingsUi => "Egui Settings",
             TabContentType::EguiInspectionUi => "Egui Inspection",

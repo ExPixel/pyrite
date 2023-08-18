@@ -1,4 +1,4 @@
-use crate::{lookup::decode_thumb_opcode, DisasmOptions};
+use crate::{lookup::decode_thumb_opcode, Arguments, DisasmOptions, Mnemonic};
 
 pub fn disasm_thumb(instr: u16, address: u32, options: &DisasmOptions) -> ThumbInstruction {
     (decode_thumb_opcode(instr))(instr, address, options)
@@ -6,6 +6,38 @@ pub fn disasm_thumb(instr: u16, address: u32, options: &DisasmOptions) -> ThumbI
 
 pub enum ThumbInstruction {
     Undefined,
+}
+
+impl ThumbInstruction {
+    pub fn mnemonic<'s>(&'s self, options: &'s DisasmOptions) -> Mnemonic<Self> {
+        Mnemonic(self, options)
+    }
+
+    pub fn arguments<'s>(&'s self, options: &'s DisasmOptions) -> Arguments<Self> {
+        Arguments(self, options)
+    }
+
+    pub(crate) fn write_mnemonic(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        o: &DisasmOptions,
+    ) -> std::fmt::Result {
+        match self {
+            ThumbInstruction::Undefined => {
+                write!(f, "undef")
+            }
+        }
+    }
+
+    pub(crate) fn write_args(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        _o: &DisasmOptions,
+    ) -> std::fmt::Result {
+        match self {
+            ThumbInstruction::Undefined => write!(f, "???"),
+        }
+    }
 }
 
 pub fn disasm_add_sp(_instr: u16, _address: u32, _options: &DisasmOptions) -> ThumbInstruction {

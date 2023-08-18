@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 arm-emulator = { path = "../arm-emulator" }
+arm-disassembler = { path = "../arm-disassembler" }
