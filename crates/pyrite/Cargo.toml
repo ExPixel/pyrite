@@ -21,7 +21,7 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 gba = { path = "../gba" }
 arm = { path = "../arm" }
 parking_lot = "0.12"
-bytemuck = "1.13.1"
+bytemuck = { version = "1.13", features = ["derive"] }
 clap = { version = "4.3.21", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 spin_sleep = { version = "1.1.1", default-features = false }
 puffin = { version = "0.16.0", default-features = false, optional = true }
