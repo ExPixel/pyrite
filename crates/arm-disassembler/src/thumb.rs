@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use crate::{lookup::decode_thumb_opcode, DisasmOptions};
 
 pub fn disasm_thumb(instr: u16, address: u32, options: &DisasmOptions) -> ThumbInstruction {
