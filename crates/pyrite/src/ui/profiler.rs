@@ -6,15 +6,17 @@ use puffin_egui::ProfilerUi;
 pub fn render(ui: &mut Ui, profiler: &mut Profiler) {
     #[cfg(feature = "puffin")]
     {
-        let enabled = puffin::are_scopes_on();
+        let mut enabled = puffin::are_scopes_on();
         if ui.selectable_label(enabled, "Collect Frames").clicked() {
-            puffin::set_scopes_on(!enabled);
+            enabled = !enabled;
         }
 
+        puffin::set_scopes_on(false);
         profiler.profiler_ui.ui(
             ui,
             &mut puffin_egui::MaybeMutRef::MutRef(&mut profiler.frame_view.lock()),
         );
+        puffin::set_scopes_on(enabled);
     }
 
     #[cfg(not(feature = "puffin"))]

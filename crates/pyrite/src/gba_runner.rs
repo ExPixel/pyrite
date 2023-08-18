@@ -121,7 +121,8 @@ fn gba_run_loop(gba: SharedGba) {
         match data.current_mode {
             GbaRunMode::Run => {
                 gba_frame_tick(&mut data);
-                RwLockWriteGuard::unlocked(&mut data, || loop_helper.loop_sleep());
+                RwLockWriteGuard::unlock_fair(data);
+                loop_helper.loop_sleep();
             }
             GbaRunMode::Frame => {
                 gba_frame_tick(&mut data);
@@ -135,10 +136,9 @@ fn gba_run_loop(gba: SharedGba) {
                 tracing::debug!("GBA paused");
                 let paused_cond = Arc::clone(&data.paused_cond);
                 let (lock, cvar) = &*paused_cond;
-                RwLockWriteGuard::unlocked(&mut data, move || {
-                    let mut locked = lock.lock();
-                    cvar.wait(&mut locked);
-                });
+                RwLockWriteGuard::unlock_fair(data);
+                let mut locked = lock.lock();
+                cvar.wait(&mut locked);
                 tracing::debug!("GBA wakeup");
             }
             GbaRunMode::Shutdown => {
