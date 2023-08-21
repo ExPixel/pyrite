@@ -3,7 +3,8 @@ name = "gba"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+tracy = ["profiling", "profiling/profile-with-tracy"]
 
 [dependencies]
 arm = { path = "../arm" }
@@ -12,7 +13,7 @@ pyrite-derive = { path = "../pyrite-derive" }
 byteorder = "1.4.3"
 tracing = { version = "0.1" }
 arrayvec = "0.7.4"
-puffin = { version = "0.16.0", default-features = false, optional = true }
+profiling = { version = "1.0.9", default-features = false, optional = true }
 
 [dev-dependencies]
 arm-devkit = { path = "../arm-devkit" }

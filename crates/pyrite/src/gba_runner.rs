@@ -19,7 +19,7 @@ impl SharedGba {
                 frame_buffer: Box::new([gba::video::rgb5(31, 0, 31); VISIBLE_PIXELS]),
                 ready_buffer: Box::new([gba::video::rgb5(31, 0, 31); VISIBLE_PIXELS]),
                 current_mode: GbaRunMode::Paused,
-                paused_cond: Arc::default(),
+                paused_cond: Arc::new((Mutex::new(true), Condvar::new())),
                 request_repaint: None,
                 painted: false,
                 profling_enabled: false,
@@ -42,6 +42,7 @@ impl SharedGba {
     pub fn unpause(&self) {
         let mut inner = self.inner.write();
         inner.current_mode = GbaRunMode::Run;
+        *inner.paused_cond.0.lock() = false;
         inner.paused_cond.1.notify_all();
     }
 
@@ -55,6 +56,7 @@ impl SharedGba {
         self.inner.write().current_mode = GbaRunMode::Step;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn with<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&GbaData) -> T,
@@ -88,13 +90,14 @@ pub struct GbaData {
     /// The last completed frame buffer ready for display.
     pub ready_buffer: Box<ScreenBuffer>,
     pub current_mode: GbaRunMode,
-    paused_cond: Arc<(Mutex<()>, Condvar)>,
+    paused_cond: Arc<(Mutex<bool>, Condvar)>,
 
     /// This function will be called when the GBA wants to request a repaint.
     /// The first argument passed to the callback is the `ready` flag. When this
     /// is `true` the [`GbaData::ready_buffer`] should be displayed on screen. If is
     /// `false` the `frame_buffer` should be used instead.
-    pub request_repaint: Option<Box<dyn Fn(bool) + Send + Sync>>,
+    #[allow(clippy::type_complexity)]
+    pub request_repaint: Option<Box<dyn Fn(bool, &mut GbaData) + Send + Sync>>,
 
     /// This is set to false before [`GbaData::request_repaint`] is called. It is
     /// the responsibility of whatever is doing the painting to set and maintain
@@ -105,6 +108,9 @@ pub struct GbaData {
 }
 
 fn gba_run_loop(gba: SharedGba) {
+    #[cfg(feature = "profiling")]
+    profiling::register_thread!("gba");
+
     tracing::debug!("starting GBA run loop");
 
     let mut loop_helper = LoopHelper::builder()
@@ -138,7 +144,9 @@ fn gba_run_loop(gba: SharedGba) {
                 let (lock, cvar) = &*paused_cond;
                 RwLockWriteGuard::unlock_fair(data);
                 let mut locked = lock.lock();
-                cvar.wait(&mut locked);
+                if *locked {
+                    cvar.wait(&mut locked);
+                }
                 tracing::debug!("GBA wakeup");
             }
             GbaRunMode::Shutdown => {
@@ -154,23 +162,19 @@ fn gba_frame_tick(data: &mut GbaData) {
     let mut fb = FrameBuffer::new(&mut data.frame_buffer);
     let mut ab = gba::NoopGbaAudioOutput;
 
-    {
-        #[cfg(feature = "puffin")]
-        puffin::GlobalProfiler::lock().new_frame();
-
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!("render_frame");
-
-        while !fb.ready {
-            data.gba.step(&mut fb, &mut ab);
-        }
+    while !fb.ready {
+        data.gba.step(&mut fb, &mut ab);
     }
+
+    #[cfg(feature = "profiling")]
+    profiling::finish_frame!();
 
     std::mem::swap::<Box<ScreenBuffer>>(&mut data.frame_buffer, &mut data.ready_buffer);
 
-    if let Some(ref request_repaint) = data.request_repaint {
+    if let Some(request_repaint) = data.request_repaint.take() {
         data.painted = false;
-        request_repaint(true);
+        request_repaint(true, data);
+        data.request_repaint = Some(request_repaint);
     }
 }
 
@@ -184,9 +188,10 @@ fn gba_step_tick(data: &mut GbaData) {
         std::mem::swap::<Box<ScreenBuffer>>(&mut data.frame_buffer, &mut data.ready_buffer);
     }
 
-    if let Some(ref request_repaint) = data.request_repaint {
+    if let Some(request_repaint) = data.request_repaint.take() {
         data.painted = false;
-        request_repaint(frame_ready);
+        request_repaint(frame_ready, data);
+        data.request_repaint = Some(request_repaint);
     }
 }
 

@@ -4,16 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["glow", "wgpu", "profiling"]
-wgpu = ["eframe/wgpu"]
-glow = ["eframe/glow"]
-profiling = ["puffin", "gba/puffin", "puffin_egui"]
+default = ["backend-gl", "backend-wgpu"]
+backend-gl = ["glow", "glutin", "glutin-winit", "raw-window-handle"]
+backend-wgpu = ["wgpu"]
+tracy = ["profiling", "profiling/profile-with-tracy", "gba/tracy", "tracy-client"]
 
 [dependencies]
 anyhow = "1.0.72"
 dirs = { version = "5.0.1", default-features = false }
-eframe = { version = "0.22.0", default-features = false, features = ["accesskit", "default_fonts", "persistence"] }
-egui = { version = "0.22.0", default-features = false, features = ["default_fonts"] }
 serde = { version = "1", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "1.0.104", default-features = false, features = ["std"] }
 tracing = { version = "0.1", features = ["log"] }
@@ -24,7 +22,14 @@ parking_lot = "0.12"
 bytemuck = { version = "1.13", features = ["derive"] }
 clap = { version = "4.3.21", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 spin_sleep = { version = "1.1.1", default-features = false }
-puffin = { version = "0.16.0", default-features = false, optional = true }
-puffin_egui = { version = "0.22.0", default-features = false, optional = true, features = ["serde"] }
 ahash = { version = "0.8.3", default-features = false, features = ["std"] }
-egui_extras = { version = "0.22.0", default-features = false }
+wgpu = { version = "0.17", default-features = false, features = ["wgsl"], optional = true }
+glow = { version = "0.12", default-features = false, features = ["log"], optional = true }
+profiling = { version = "1.0.9", default-features = false, optional = true }
+winit = { version = "0.28.6", default-features = false, features = ["x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
+pollster = { version = "0.3.0", default-features = false }
+tracy-client = { version = "0.16.1", default-features = false, features = ["enable", "system-tracing", "context-switch-tracing", "sampling", "code-transfer", "broadcast"], optional = true }
+crossbeam = { version = "0.8.2", default-features = false, features = ["std", "crossbeam-channel"] }
+glutin = { version = "0.30.10", default-features = false, features = ["egl", "glx", "x11", "wayland", "wgl"], optional = true }
+glutin-winit = { version = "0.3.0", default-features = false, optional = true, features = ["x11", "wgl", "wayland", "glx", "egl"] }
+raw-window-handle = { version = "0.5.2", default-features = false, optional = true, features = ["std"] }

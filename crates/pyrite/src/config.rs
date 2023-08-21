@@ -1,27 +1,33 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{atomic, Arc},
+    time::Duration,
+};
 
 use anyhow::Context as _;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
 
-use crate::logging::LoggingReloadHandle;
+use crate::{logging::LoggingReloadHandle, worker};
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             gui: GuiConfig {
                 renderer: Some("glow".into()),
+                ..Default::default()
             },
 
             logging: LoggingConfig {
                 general: Some("debug".into()),
                 gba: Some("debug".into()),
                 arm: Some("debug".into()),
-                wgpu: Some("info".into()),
-                egui: Some("info".into()),
-                extra_filters: Vec::new(),
-                reload_handle: None,
+                graphics: Some("info".into()),
+                ..Default::default()
             },
+
+            path: None,
         }
     }
 }
@@ -57,46 +63,94 @@ impl Config {
             write!(filters, ",gba={level}").unwrap();
         }
 
-        if self.logging.egui.is_some() {
-            let level =
-                get_level(&self.logging.egui.as_deref()).context("error parsing gba log level")?;
-            write!(filters, ",eframe={level},egui_winit={level}").unwrap();
-        }
-
-        if self.logging.wgpu.is_some() {
-            let level =
-                get_level(&self.logging.wgpu.as_deref()).context("error parsing gba log level")?;
+        if self.logging.graphics.is_some() {
+            let level = get_level(&self.logging.graphics.as_deref())
+                .context("error parsing gba log level")?;
             write!(filters, ",wgpu_core={level},wgpu_hal={level},naga={level}").unwrap();
+            write!(filters, ",glow={level}").unwrap();
         }
 
         for extra in self.logging.extra_filters.iter() {
             write!(filters, ",{extra}").unwrap();
         }
+        println!("filters: {filters}");
 
         Ok(filters)
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Default, Clone)]
+pub struct SharedConfig {
+    inner: Arc<RwLock<Config>>,
+}
+
+impl SharedConfig {
+    pub fn read(&self) -> ConfigRead<'_> {
+        ConfigRead {
+            inner: self.inner.read(),
+        }
+    }
+
+    pub fn write(&self) -> ConfigWrite<'_> {
+        ConfigWrite {
+            inner: self.inner.write(),
+        }
+    }
+}
+
+pub struct ConfigRead<'a> {
+    inner: RwLockReadGuard<'a, Config>,
+}
+
+pub struct ConfigWrite<'a> {
+    inner: RwLockWriteGuard<'a, Config>,
+}
+
+impl std::ops::Deref for ConfigRead<'_> {
+    type Target = Config;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::ops::Deref for ConfigWrite<'_> {
+    type Target = Config;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::ops::DerefMut for ConfigWrite<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Config {
     pub gui: GuiConfig,
     pub logging: LoggingConfig,
+
+    #[serde(skip)]
+    path: Option<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Default, Deserialize, Clone)]
 pub struct GuiConfig {
     pub renderer: Option<String>,
+    pub window_width: Option<u32>,
+    pub window_height: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct LoggingConfig {
     pub general: Option<String>,
     pub gba: Option<String>,
     pub arm: Option<String>,
-    pub egui: Option<String>,
-    pub wgpu: Option<String>,
-
-    #[serde(default)]
+    pub graphics: Option<String>,
     pub extra_filters: Vec<String>,
 
     #[serde(skip)]
@@ -116,25 +170,66 @@ fn get_config_path() -> anyhow::Result<PathBuf> {
     Ok(config_dir.join("pyrite.json"))
 }
 
-pub fn load() -> anyhow::Result<Config> {
+pub fn load() -> anyhow::Result<SharedConfig> {
     let config_path = get_config_path().context("error while getting config directory")?;
 
     if !config_path.exists() {
-        return Ok(Config::default());
+        return Ok(SharedConfig::default());
     }
 
     let config_contents = std::fs::read_to_string(&config_path)
         .with_context(|| format!("error while reading config contents (path: {config_path:?})"))?;
-    let config = serde_json::from_str(&config_contents)
+    let mut config: Config = serde_json::from_str(&config_contents)
         .with_context(|| "error while parsing config (path: {config_path:?})")?;
-    Ok(config)
+    config.path = Some(config_path);
+    let inner = Arc::new(RwLock::new(config));
+    Ok(SharedConfig { inner })
 }
 
-pub fn store(config: &Config) -> anyhow::Result<()> {
-    let config_path = get_config_path().context("error while getting config directory")?;
-    let mut config_file = std::fs::File::create(config_path)
+#[allow(dead_code)]
+pub fn store(config: &SharedConfig) -> anyhow::Result<()> {
+    let mut config = config.write();
+    store_internal(&mut config)
+}
+
+fn store_internal(config: &mut Config) -> anyhow::Result<()> {
+    if config.path.is_none() {
+        let config_path = get_config_path().context("error while getting config directory")?;
+        config.path = Some(config_path);
+    }
+
+    let mut config_file = std::fs::File::create(config.path.as_ref().unwrap())
         .with_context(|| "error while opening config file (path: {config_path:?})")?;
     serde_json::to_writer_pretty(&mut config_file, config)
         .with_context(|| "error while writing config (path: {config_path:?})")?;
     Ok(())
+}
+
+pub fn schedule_store(config: &SharedConfig) {
+    static STORE_SCHEDULED: atomic::AtomicBool = atomic::AtomicBool::new(false);
+
+    if STORE_SCHEDULED
+        .compare_exchange(
+            false,
+            true,
+            atomic::Ordering::Release,
+            atomic::Ordering::Acquire,
+        )
+        .is_ok()
+    {
+        let config = config.clone();
+        worker::spawn_in(
+            move || {
+                let mut config = config.write();
+                if let Err(err) = self::store_internal(&mut config) {
+                    tracing::error!(error = debug(err), "error while storing config (scheduled)");
+                } else {
+                    let path = config.path.as_ref().unwrap();
+                    tracing::debug!("wrote config to {path:?}");
+                }
+                STORE_SCHEDULED.store(false, atomic::Ordering::Release);
+            },
+            Duration::from_secs(1),
+        );
+    }
 }
