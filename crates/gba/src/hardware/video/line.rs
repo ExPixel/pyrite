@@ -17,8 +17,8 @@ impl GbaLine {
     }
 
     pub fn blend(&mut self, output: &mut [u16; VISIBLE_LINE_WIDTH], context: BlendContext) {
-        #[cfg(feature = "profiling")]
-        profiling::scope!("line::blend");
+        #[cfg(feature = "pyrite-profiling")]
+        pyrite_profiling::scope!("line::blend");
 
         for (x, output) in output.iter_mut().enumerate() {
             let pixel = self.layers[2].pixels[x];

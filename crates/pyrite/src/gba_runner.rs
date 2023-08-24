@@ -108,8 +108,8 @@ pub struct GbaData {
 }
 
 fn gba_run_loop(gba: SharedGba) {
-    #[cfg(feature = "profiling")]
-    profiling::register_thread!("gba");
+    #[cfg(feature = "pyrite-profiling")]
+    pyrite_profiling::register_thread!("gba");
 
     tracing::debug!("starting GBA run loop");
 
@@ -165,9 +165,8 @@ fn gba_frame_tick(data: &mut GbaData) {
     while !fb.ready {
         data.gba.step(&mut fb, &mut ab);
     }
-
-    #[cfg(feature = "profiling")]
-    profiling::finish_frame!();
+    #[cfg(feature = "pyrite-profiling")]
+    pyrite_profiling::mark_frame_end!();
 
     std::mem::swap::<Box<ScreenBuffer>>(&mut data.frame_buffer, &mut data.ready_buffer);
 

@@ -8,8 +8,8 @@ use super::{
 };
 
 pub(super) fn render(line: &mut GbaLine, context: RenderContext) {
-    #[cfg(feature = "profiling")]
-    profiling::scope!("mode3::render");
+    #[cfg(feature = "pyrite-profiling")]
+    pyrite_profiling::scope!("mode3::render");
 
     assert!(context.line < 160);
     let frame_buffer = Mode3FrameBuffer::new(context.vram);

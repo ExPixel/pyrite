@@ -7,7 +7,8 @@ edition = "2021"
 default = ["backend-gl", "backend-wgpu"]
 backend-gl = ["glow", "glutin", "glutin-winit", "raw-window-handle"]
 backend-wgpu = ["wgpu"]
-tracy = ["profiling", "profiling/profile-with-tracy", "gba/tracy", "tracy-client"]
+enable-pyrite-profiling = ["pyrite-profiling", "profile-with-tracy"]
+profile-with-tracy = ["pyrite-profiling/profile-with-tracy", "gba/pyrite-profiling"]
 
 [dependencies]
 anyhow = "1.0.72"
@@ -25,7 +26,7 @@ spin_sleep = { version = "1.1.1", default-features = false }
 ahash = { version = "0.8.3", default-features = false, features = ["std"] }
 wgpu = { version = "0.17", default-features = false, features = ["wgsl"], optional = true }
 glow = { version = "0.12", default-features = false, features = ["log"], optional = true }
-profiling = { version = "1.0.9", default-features = false, optional = true }
+pyrite-profiling = { path = "../pyrite-profiling", default-features = false, optional = true }
 winit = { version = "0.28.6", default-features = false, features = ["x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
 pollster = { version = "0.3.0", default-features = false }
 tracy-client = { version = "0.16.1", default-features = false, features = ["enable", "system-tracing", "context-switch-tracing", "sampling", "code-transfer", "broadcast"], optional = true }

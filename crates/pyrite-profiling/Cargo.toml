@@ -1,0 +1,10 @@
+[package]
+name = "pyrite-profiling"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+profile-with-tracy = ["tracy-client"]
+
+[dependencies]
+tracy-client = { version = "0.16.1", default-features = false, features = ["enable", "system-tracing", "context-switch-tracing", "sampling", "code-transfer", "broadcast"], optional = true }

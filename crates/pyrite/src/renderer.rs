@@ -6,6 +6,8 @@ mod glow_renderer;
 #[cfg(feature = "wgpu")]
 mod wgpu_renderer;
 
+mod common;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Renderer {
     Auto,
@@ -38,10 +40,10 @@ impl std::fmt::Display for Renderer {
 pub fn run(config: SharedConfig, renderer: Renderer, gba: SharedGba) -> anyhow::Result<()> {
     match renderer {
         #[cfg(feature = "backend-wgpu")]
-        Renderer::Wgpu => self::wgpu_renderer::run(config, gba),
+        Renderer::Wgpu => common::run::<wgpu_renderer::WgpuApplication>(config, gba),
 
         #[cfg(feature = "backend-gl")]
-        Renderer::Glow => self::glow_renderer::run(config, gba),
+        Renderer::Glow => common::run::<glow_renderer::GlowApplication>(config, gba),
 
         #[allow(unreachable_patterns)]
         _ => {

@@ -696,8 +696,8 @@ dependencies = [
  "arm-devkit",
  "arrayvec",
  "byteorder",
- "profiling",
  "pyrite-derive",
+ "pyrite-profiling",
  "tracing",
  "util",
 ]
@@ -1502,20 +1502,6 @@ name = "profiling"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46b2164ebdb1dfeec5e337be164292351e11daf63a05174c6776b2f47460f0c9"
-dependencies = [
- "profiling-procmacros",
- "tracy-client 0.15.2",
-]
-
-[[package]]
-name = "profiling-procmacros"
-version = "1.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097bf8b99121dfb8c75eed54dfbdbdb1d53e372c53d2353e8a15aad2a479249d"
-dependencies = [
- "quote",
- "syn 2.0.29",
-]
 
 [[package]]
 name = "pyrite"
@@ -1534,14 +1520,14 @@ dependencies = [
  "glutin-winit",
  "parking_lot",
  "pollster",
- "profiling",
+ "pyrite-profiling",
  "raw-window-handle",
  "serde",
  "serde_json",
  "spin_sleep",
  "tracing",
  "tracing-subscriber",
- "tracy-client 0.16.1",
+ "tracy-client",
  "wgpu",
  "winit",
 ]
@@ -1556,6 +1542,13 @@ dependencies = [
  "quote",
  "syn 2.0.29",
  "util",
+]
+
+[[package]]
+name = "pyrite-profiling"
+version = "0.1.0"
+dependencies = [
+ "tracy-client",
 ]
 
 [[package]]
@@ -2045,17 +2038,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "tracy-client"
-version = "0.15.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "434ecabbda9f67eeea1eab44d52f4a20538afa3e2c2770f2efc161142b25b608"
-dependencies = [
- "loom",
- "once_cell",
- "tracy-client-sys",
 ]
 
 [[package]]

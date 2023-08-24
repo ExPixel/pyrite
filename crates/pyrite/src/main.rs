@@ -17,10 +17,10 @@ fn main() -> anyhow::Result<()> {
     let mut config = config::load().context("error while loading config")?;
     logging::init(&mut config).context("error while initializing logging")?;
 
-    #[cfg(feature = "tracy")]
-    let _client = {
-        tracing::debug!("starting tracy client");
-        tracy_client::Client::start()
+    #[cfg(feature = "enable-pyrite-profiling")]
+    let _handle = {
+        tracing::debug!("initializing profiling...");
+        pyrite_profiling::init()
     };
 
     let renderer = config

@@ -9,7 +9,7 @@ use wgpu::{
 use winit::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
 
@@ -18,96 +18,87 @@ use crate::{
     gba_runner::{GbaRunMode, SharedGba},
 };
 
-pub fn run(config: SharedConfig, gba: SharedGba) -> anyhow::Result<()> {
-    tracing::debug!("running wgpu renderer");
+use super::common::{AppEventContext, AppInitContext, Application, ResourcesCommon};
 
-    let event_loop = EventLoop::new();
+pub struct WgpuApplication;
 
-    pollster::block_on(async move {
-        let mut resources = init_resources(&config, gba.clone(), &event_loop).await?;
-        event_loop.run(move |event, target, control_flow| {
-            if let Err(err) =
-                event_loop_tick(&gba, &config, &mut resources, event, target, control_flow)
-            {
-                tracing::error!(error = debug(err), "error while running event loop");
-                control_flow.set_exit_with_code(1);
-            }
+impl Application for WgpuApplication {
+    type Resources = Resources;
+
+    fn init(context: AppInitContext) -> anyhow::Result<Self::Resources> {
+        pollster::block_on(async move {
+            init_resources(context.config, context.gba.clone(), context.event_loop)
+                .await
+                .context("error while initializing WGPU resources")
         })
-    })
-}
-
-fn event_loop_tick(
-    gba: &SharedGba,
-    config: &SharedConfig,
-    resources: &mut Resources,
-    event: Event<'_, ()>,
-    _target: &EventLoopWindowTarget<()>,
-    control_flow: &mut ControlFlow,
-) -> anyhow::Result<()> {
-    match event {
-        Event::WindowEvent {
-            event: WindowEvent::Resized(size),
-            ..
-        } => {
-            resources.surface_config.width = size.width;
-            resources.surface_config.height = size.height;
-            resources
-                .surface
-                .configure(&resources.device, &resources.surface_config);
-
-            {
-                let mut config = config.write();
-                config.gui.window_width = Some(size.width);
-                config.gui.window_height = Some(size.height);
-            }
-            crate::config::schedule_store(config);
-
-            resources.window.request_redraw();
-        }
-
-        Event::RedrawRequested(_) => {
-            let frame = resources
-                .surface
-                .get_current_texture()
-                .context("error while acquiring next swapchain frame texture")?;
-            let view = frame
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut encoder = resources
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-            {
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: None,
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                });
-                render_gba(gba, &mut render_pass, resources);
-            }
-
-            resources.queue.submit(Some(encoder.finish()));
-            frame.present();
-        }
-
-        Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } => {
-            control_flow.set_exit();
-        }
-
-        _ => {}
     }
 
-    Ok(())
+    fn handle_event(context: AppEventContext<Self::Resources>) -> anyhow::Result<()> {
+        let AppEventContext {
+            event,
+            resources,
+            gba,
+            control_flow,
+            ..
+        } = context;
+
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => {
+                resources.surface_config.width = size.width;
+                resources.surface_config.height = size.height;
+                resources
+                    .surface
+                    .configure(&resources.device, &resources.surface_config);
+                resources.window.request_redraw();
+            }
+
+            Event::RedrawRequested(_) => {
+                let frame = resources
+                    .surface
+                    .get_current_texture()
+                    .context("error while acquiring next swapchain frame texture")?;
+                let view = frame
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                let mut encoder = resources
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+                {
+                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: None,
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                                store: true,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                    });
+                    render_gba(gba, &mut render_pass, resources);
+                }
+
+                resources.queue.submit(Some(encoder.finish()));
+                frame.present();
+            }
+
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                control_flow.set_exit();
+            }
+
+            _ => {}
+        }
+
+        Ok(())
+    }
 }
 
 fn render_gba<'r>(gba: &SharedGba, render_pass: &mut RenderPass<'r>, resources: &'r Resources) {
@@ -387,7 +378,7 @@ async fn init_resources(
     Ok(resources)
 }
 
-struct Resources {
+pub struct Resources {
     window: Arc<Window>,
 
     device: Device,
@@ -403,6 +394,12 @@ struct GbaResources {
     bind_group: BindGroup,
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
+}
+
+impl ResourcesCommon for Resources {
+    fn window(&self) -> Option<&Window> {
+        Some(&*self.window)
+    }
 }
 
 #[rustfmt::skip]

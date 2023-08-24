@@ -20,7 +20,7 @@ use raw_window_handle::HasRawWindowHandle;
 use winit::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
 
@@ -29,139 +29,139 @@ use crate::{
     gba_runner::{GbaRunMode, SharedGba},
 };
 
-pub fn run(config: SharedConfig, gba: SharedGba) -> anyhow::Result<()> {
-    tracing::debug!("running glow renderer");
+use super::common::{AppEventContext, AppInitContext, Application, ResourcesCommon};
 
-    let event_loop = EventLoop::new();
-    let mut resources =
-        init_window(&config, &event_loop).context("error while initializing window and context")?;
+pub struct GlowApplication;
 
-    event_loop.run(move |event, target, control_flow| {
-        if let Err(err) =
-            event_loop_tick(&gba, &config, &mut resources, event, target, control_flow)
-        {
-            tracing::error!(error = debug(err), "error while running event loop");
-            control_flow.set_exit_with_code(1);
-        }
-    })
-}
-fn event_loop_tick(
-    gba: &SharedGba,
-    config: &SharedConfig,
-    resources: &mut Resources,
-    event: Event<'_, ()>,
-    target: &EventLoopWindowTarget<()>,
-    control_flow: &mut ControlFlow,
-) -> anyhow::Result<()> {
-    match event {
-        Event::WindowEvent {
-            event: WindowEvent::Resized(size),
+impl Application for GlowApplication {
+    type Resources = Resources;
+
+    fn init(context: AppInitContext) -> anyhow::Result<Self::Resources> {
+        tracing::debug!("initializing glow renderer");
+        let resources = init_window(context.config, context.event_loop)
+            .context("error while initializing window and context")?;
+        Ok(resources)
+    }
+
+    fn handle_event(context: AppEventContext<Self::Resources>) -> anyhow::Result<()> {
+        let AppEventContext {
+            event,
+            resources,
+            config,
+            gba,
+            event_loop_window_target,
             ..
-        } => {
-            if size.width != 0 && size.height != 0 {
-                if let Some((context, surface)) = resources.context.context_and_surface() {
-                    surface.resize(
-                        context,
-                        NonZeroU32::new(size.width).unwrap(),
-                        NonZeroU32::new(size.height).unwrap(),
-                    );
-                }
+        } = context;
 
-                {
-                    let mut config = config.write();
-                    config.gui.window_width = Some(size.width);
-                    config.gui.window_height = Some(size.height);
-                }
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => {
+                if size.width != 0 && size.height != 0 {
+                    if let Some((context, surface)) = resources.context.context_and_surface() {
+                        surface.resize(
+                            context,
+                            NonZeroU32::new(size.width).unwrap(),
+                            NonZeroU32::new(size.height).unwrap(),
+                        );
+                    }
 
-                crate::config::schedule_store(config);
-            }
-
-            if let Some(window) = resources.context.window() {
-                window.request_redraw();
-            }
-        }
-
-        Event::RedrawRequested(_) => {
-            resources
-                .context
-                .ensure_current()
-                .context("error while ensuring current")?;
-
-            if let Some((gl, window)) = resources.context.gl_and_window() {
-                render_gba(gba, window, gl, &mut resources.gba);
-            }
-
-            if let Some((context, surface)) = resources.context.context_and_surface() {
-                surface
-                    .swap_buffers(context)
-                    .context("error while swapping buffers")?;
-            }
-        }
-
-        Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } => {
-            control_flow.set_exit();
-        }
-
-        Event::Resumed => {
-            match resources.context {
-                ContextType::NotCurrent { ref mut window, .. } if window.is_none() => {
-                    let window_builder = new_window_builder(config);
-                    *window = Some(Arc::new(
-                        glutin_winit::finalize_window(target, window_builder, &resources.gl_config)
-                            .context("error while finalizing window in resumed stage")?,
-                    ));
-                    tracing::debug!("finalized window");
-                }
-                _ => {}
-            }
-
-            if !resources.window_initialized {
-                let window = resources.context.window().unwrap();
-                let gba_window = window.clone();
-
-                let attrs = window.build_surface_attributes(Default::default());
-                let gl_surface = unsafe {
-                    resources
-                        .gl_config
-                        .display()
-                        .create_window_surface(&resources.gl_config, &attrs)
-                        .unwrap()
-                };
-                resources
-                    .context
-                    .make_current(gl_surface)
-                    .context("error while setting window context")?;
-
-                if let Some((context, surface)) = resources.context.context_and_surface() {
-                    if let Err(err) = surface
-                        .set_swap_interval(context, SwapInterval::Wait(NonZeroU32::new(1).unwrap()))
-                    {
-                        tracing::error!(error = debug(err), "error while setting vsync");
+                    if let Some((gl, window)) = resources.context.gl_and_window() {
+                        let window_size = window.inner_size();
+                        unsafe {
+                            gl.viewport(0, 0, window_size.width as _, window_size.height as _)
+                        };
                     }
                 }
 
-                gba.write().request_repaint =
-                    Some(Box::new(move |_, _| gba_window.request_redraw()));
-
-                resources.window_initialized = true;
+                if let Some(window) = resources.context.window() {
+                    window.request_redraw();
+                }
             }
+
+            Event::RedrawRequested(_) => {
+                resources
+                    .context
+                    .ensure_current()
+                    .context("error while ensuring current")?;
+
+                if let Some(gl) = resources.context.gl() {
+                    render_gba(gba, gl, &mut resources.gba);
+                }
+
+                if let Some((context, surface)) = resources.context.context_and_surface() {
+                    surface
+                        .swap_buffers(context)
+                        .context("error while swapping buffers")?;
+                }
+            }
+
+            Event::Resumed => {
+                match resources.context {
+                    ContextType::NotCurrent { ref mut window, .. } if window.is_none() => {
+                        let window_builder = new_window_builder(config);
+                        *window = Some(Arc::new(
+                            glutin_winit::finalize_window(
+                                event_loop_window_target,
+                                window_builder,
+                                &resources.gl_config,
+                            )
+                            .context("error while finalizing window in resumed stage")?,
+                        ));
+                        tracing::debug!("finalized window");
+                    }
+                    _ => {}
+                }
+
+                if !resources.window_initialized {
+                    let window = resources.context.window().unwrap();
+                    let gba_window = window.clone();
+
+                    let attrs = window.build_surface_attributes(Default::default());
+                    let gl_surface = unsafe {
+                        resources
+                            .gl_config
+                            .display()
+                            .create_window_surface(&resources.gl_config, &attrs)
+                            .unwrap()
+                    };
+                    resources
+                        .context
+                        .make_current(gl_surface)
+                        .context("error while setting window context")?;
+
+                    if let Some((context, surface)) = resources.context.context_and_surface() {
+                        if let Err(err) = surface.set_swap_interval(
+                            context,
+                            SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
+                        ) {
+                            tracing::error!(error = debug(err), "error while setting vsync");
+                        }
+                    }
+
+                    gba.write().request_repaint =
+                        Some(Box::new(move |_, _| gba_window.request_redraw()));
+
+                    resources.window_initialized = true;
+
+                    if let Some((gl, window)) = resources.context.gl_and_window() {
+                        let window_size = window.inner_size();
+                        unsafe {
+                            gl.viewport(0, 0, window_size.width as _, window_size.height as _)
+                        };
+                    }
+                }
+            }
+
+            _ => {}
         }
 
-        _ => {}
+        Ok(())
     }
-
-    Ok(())
 }
 
-fn render_gba(
-    gba: &SharedGba,
-    window: &Window,
-    gl: &glow::Context,
-    resources: &mut Option<GbaResources>,
-) {
+fn render_gba(gba: &SharedGba, gl: &glow::Context, resources: &mut Option<GbaResources>) {
     let resources = resources.get_or_insert_with(|| unsafe {
         let vertex_shader = gl
             .create_shader(glow::VERTEX_SHADER)
@@ -280,9 +280,7 @@ fn render_gba(
         }
     });
 
-    let window_size = window.inner_size();
     unsafe {
-        gl.viewport(0, 0, window_size.width as _, window_size.height as _);
         gl.bind_buffer(glow::ARRAY_BUFFER, Some(resources.buffer));
         gl.bind_vertex_array(Some(resources.vertex_array));
         gl.use_program(Some(resources.program));
@@ -391,7 +389,7 @@ fn init_window(config: &SharedConfig, event_loop: &EventLoop<()>) -> anyhow::Res
     })
 }
 
-struct Resources {
+pub struct Resources {
     context: ContextType,
     gba: Option<GbaResources>,
     gl_config: GlutinConfig,
@@ -427,6 +425,12 @@ impl Drop for Resources {
                 gba.destroy(self.context.gl().expect("no GL context"));
             }
         }
+    }
+}
+
+impl ResourcesCommon for Resources {
+    fn window(&self) -> Option<&Window> {
+        self.context.window().map(|w| &**w)
     }
 }
 
