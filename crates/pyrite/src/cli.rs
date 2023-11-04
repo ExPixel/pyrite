@@ -7,6 +7,6 @@ use clap::Parser;
 pub struct PyriteCli {
     pub rom: Option<PathBuf>,
 
-    #[arg(short, long = "debugger", default_value_t = false)]
+    #[arg(short = 'd', long = "debugger", default_value_t = false)]
     pub debugger_enabled: bool,
 }

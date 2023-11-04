@@ -6,6 +6,8 @@ use parking_lot::{Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use spin_sleep::LoopHelper;
 use std::sync::Arc;
 
+use crate::debugger::DebuggerHandle;
+
 #[derive(Clone)]
 pub struct SharedGba {
     inner: Arc<RwLock<GbaData>>,
@@ -23,6 +25,7 @@ impl SharedGba {
                 request_repaint: None,
                 painted: false,
                 profling_enabled: false,
+                debugger: None,
             })),
         };
 
@@ -105,6 +108,7 @@ pub struct GbaData {
     pub painted: bool,
 
     pub profling_enabled: bool,
+    pub debugger: Option<DebuggerHandle>,
 }
 
 fn gba_run_loop(gba: SharedGba) {

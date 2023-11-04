@@ -8,8 +8,9 @@ use anyhow::Context as _;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 use tracing::Level;
+use tracing_subscriber::EnvFilter;
 
-use crate::{logging::LoggingReloadHandle, worker};
+use crate::worker;
 
 impl Default for Config {
     fn default() -> Self {
@@ -73,7 +74,7 @@ impl Config {
         for extra in self.logging.extra_filters.iter() {
             write!(filters, ",{extra}").unwrap();
         }
-        println!("filters: {filters}");
+        // println!("filters: {filters}");
 
         Ok(filters)
     }
@@ -137,14 +138,14 @@ pub struct Config {
     path: Option<PathBuf>,
 }
 
-#[derive(Serialize, Default, Deserialize, Clone)]
+#[derive(Serialize, Default, Deserialize)]
 pub struct GuiConfig {
     pub renderer: Option<String>,
     pub window_width: Option<u32>,
     pub window_height: Option<u32>,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LoggingConfig {
     pub general: Option<String>,
@@ -154,7 +155,7 @@ pub struct LoggingConfig {
     pub extra_filters: Vec<String>,
 
     #[serde(skip)]
-    pub reload_handle: Option<LoggingReloadHandle>,
+    pub reload: Option<Box<dyn Send + Sync + 'static + Fn(EnvFilter) -> anyhow::Result<()>>>,
 }
 
 fn get_config_path() -> anyhow::Result<PathBuf> {

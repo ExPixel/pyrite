@@ -38,15 +38,23 @@ where
         if let Err(err) = self::process_event(&mut event_context) {
             tracing::error!(error = debug(err), "error in common event processing");
             control_flow.set_exit_with_code(1);
-            return;
-        }
-
-        if let Err(err) = A::handle_event(event_context) {
+        } else if let Err(err) = A::handle_event(event_context) {
             tracing::error!(error = debug(err), "error in application event processing");
             control_flow.set_exit_with_code(1);
+        } else {
+            keyboard.transition_keys();
         }
 
-        keyboard.transition_keys();
+        if matches!(
+            control_flow,
+            &mut ControlFlow::Exit | &mut ControlFlow::ExitWithCode(_)
+        ) {
+            gba.with_mut(|gba| {
+                if let Some(debugger) = gba.debugger.take() {
+                    debugger.stop(true);
+                }
+            });
+        }
     });
 }
 
