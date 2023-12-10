@@ -26,8 +26,11 @@ pub fn try_io_register_macro(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
     let generics = &input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let Data::Struct(ref data)  = input.data else {
-        return Err(syn::Error::new_spanned(input, "the IoRegister derive macro currently only supports structs"));
+    let Data::Struct(ref data) = input.data else {
+        return Err(syn::Error::new_spanned(
+            input,
+            "the IoRegister derive macro currently only supports structs",
+        ));
     };
 
     let mut maybe_value_field: Option<(&Ident, &Type)> = None;
@@ -250,7 +253,10 @@ impl IoRegisterField {
                 let Expr::Lit(ExprLit {
                     lit: Lit::Int(ref int),
                     ..
-                }) = start_end_expr else { unreachable!() };
+                }) = start_end_expr
+                else {
+                    unreachable!()
+                };
                 let bit_range_int: u32 = int.base10_parse()?;
                 let bit_range = bit_range_int..(bit_range_int + 1);
                 let limits_inner = DotDotEq {
@@ -329,8 +335,12 @@ impl IoRegisterField {
                     unreachable!();
                 }
 
-                let PathArguments::AngleBracketed(args) = flag_type.arguments else { unreachable!() };
-                let GenericArgument::Type(ty) = args.args.into_iter().next().unwrap() else { unreachable!() };
+                let PathArguments::AngleBracketed(args) = flag_type.arguments else {
+                    unreachable!()
+                };
+                let GenericArgument::Type(ty) = args.args.into_iter().next().unwrap() else {
+                    unreachable!()
+                };
                 Ok(ty)
             }
             base => Ok(base),
