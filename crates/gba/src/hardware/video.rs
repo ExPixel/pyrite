@@ -100,6 +100,11 @@ impl GbaVideo {
             self.render_line(current_scanline, video, context);
         }
     }
+
+    #[inline]
+    pub fn current_scanline(&self) -> u16 {
+        self.registers.vcount.current_scanline()
+    }
 }
 
 #[derive(Copy, Clone)]

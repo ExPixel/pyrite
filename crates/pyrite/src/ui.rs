@@ -46,7 +46,7 @@ impl App {
 
         let gba_egui_ctx = context.egui_ctx.clone();
         gba.with_mut(move |gba_data| {
-            gba_data.request_repaint = Some(Box::new(move |_ready| {
+            gba_data.request_repaint = Some(Box::new(move |_ready, _| {
                 gba_egui_ctx.request_repaint();
             }));
         });
