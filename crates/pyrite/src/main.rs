@@ -46,7 +46,6 @@ fn main() -> anyhow::Result<()> {
     };
 
     let native_options = eframe::NativeOptions {
-        app_id: Some("pyrite".into()),
         renderer,
         ..Default::default()
     };
@@ -81,7 +80,7 @@ fn main() -> anyhow::Result<()> {
 pub struct AutocloseApp;
 
 impl eframe::App for AutocloseApp {
-    fn update(&mut self, _ctx: &egui::Context, frame: &mut eframe::Frame) {
-        frame.close();
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 }

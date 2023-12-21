@@ -123,11 +123,7 @@ impl App {
                 Vec2::new(screen_width as _, screen_height as _),
                 egui::Sense::hover(),
             );
-            let callback = egui::PaintCallback {
-                rect,
-                callback: self.screen.callback(),
-            };
-            ui.painter().add(callback);
+            ui.painter().add(self.screen.paint(rect));
         });
     }
 
@@ -183,7 +179,7 @@ impl eframe::App for App {
                 egui::containers::Frame::central_panel(&ctx.style())
                     .inner_margin(Vec2::new(0.0, 0.0))
                     .outer_margin(Vec2::new(0.0, 0.0))
-                    .rounding(Rounding::none())
+                    .rounding(Rounding::ZERO)
                     .shadow(Shadow::NONE),
             )
             .show(ctx, |ui| self.render_right_panel(ui));
@@ -192,7 +188,7 @@ impl eframe::App for App {
                 egui::containers::Frame::central_panel(&ctx.style())
                     .inner_margin(Vec2::new(0.0, 0.0))
                     .outer_margin(Vec2::new(0.0, 0.0))
-                    .rounding(Rounding::none())
+                    .rounding(Rounding::ZERO)
                     .shadow(Shadow::NONE),
             )
             .show(ctx, |ui| self.render_center_panel(ui));
@@ -204,6 +200,10 @@ impl eframe::App for App {
         if let Err(err) = config::store(&self.config).context("error while writing config file") {
             tracing::error!(error = debug(err), "error while saving");
         }
+    }
+
+    fn on_exit(&mut self, gl: Option<&eframe::glow::Context>) {
+        self.screen.destroy(gl);
     }
 }
 
