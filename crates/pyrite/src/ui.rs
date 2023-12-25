@@ -2,13 +2,16 @@ mod gba_cpu_panel;
 mod gba_image;
 mod profiler;
 
+use std::{ops::DerefMut, sync::Arc};
+
 use crate::{
     cli::PyriteCli,
     config::{self, Config},
     gba_runner::SharedGba,
 };
 use anyhow::Context as _;
-use egui::{epaint::Shadow, Rounding, Ui, Vec2};
+use egui::{ahash::HashSet, Context, Ui, Vec2, ViewportBuilder, ViewportId};
+use parking_lot::Mutex;
 
 use self::{gba_image::GbaImage, profiler::Profiler};
 
@@ -16,9 +19,13 @@ pub struct App {
     config: Config,
     gba: SharedGba,
     screen: GbaImage,
-    main_content: TabContentType,
     #[cfg(feature = "profiling")]
-    profiler: Profiler,
+    profiler: Arc<Mutex<Profiler>>,
+    windows: Arc<Mutex<HashSet<WindowType>>>,
+}
+
+pub struct AppTreeElements {
+    gba: SharedGba,
 }
 
 impl App {
@@ -76,47 +83,57 @@ impl App {
             config,
             gba,
             screen,
-            main_content: TabContentType::EmuGbaCpu,
-
             #[cfg(feature = "profiling")]
-            profiler: Profiler::new(context.storage),
+            profiler: Arc::new(Mutex::new(Profiler::new(context.storage))),
+            windows: Arc::new(Mutex::new(HashSet::default())),
         })
     }
 
     fn render_menu(&mut self, ui: &mut Ui) {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| if ui.button("Open ROM...").clicked() {});
-
             ui.menu_button("View", |ui| {
-                ui.menu_button("GBA", |ui| {
-                    for &view_item in TabContentType::emulator_views() {
-                        let clicked = ui
-                            .radio_value(&mut self.main_content, view_item, view_item.name())
-                            .clicked();
-                        if clicked {
-                            ui.close_menu();
-                            break;
+                let window_menu_begin = |window: WindowType, set: &HashSet<WindowType>| -> bool {
+                    set.contains(&window)
+                };
+                let window_menu_end =
+                    |window: WindowType, set: &mut HashSet<WindowType>, display: bool| {
+                        let contains = set.contains(&window);
+                        if contains && !display {
+                            set.remove(&window);
+                        } else if !contains && display {
+                            set.insert(window);
                         }
-                    }
+                    };
+                let handle_windows =
+                    |windows: &[WindowType], set: &mut HashSet<WindowType>, ui: &mut Ui| {
+                        for &view_item in windows {
+                            let mut display = window_menu_begin(view_item, set);
+                            let clicked = ui.checkbox(&mut display, view_item.title()).clicked();
+                            window_menu_end(view_item, set, display);
+                            if clicked {
+                                ui.close_menu();
+                                break;
+                            }
+                        }
+                    };
+
+                ui.menu_button("GBA", |ui| {
+                    handle_windows(WindowType::emulator_views(), &mut self.windows.lock(), ui);
                 });
 
                 ui.menu_button("Egui", |ui| {
-                    for &view_item in TabContentType::egui_views() {
-                        let clicked = ui
-                            .radio_value(&mut self.main_content, view_item, view_item.name())
-                            .clicked();
-                        if clicked {
-                            ui.close_menu();
-                            break;
-                        }
-                    }
+                    handle_windows(WindowType::egui_views(), &mut self.windows.lock(), ui);
                 });
             });
         });
     }
+}
 
-    fn render_right_panel(&mut self, ui: &mut Ui) {
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+impl eframe::App for App {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("menu_bar_panel").show(ctx, |ui| self.render_menu(ui));
+        egui::CentralPanel::default().show(ctx, |ui| {
             let screen_width = ui.available_width();
             let screen_height = (screen_width / 240.0) * 160.0;
             let (rect, _) = ui.allocate_exact_size(
@@ -125,78 +142,57 @@ impl App {
             );
             ui.painter().add(self.screen.paint(rect));
         });
-    }
 
-    fn render_center_panel_tabs(&mut self, ui: &mut Ui) {
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-            ui.horizontal(|ui| {
-                for &view_item in TabContentType::tab_views() {
-                    let clicked = ui
-                        .selectable_label(self.main_content == view_item, view_item.name())
-                        .clicked();
-                    if clicked {
-                        self.main_content = view_item;
-                        break;
-                    }
+        let windows = self.windows.lock().clone();
+        for &w in windows.iter() {
+            match w {
+                WindowType::EmuGbaDisassembly => todo!(),
+
+                WindowType::EmuProfiler => {
+                    let profiler = self.profiler.clone();
+                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, _| {
+                        egui::CentralPanel::default().show(ctx, |ui| {
+                            profiler::render(ui, &mut profiler.lock());
+                        });
+                    });
                 }
-            });
-        });
-    }
 
-    fn render_center_panel(&mut self, ui: &mut Ui) {
-        ui.with_layout(egui::Layout::top_down(egui::Align::Max), |ui| {
-            ui.add_space(ui.spacing().item_spacing.y);
-            egui::containers::Frame::side_top_panel(ui.style()).show(ui, |ui| {
-                self.render_center_panel_tabs(ui);
-            });
-            ui.separator();
-            egui::ScrollArea::both().show(ui, |ui| {
-                ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                    match self.main_content {
-                        TabContentType::EmuGbaCpu => gba_cpu_panel::render(ui, &self.gba),
-                        TabContentType::EmuProfiler => profiler::render(ui, &mut self.profiler),
+                WindowType::EguiSettingsUi => {
+                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
+                        ctx.settings_ui(ui);
+                    });
+                }
 
-                        TabContentType::EguiSettingsUi => ui.ctx().clone().settings_ui(ui),
-                        TabContentType::EguiInspectionUi => ui.ctx().clone().inspection_ui(ui),
-                        TabContentType::EguiTextureUi => ui.ctx().clone().texture_ui(ui),
-                        TabContentType::EguiMemoryUi => ui.ctx().clone().memory_ui(ui),
-                        TabContentType::EguiStyleUi => ui.ctx().clone().style_ui(ui),
-                    }
-                });
-            })
-        });
-    }
-}
+                WindowType::EguiInspectionUi => {
+                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
+                        ctx.inspection_ui(ui);
+                    });
+                }
 
-impl eframe::App for App {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("menu_bar_panel").show(ctx, |ui| self.render_menu(ui));
-        egui::SidePanel::right("right_panel")
-            .resizable(true)
-            .default_width(240.0)
-            .width_range(240.0..=480.0)
-            .frame(
-                egui::containers::Frame::central_panel(&ctx.style())
-                    .inner_margin(Vec2::new(0.0, 0.0))
-                    .outer_margin(Vec2::new(0.0, 0.0))
-                    .rounding(Rounding::ZERO)
-                    .shadow(Shadow::NONE),
-            )
-            .show(ctx, |ui| self.render_right_panel(ui));
-        egui::CentralPanel::default()
-            .frame(
-                egui::containers::Frame::central_panel(&ctx.style())
-                    .inner_margin(Vec2::new(0.0, 0.0))
-                    .outer_margin(Vec2::new(0.0, 0.0))
-                    .rounding(Rounding::ZERO)
-                    .shadow(Shadow::NONE),
-            )
-            .show(ctx, |ui| self.render_center_panel(ui));
+                WindowType::EguiTextureUi => {
+                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
+                        ctx.texture_ui(ui);
+                    });
+                }
+
+                WindowType::EguiMemoryUi => {
+                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
+                        ctx.memory_ui(ui);
+                    });
+                }
+
+                WindowType::EguiStyleUi => {
+                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
+                        ctx.style_ui(ui);
+                    });
+                }
+            }
+        }
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         tracing::debug!("writing config file");
-        self.profiler.save(storage);
+        self.profiler.lock().save(storage);
         if let Err(err) = config::store(&self.config).context("error while writing config file") {
             tracing::error!(error = debug(err), "error while saving");
         }
@@ -207,9 +203,29 @@ impl eframe::App for App {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
-enum TabContentType {
-    EmuGbaCpu,
+fn viewport_deferred_helper<F>(
+    ctx: &Context,
+    window_type: WindowType,
+    windows: Arc<Mutex<HashSet<WindowType>>>,
+    f: F,
+) where
+    F: 'static + Send + Sync + Fn(&Context, &mut Ui),
+{
+    ctx.show_viewport_deferred(window_type.id(), window_type.options(), move |ctx, _| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            f(ctx, ui);
+        });
+        ctx.input(|input| {
+            if input.viewport().close_requested() {
+                windows.lock().remove(&window_type);
+            }
+        });
+    });
+}
+
+#[derive(PartialEq, Clone, Copy, Hash, Eq, Debug)]
+enum WindowType {
+    EmuGbaDisassembly,
     EmuProfiler,
 
     EguiSettingsUi,
@@ -219,34 +235,45 @@ enum TabContentType {
     EguiStyleUi,
 }
 
-impl TabContentType {
-    pub fn emulator_views() -> &'static [TabContentType] {
-        &[TabContentType::EmuGbaCpu, TabContentType::EmuProfiler]
+impl WindowType {
+    pub fn emulator_views() -> &'static [WindowType] {
+        &[WindowType::EmuGbaDisassembly, WindowType::EmuProfiler]
     }
 
-    pub fn tab_views() -> &'static [TabContentType] {
-        &[TabContentType::EmuGbaCpu, TabContentType::EmuProfiler]
+    pub fn tab_views() -> &'static [WindowType] {
+        &[WindowType::EmuGbaDisassembly, WindowType::EmuProfiler]
     }
 
-    pub fn egui_views() -> &'static [TabContentType] {
+    pub fn egui_views() -> &'static [WindowType] {
         &[
-            TabContentType::EguiSettingsUi,
-            TabContentType::EguiInspectionUi,
-            TabContentType::EguiTextureUi,
-            TabContentType::EguiMemoryUi,
-            TabContentType::EguiStyleUi,
+            WindowType::EguiSettingsUi,
+            WindowType::EguiInspectionUi,
+            WindowType::EguiTextureUi,
+            WindowType::EguiMemoryUi,
+            WindowType::EguiStyleUi,
         ]
     }
 
-    pub fn name(self) -> &'static str {
+    pub fn title(self) -> &'static str {
         match self {
-            TabContentType::EmuGbaCpu => "CPU",
-            TabContentType::EmuProfiler => "Profiler",
-            TabContentType::EguiSettingsUi => "Egui Settings",
-            TabContentType::EguiInspectionUi => "Egui Inspection",
-            TabContentType::EguiTextureUi => "Egui Textures",
-            TabContentType::EguiMemoryUi => "Egui Memory",
-            TabContentType::EguiStyleUi => "Egui Style",
+            WindowType::EmuGbaDisassembly => "Disassembly",
+            WindowType::EmuProfiler => "Profiler",
+            WindowType::EguiSettingsUi => "Egui Settings",
+            WindowType::EguiInspectionUi => "Egui Inspection",
+            WindowType::EguiTextureUi => "Egui Textures",
+            WindowType::EguiMemoryUi => "Egui Memory",
+            WindowType::EguiStyleUi => "Egui Style",
+        }
+    }
+
+    pub fn id(self) -> ViewportId {
+        ViewportId::from_hash_of(self)
+    }
+
+    pub fn options(self) -> ViewportBuilder {
+        ViewportBuilder {
+            title: Some(self.title().into()),
+            ..Default::default()
         }
     }
 }
