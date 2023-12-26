@@ -1,10 +1,8 @@
 [package]
-name = "arm"
+name = "arm-disassembler"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arm-emulator = { path = "../arm-emulator", optional = true }
-arm-disassembler = { path = "../arm-disassembler", optional = true}

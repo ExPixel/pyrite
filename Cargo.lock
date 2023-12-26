@@ -245,6 +245,7 @@ dependencies = [
 name = "arm"
 version = "0.1.0"
 dependencies = [
+ "arm-disassembler",
  "arm-emulator",
 ]
 
@@ -255,6 +256,10 @@ dependencies = [
  "tempfile",
  "which",
 ]
+
+[[package]]
+name = "arm-disassembler"
+version = "0.1.0"
 
 [[package]]
 name = "arm-emulator"

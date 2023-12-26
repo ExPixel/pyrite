@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arm = { path = "../arm" }
+arm = { path = "../arm", features = ["arm-emulator"] }
 util = { path = "../util" }
 pyrite-derive = { path = "../pyrite-derive" }
 byteorder = "1.4.3"
