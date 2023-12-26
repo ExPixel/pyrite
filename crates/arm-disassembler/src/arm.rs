@@ -694,6 +694,38 @@ mod tests {
         [disasm_cmn_reg_ror_imm, "cmn r1, r2, ror #4", "cmn", "r1, r2, ror #4"],
         [disasm_cmn_reg_ror_reg, "cmn r1, r2, ror r4", "cmn", "r1, r2, ror r4"],
         [disasm_cmn_reg_rrx, "cmn r1, r2, rrx", "cmn", "r1, r2, rrx"],
+
+        // MOV
+        [disasm_mov_imm, "mov r1, #4", "mov", "r1, #4"],
+        [disasm_movs_imm, "movs r1, #4", "movs", "r1, #4"],
+        [disasm_mov_reg, "mov r1, r2", "mov", "r1, r2"],
+        [disasm_mov_reg_lsl_imm, "mov r1, r2, lsl #4", "mov", "r1, r2, lsl #4"],
+        [disasm_mov_reg_lsl_reg, "mov r1, r2, lsl r4", "mov", "r1, r2, lsl r4"],
+        [disasm_mov_reg_lsr_imm, "mov r1, r2, lsr #4", "mov", "r1, r2, lsr #4"],
+        [disasm_mov_reg_lsr_imm_32, "mov r1, r2, lsr #32", "mov", "r1, r2, lsr #32"],
+        [disasm_mov_reg_lsr_reg, "mov r1, r2, lsr r4", "mov", "r1, r2, lsr r4"],
+        [disasm_mov_reg_asr_imm, "mov r1, r2, asr #4", "mov", "r1, r2, asr #4"],
+        [disasm_mov_reg_asr_imm_32, "mov r1, r2, asr #32", "mov", "r1, r2, asr #32"],
+        [disasm_mov_reg_asr_reg, "mov r1, r2, asr r4", "mov", "r1, r2, asr r4"],
+        [disasm_mov_reg_ror_imm, "mov r1, r2, ror #4", "mov", "r1, r2, ror #4"],
+        [disasm_mov_reg_ror_reg, "mov r1, r2, ror r4", "mov", "r1, r2, ror r4"],
+        [disasm_mov_reg_rrx, "mov r1, r2, rrx", "mov", "r1, r2, rrx"],
+
+        // MVN
+        [disasm_mvn_imm, "mvn r1, #4", "mvn", "r1, #4"],
+        [disasm_mvns_imm, "mvns r1, #4", "mvns", "r1, #4"],
+        [disasm_mvn_reg, "mvn r1, r2", "mvn", "r1, r2"],
+        [disasm_mvn_reg_lsl_imm, "mvn r1, r2, lsl #4", "mvn", "r1, r2, lsl #4"],
+        [disasm_mvn_reg_lsl_reg, "mvn r1, r2, lsl r4", "mvn", "r1, r2, lsl r4"],
+        [disasm_mvn_reg_lsr_imm, "mvn r1, r2, lsr #4", "mvn", "r1, r2, lsr #4"],
+        [disasm_mvn_reg_lsr_imm_32, "mvn r1, r2, lsr #32", "mvn", "r1, r2, lsr #32"],
+        [disasm_mvn_reg_lsr_reg, "mvn r1, r2, lsr r4", "mvn", "r1, r2, lsr r4"],
+        [disasm_mvn_reg_asr_imm, "mvn r1, r2, asr #4", "mvn", "r1, r2, asr #4"],
+        [disasm_mvn_reg_asr_imm_32, "mvn r1, r2, asr #32", "mvn", "r1, r2, asr #32"],
+        [disasm_mvn_reg_asr_reg, "mvn r1, r2, asr r4", "mvn", "r1, r2, asr r4"],
+        [disasm_mvn_reg_ror_imm, "mvn r1, r2, ror #4", "mvn", "r1, r2, ror #4"],
+        [disasm_mvn_reg_ror_reg, "mvn r1, r2, ror r4", "mvn", "r1, r2, ror r4"],
+        [disasm_mvn_reg_rrx, "mvn r1, r2, rrx", "mvn", "r1, r2, rrx"],
     }
 
     // CONDITION CODES
