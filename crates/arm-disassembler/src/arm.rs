@@ -449,11 +449,22 @@ mod tests {
                 assert_eq!("", dis.comment().to_string());
             }
         };
+
+        ($name:ident, $source:literal, $mnemonic:literal, $arguments:literal, $comment:literal) => {
+            #[test]
+            fn $name() {
+                let asm = assemble_one($source).unwrap();
+                let dis = disasm(asm);
+                assert_eq!($mnemonic, dis.mnemonic().to_string());
+                assert_eq!($arguments, dis.arguments().to_string());
+                assert_eq!($comment, dis.comment().to_string());
+            }
+        };
     }
 
     macro_rules! make_tests {
-        ($([$name:ident, $source:literal, $mnemonic:literal, $arguments:literal]),+ $(,)?) => {
-            $(make_test!($name, $source, $mnemonic, $arguments);)+
+        ($([$name:ident, $source:literal, $mnemonic:literal, $arguments:literal $(, $comment:literal)?]),+ $(,)?) => {
+            $(make_test!($name, $source, $mnemonic, $arguments $(, $comment)?);)+
         };
     }
 
