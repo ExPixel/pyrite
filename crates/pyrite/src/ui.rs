@@ -1,5 +1,4 @@
 mod app_window;
-mod gba_cpu_panel;
 mod gba_image;
 mod profiler;
 
