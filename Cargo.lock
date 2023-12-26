@@ -260,6 +260,9 @@ dependencies = [
 [[package]]
 name = "arm-disassembler"
 version = "0.1.0"
+dependencies = [
+ "arm-devkit",
+]
 
 [[package]]
 name = "arm-emulator"
