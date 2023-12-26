@@ -792,6 +792,30 @@ mod tests {
         [disasm_tsts_le, "tstles r1, #4", "tstle", "r1, #4"],
     }
 
+    // REGISTERS
+    #[rustfmt::skip]
+    make_tests! {
+        [disasm_mov_r0, "mov r0, r0", "mov", "r0, r0"],
+        [disasm_mov_r1, "mov r0, r1", "mov", "r0, r1"],
+        [disasm_mov_r2, "mov r0, r2", "mov", "r0, r2"],
+        [disasm_mov_r3, "mov r0, r3", "mov", "r0, r3"],
+        [disasm_mov_r4, "mov r0, r4", "mov", "r0, r4"],
+        [disasm_mov_r5, "mov r0, r5", "mov", "r0, r5"],
+        [disasm_mov_r6, "mov r0, r6", "mov", "r0, r6"],
+        [disasm_mov_r7, "mov r0, r7", "mov", "r0, r7"],
+        [disasm_mov_r8, "mov r0, r8", "mov", "r0, r8"],
+        [disasm_mov_r9, "mov r0, r9", "mov", "r0, r9"],
+        [disasm_mov_r10, "mov r0, r10", "mov", "r0, r10"],
+        [disasm_mov_r11, "mov r0, r11", "mov", "r0, r11"],
+        [disasm_mov_r12, "mov r0, r12", "mov", "r0, r12"],
+        [disasm_mov_r13, "mov r0, r13", "mov", "r0, sp"],
+        [disasm_mov_r14, "mov r0, r14", "mov", "r0, lr"],
+        [disasm_mov_r15, "mov r0, r15", "mov", "r0, pc"],
+        [disasm_mov_sp, "mov r0, sp", "mov", "r0, sp"],
+        [disasm_mov_lr, "mov r0, lr", "mov", "r0, lr"],
+        [disasm_mov_pc, "mov r0, pc", "mov", "r0, pc"],
+    }
+
     fn assemble_one(source: &str) -> std::io::Result<u32> {
         static LINKER_SCRIPT: RwLock<Option<LinkerScriptWeakRef>> = RwLock::new(None);
 
