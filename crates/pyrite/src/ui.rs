@@ -1,31 +1,31 @@
+mod app_window;
 mod gba_cpu_panel;
 mod gba_image;
 mod profiler;
 
-use std::{ops::DerefMut, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     cli::PyriteCli,
     config::{self, Config},
     gba_runner::SharedGba,
 };
+use ahash::HashSet;
 use anyhow::Context as _;
-use egui::{ahash::HashSet, Context, Ui, Vec2, ViewportBuilder, ViewportId};
-use parking_lot::Mutex;
+use egui::{Ui, Vec2, ViewportId};
+use parking_lot::{Mutex, MutexGuard};
 
-use self::{gba_image::GbaImage, profiler::Profiler};
+use self::{
+    app_window::{AppWindow, AppWindowCategory, AppWindowWrapper},
+    gba_image::GbaImage,
+    profiler::ProfilerWindow,
+};
 
 pub struct App {
     config: Config,
-    gba: SharedGba,
     screen: GbaImage,
-    #[cfg(feature = "profiling")]
-    profiler: Arc<Mutex<Profiler>>,
-    windows: Arc<Mutex<HashSet<WindowType>>>,
-}
-
-pub struct AppTreeElements {
-    gba: SharedGba,
+    windows: Vec<app_window::AppWindowWrapper>,
+    windows_visible: Arc<Mutex<HashSet<ViewportId>>>,
 }
 
 impl App {
@@ -79,13 +79,24 @@ impl App {
         });
         gba.unpause();
 
+        let windows_visible = Arc::new(Mutex::new(HashSet::default()));
+        #[cfg(feature = "profiling")]
+        let profiler_window = ProfilerWindow::wrapped(windows_visible.clone(), context.storage);
+        let windows = vec![
+            #[cfg(feature = "profiling")]
+            profiler_window,
+            EguiSettingsWindow::wrapped(windows_visible.clone()),
+            EguiInspectionWindow::wrapped(windows_visible.clone()),
+            EguiTextureWindow::wrapped(windows_visible.clone()),
+            EguiMemoryWindow::wrapped(windows_visible.clone()),
+            EguiStyleWindow::wrapped(windows_visible.clone()),
+        ];
+
         Ok(Self {
             config,
-            gba,
             screen,
-            #[cfg(feature = "profiling")]
-            profiler: Arc::new(Mutex::new(Profiler::new(context.storage))),
-            windows: Arc::new(Mutex::new(HashSet::default())),
+            windows,
+            windows_visible,
         })
     }
 
@@ -93,38 +104,29 @@ impl App {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| if ui.button("Open ROM...").clicked() {});
             ui.menu_button("View", |ui| {
-                let window_menu_begin = |window: WindowType, set: &HashSet<WindowType>| -> bool {
-                    set.contains(&window)
-                };
-                let window_menu_end =
-                    |window: WindowType, set: &mut HashSet<WindowType>, display: bool| {
-                        let contains = set.contains(&window);
-                        if contains && !display {
-                            set.remove(&window);
-                        } else if !contains && display {
-                            set.insert(window);
-                        }
-                    };
-                let handle_windows =
-                    |windows: &[WindowType], set: &mut HashSet<WindowType>, ui: &mut Ui| {
-                        for &view_item in windows {
-                            let mut display = window_menu_begin(view_item, set);
-                            let clicked = ui.checkbox(&mut display, view_item.title()).clicked();
-                            window_menu_end(view_item, set, display);
-                            if clicked {
-                                ui.close_menu();
-                                break;
+                let categories = [
+                    ("GBA", app_window::AppWindowCategory::Gba),
+                    ("Egui", app_window::AppWindowCategory::Egui),
+                ];
+
+                let mut windows_visible = self.windows_visible.lock();
+                for (category_name, category) in categories.into_iter() {
+                    ui.menu_button(category_name, |ui| {
+                        for window in self.windows.iter() {
+                            if window.category() == category {
+                                let mut display = window.visible_fast(&windows_visible);
+                                let clicked = ui.checkbox(&mut display, window.title()).clicked();
+                                if clicked {
+                                    MutexGuard::unlocked(&mut windows_visible, || {
+                                        window.set_visibility(display);
+                                    });
+                                    ui.close_menu();
+                                    break;
+                                }
                             }
                         }
-                    };
-
-                ui.menu_button("GBA", |ui| {
-                    handle_windows(WindowType::emulator_views(), &mut self.windows.lock(), ui);
-                });
-
-                ui.menu_button("Egui", |ui| {
-                    handle_windows(WindowType::egui_views(), &mut self.windows.lock(), ui);
-                });
+                    });
+                }
             });
         });
     }
@@ -143,56 +145,24 @@ impl eframe::App for App {
             ui.painter().add(self.screen.paint(rect));
         });
 
-        let windows = self.windows.lock().clone();
-        for &w in windows.iter() {
-            match w {
-                WindowType::EmuGbaDisassembly => todo!(),
-
-                WindowType::EmuProfiler => {
-                    let profiler = self.profiler.clone();
-                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, _| {
-                        egui::CentralPanel::default().show(ctx, |ui| {
-                            profiler::render(ui, &mut profiler.lock());
-                        });
-                    });
-                }
-
-                WindowType::EguiSettingsUi => {
-                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
-                        ctx.settings_ui(ui);
-                    });
-                }
-
-                WindowType::EguiInspectionUi => {
-                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
-                        ctx.inspection_ui(ui);
-                    });
-                }
-
-                WindowType::EguiTextureUi => {
-                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
-                        ctx.texture_ui(ui);
-                    });
-                }
-
-                WindowType::EguiMemoryUi => {
-                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
-                        ctx.memory_ui(ui);
-                    });
-                }
-
-                WindowType::EguiStyleUi => {
-                    viewport_deferred_helper(ctx, w, self.windows.clone(), move |ctx, ui| {
-                        ctx.style_ui(ui);
-                    });
-                }
+        let mut windows_visible = self.windows_visible.lock();
+        for window in self.windows.iter() {
+            if !windows_visible.contains(&window.viewport_id()) {
+                continue;
             }
+            MutexGuard::unlocked(&mut windows_visible, || {
+                window.show_viewport_deferred(ctx);
+            });
         }
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         tracing::debug!("writing config file");
-        self.profiler.lock().save(storage);
+
+        for window in self.windows.iter() {
+            window.save(storage);
+        }
+
         if let Err(err) = config::store(&self.config).context("error while writing config file") {
             tracing::error!(error = debug(err), "error while saving");
         }
@@ -203,77 +173,162 @@ impl eframe::App for App {
     }
 }
 
-fn viewport_deferred_helper<F>(
-    ctx: &Context,
-    window_type: WindowType,
-    windows: Arc<Mutex<HashSet<WindowType>>>,
-    f: F,
-) where
-    F: 'static + Send + Sync + Fn(&Context, &mut Ui),
-{
-    ctx.show_viewport_deferred(window_type.id(), window_type.options(), move |ctx, _| {
+#[derive(Default)]
+pub struct EguiSettingsWindow;
+
+impl EguiSettingsWindow {
+    pub fn wrapped(windows: Arc<Mutex<HashSet<ViewportId>>>) -> app_window::AppWindowWrapper {
+        AppWindowWrapper::new_default::<Self>(windows)
+    }
+}
+
+impl AppWindow for EguiSettingsWindow {
+    type State = Self;
+
+    fn ui(_state: &mut Self::State, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            f(ctx, ui);
+            ui.heading("Egui Settings");
+            ctx.settings_ui(ui);
         });
-        ctx.input(|input| {
-            if input.viewport().close_requested() {
-                windows.lock().remove(&window_type);
-            }
-        });
-    });
+    }
+
+    fn title() -> String {
+        "Egui Settings".to_owned()
+    }
+
+    fn viewport_id() -> ViewportId {
+        ViewportId::from_hash_of("egui_settings")
+    }
+
+    fn category() -> AppWindowCategory {
+        AppWindowCategory::Egui
+    }
 }
 
-#[derive(PartialEq, Clone, Copy, Hash, Eq, Debug)]
-enum WindowType {
-    EmuGbaDisassembly,
-    EmuProfiler,
+#[derive(Default)]
+pub struct EguiInspectionWindow;
 
-    EguiSettingsUi,
-    EguiInspectionUi,
-    EguiTextureUi,
-    EguiMemoryUi,
-    EguiStyleUi,
+impl EguiInspectionWindow {
+    pub fn wrapped(windows: Arc<Mutex<HashSet<ViewportId>>>) -> app_window::AppWindowWrapper {
+        AppWindowWrapper::new_default::<Self>(windows)
+    }
 }
 
-impl WindowType {
-    pub fn emulator_views() -> &'static [WindowType] {
-        &[WindowType::EmuGbaDisassembly, WindowType::EmuProfiler]
+impl AppWindow for EguiInspectionWindow {
+    type State = Self;
+
+    fn ui(_state: &mut Self::State, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Egui Inspection");
+            ctx.inspection_ui(ui);
+        });
     }
 
-    pub fn tab_views() -> &'static [WindowType] {
-        &[WindowType::EmuGbaDisassembly, WindowType::EmuProfiler]
+    fn title() -> String {
+        "Egui Inspection".to_owned()
     }
 
-    pub fn egui_views() -> &'static [WindowType] {
-        &[
-            WindowType::EguiSettingsUi,
-            WindowType::EguiInspectionUi,
-            WindowType::EguiTextureUi,
-            WindowType::EguiMemoryUi,
-            WindowType::EguiStyleUi,
-        ]
+    fn viewport_id() -> ViewportId {
+        ViewportId::from_hash_of("egui_inspection")
     }
 
-    pub fn title(self) -> &'static str {
-        match self {
-            WindowType::EmuGbaDisassembly => "Disassembly",
-            WindowType::EmuProfiler => "Profiler",
-            WindowType::EguiSettingsUi => "Egui Settings",
-            WindowType::EguiInspectionUi => "Egui Inspection",
-            WindowType::EguiTextureUi => "Egui Textures",
-            WindowType::EguiMemoryUi => "Egui Memory",
-            WindowType::EguiStyleUi => "Egui Style",
-        }
+    fn category() -> AppWindowCategory {
+        AppWindowCategory::Egui
+    }
+}
+
+#[derive(Default)]
+pub struct EguiTextureWindow;
+
+impl EguiTextureWindow {
+    pub fn wrapped(windows: Arc<Mutex<HashSet<ViewportId>>>) -> app_window::AppWindowWrapper {
+        AppWindowWrapper::new_default::<Self>(windows)
+    }
+}
+
+impl AppWindow for EguiTextureWindow {
+    type State = Self;
+
+    fn ui(_state: &mut Self::State, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Egui Textures");
+            ctx.texture_ui(ui);
+        });
     }
 
-    pub fn id(self) -> ViewportId {
-        ViewportId::from_hash_of(self)
+    fn title() -> String {
+        "Egui Textures".to_owned()
     }
 
-    pub fn options(self) -> ViewportBuilder {
-        ViewportBuilder {
-            title: Some(self.title().into()),
-            ..Default::default()
-        }
+    fn viewport_id() -> ViewportId {
+        ViewportId::from_hash_of("egui_textures")
+    }
+
+    fn category() -> AppWindowCategory {
+        AppWindowCategory::Egui
+    }
+}
+
+#[derive(Default)]
+pub struct EguiMemoryWindow;
+
+impl EguiMemoryWindow {
+    pub fn wrapped(windows: Arc<Mutex<HashSet<ViewportId>>>) -> app_window::AppWindowWrapper {
+        AppWindowWrapper::new_default::<Self>(windows)
+    }
+}
+
+impl AppWindow for EguiMemoryWindow {
+    type State = Self;
+
+    fn ui(_state: &mut Self::State, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Egui Memory");
+            ctx.memory_ui(ui);
+        });
+    }
+
+    fn title() -> String {
+        "Egui Memory".to_owned()
+    }
+
+    fn viewport_id() -> ViewportId {
+        ViewportId::from_hash_of("egui_memory")
+    }
+
+    fn category() -> AppWindowCategory {
+        AppWindowCategory::Egui
+    }
+}
+
+#[derive(Default)]
+pub struct EguiStyleWindow;
+
+impl EguiStyleWindow {
+    pub fn wrapped(windows: Arc<Mutex<HashSet<ViewportId>>>) -> app_window::AppWindowWrapper {
+        AppWindowWrapper::new_default::<Self>(windows)
+    }
+}
+
+impl AppWindow for EguiStyleWindow {
+    type State = Self;
+
+    fn ui(_state: &mut Self::State, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Egui Style");
+            ctx.style_ui(ui);
+        });
+    }
+
+    fn title() -> String {
+        "Egui Style".to_owned()
+    }
+
+    fn viewport_id() -> ViewportId {
+        ViewportId::from_hash_of("egui_style")
+    }
+
+    fn category() -> AppWindowCategory {
+        AppWindowCategory::Egui
     }
 }

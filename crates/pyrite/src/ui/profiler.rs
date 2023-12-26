@@ -1,7 +1,58 @@
+use std::sync::Arc;
+
 use eframe::Storage;
 use egui::Ui;
+use parking_lot::Mutex;
 use puffin::GlobalFrameView;
 use puffin_egui::ProfilerUi;
+
+use super::app_window::{AppWindow, AppWindowCategory, AppWindowWrapper};
+
+pub struct ProfilerWindow {
+    profiler: Profiler,
+}
+
+impl ProfilerWindow {
+    fn new(storage: Option<&dyn eframe::Storage>) -> Self {
+        Self {
+            profiler: Profiler::new(storage),
+        }
+    }
+
+    pub fn wrapped(
+        windows: Arc<Mutex<egui::ahash::HashSet<egui::ViewportId>>>,
+        storage: Option<&dyn eframe::Storage>,
+    ) -> AppWindowWrapper {
+        AppWindowWrapper::new::<Self>(windows, Self::new(storage))
+    }
+}
+
+impl AppWindow for ProfilerWindow {
+    type State = Self;
+
+    fn ui(state: &mut Self::State, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Profiler");
+            render(ui, &mut state.profiler);
+        });
+    }
+
+    fn title() -> String {
+        "Profiler".to_owned()
+    }
+
+    fn viewport_id() -> egui::ViewportId {
+        egui::ViewportId::from_hash_of("profiler")
+    }
+
+    fn category() -> AppWindowCategory {
+        AppWindowCategory::Gba
+    }
+
+    fn save(state: &mut Self::State, storage: &mut dyn Storage) {
+        state.profiler.save(storage);
+    }
+}
 
 pub fn render(ui: &mut Ui, profiler: &mut Profiler) {
     #[cfg(feature = "puffin")]
