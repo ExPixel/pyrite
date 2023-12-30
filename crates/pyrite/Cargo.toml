@@ -19,7 +19,7 @@ serde_json = { version = "1", default-features = false, features = ["std"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 gba = { path = "../gba" }
-arm = { path = "../arm" }
+arm = { path = "../arm", features = ["arm-disassembler"] }
 parking_lot = "0.12"
 bytemuck = { version = "1.13", features = ["derive"] }
 clap = { version = "4.4", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
@@ -27,3 +27,4 @@ spin_sleep = { version = "1.1.1", default-features = false }
 puffin = { version = "0.18", default-features = false, optional = true }
 puffin_egui = { version = "0.24", default-features = false, optional = true, features = ["serde"] }
 ahash = "0.8.6"
+egui_extras = { version = "0.24.2", default-features = false }

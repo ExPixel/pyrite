@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 pub fn disasm(instr: u16) -> ThumbInstr {
     ThumbInstr::Undefined(instr)
 }
@@ -8,19 +10,19 @@ pub enum ThumbInstr {
 }
 
 impl ThumbInstr {
-    pub(crate) fn write_mnemonic(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_mnemonic<W: Write>(&self, mut f: W) -> std::fmt::Result {
         match self {
-            ThumbInstr::Undefined(_) => f.pad("undef"),
+            ThumbInstr::Undefined(_) => write!(f, "undef"),
         }
     }
 
-    pub(crate) fn write_arguments(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_arguments<W: Write>(&self, mut f: W) -> std::fmt::Result {
         match self {
-            ThumbInstr::Undefined(instr) => <u16 as std::fmt::Display>::fmt(instr, f),
+            ThumbInstr::Undefined(instr) => write!(f, "{:04x}", instr),
         }
     }
 
-    pub(crate) fn write_comment(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_comment<W: Write>(&self, mut _f: W) -> std::fmt::Result {
         match self {
             ThumbInstr::Undefined(_) => Ok(()),
         }

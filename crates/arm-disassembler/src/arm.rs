@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 pub fn disasm(instr: u32) -> ArmInstr {
     let cond = Condition::from((instr >> 28) & 0xF);
 
@@ -40,41 +42,38 @@ pub enum ArmInstr {
 }
 
 impl ArmInstr {
-    pub(crate) fn write_mnemonic(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_mnemonic<W: Write>(&self, mut f: W) -> std::fmt::Result {
         match self {
-            ArmInstr::Undefined { cond, .. } => f.write_fmt(format_args!("undef{cond}")),
+            ArmInstr::Undefined { cond, .. } => write!(f, "undef{cond}"),
             ArmInstr::DataProc { cond, proc, s, .. } => {
                 if matches!(
                     proc,
                     DataProc::Tst | DataProc::Teq | DataProc::Cmp | DataProc::Cmn
                 ) {
-                    f.write_fmt(format_args!("{proc}{cond}"))
+                    write!(f, "{proc}{cond}")
                 } else {
-                    f.write_fmt(format_args!(
-                        "{proc}{cond}{s}",
-                        s = if *s { "s" } else { "" }
-                    ))
+                    write!(f, "{proc}{cond}{s}", s = if *s { "s" } else { "" })
                 }
             }
         }
     }
 
-    pub(crate) fn write_arguments(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_arguments<W: Write>(&self, mut f: W) -> std::fmt::Result {
         match self {
-            ArmInstr::Undefined { instr, .. } => f.write_fmt(format_args!("0x{:08x}", instr)),
+            ArmInstr::Undefined { instr, .. } => write!(f, "0x{:08x}", instr),
             ArmInstr::DataProc {
                 proc, rd, rn, op2, ..
             } => match proc {
-                DataProc::Mov | DataProc::Mvn => f.write_fmt(format_args!("{rd}, {op2}")),
+                DataProc::Mov | DataProc::Mvn => write!(f, "{rd}, {op2}"),
                 DataProc::Tst | DataProc::Teq | DataProc::Cmp | DataProc::Cmn => {
-                    f.write_fmt(format_args!("{rn}, {op2}"))
+                    write!(f, "{rn}, {op2}")
                 }
-                _ => f.write_fmt(format_args!("{rd}, {rn}, {op2}")),
+                _ => write!(f, "{rd}, {rn}, {op2}"),
             },
         }
     }
 
-    pub(crate) fn write_comment(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_comment<W: Write>(&self, mut _f: W) -> std::fmt::Result {
         match self {
             ArmInstr::Undefined { .. } => Ok(()),
             ArmInstr::DataProc { .. } => Ok(()),
@@ -122,10 +121,10 @@ impl DataProcOperand2 {
 impl std::fmt::Display for DataProcOperand2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataProcOperand2::Immediate(imm) => f.write_fmt(format_args!("#{}", imm)),
+            DataProcOperand2::Immediate(imm) => write!(f, "#{}", imm),
             DataProcOperand2::Register(reg, shift) => match shift {
-                Some(shift) => f.write_fmt(format_args!("{}, {}", reg, shift)),
-                None => f.write_fmt(format_args!("{}", reg)),
+                Some(shift) => write!(f, "{}, {}", reg, shift),
+                None => write!(f, "{}", reg),
             },
         }
     }
@@ -150,8 +149,8 @@ impl From<u32> for Shift {
 impl std::fmt::Display for Shift {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Shift::Imm(imm) => f.write_fmt(format_args!("{}", imm)),
-            Shift::Reg(reg) => f.write_fmt(format_args!("{}", reg)),
+            Shift::Imm(imm) => write!(f, "{}", imm),
+            Shift::Reg(reg) => write!(f, "{}", reg),
         }
     }
 }
@@ -182,11 +181,11 @@ impl From<u32> for ImmShift {
 impl std::fmt::Display for ImmShift {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ImmShift::Lsl(imm) => f.write_fmt(format_args!("lsl #{}", imm)),
-            ImmShift::Lsr(imm) => f.write_fmt(format_args!("lsr #{}", imm)),
-            ImmShift::Asr(imm) => f.write_fmt(format_args!("asr #{}", imm)),
-            ImmShift::Ror(imm) => f.write_fmt(format_args!("ror #{}", imm)),
-            ImmShift::Rrx => f.write_str("rrx"),
+            ImmShift::Lsl(imm) => write!(f, "lsl #{}", imm),
+            ImmShift::Lsr(imm) => write!(f, "lsr #{}", imm),
+            ImmShift::Asr(imm) => write!(f, "asr #{}", imm),
+            ImmShift::Ror(imm) => write!(f, "ror #{}", imm),
+            ImmShift::Rrx => write!(f, "rrx"),
         }
     }
 }
@@ -215,10 +214,10 @@ impl From<u32> for RegShift {
 impl std::fmt::Display for RegShift {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RegShift::Lsl(r) => f.write_fmt(format_args!("lsl {}", r)),
-            RegShift::Lsr(r) => f.write_fmt(format_args!("lsr {}", r)),
-            RegShift::Asr(r) => f.write_fmt(format_args!("asr {}", r)),
-            RegShift::Ror(r) => f.write_fmt(format_args!("ror {}", r)),
+            RegShift::Lsl(r) => write!(f, "lsl {}", r),
+            RegShift::Lsr(r) => write!(f, "lsr {}", r),
+            RegShift::Asr(r) => write!(f, "asr {}", r),
+            RegShift::Ror(r) => write!(f, "ror {}", r),
         }
     }
 }
