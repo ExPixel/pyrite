@@ -3,7 +3,12 @@ use std::fmt::Write;
 pub fn disasm(instr: u32) -> ArmInstr {
     let cond = Condition::from((instr >> 28) & 0xF);
 
-    if (instr & 0x0E000000 == 0x02000000)
+    if instr & 0x0FFFFFF0 == 0x012FFF10 {
+        ArmInstr::BranchAndExchange {
+            cond,
+            rn: Register::from(instr & 0xF),
+        }
+    } else if (instr & 0x0E000000 == 0x02000000)
         || (instr & 0x0E000010 == 0x00000000)
         || (instr & 0x0E000090 == 0x00000010)
     {
@@ -35,6 +40,11 @@ pub enum ArmInstr {
         op2: DataProcOperand2,
     },
 
+    BranchAndExchange {
+        cond: Condition,
+        rn: Register,
+    },
+
     Undefined {
         cond: Condition,
         instr: u32,
@@ -55,6 +65,7 @@ impl ArmInstr {
                     write!(f, "{proc}{cond}{s}", s = if *s { "s" } else { "" })
                 }
             }
+            ArmInstr::BranchAndExchange { cond, .. } => write!(f, "bx{cond}"),
         }
     }
 
@@ -70,13 +81,13 @@ impl ArmInstr {
                 }
                 _ => write!(f, "{rd}, {rn}, {op2}"),
             },
+            ArmInstr::BranchAndExchange { rn, .. } => write!(f, "{rn}"),
         }
     }
 
     pub(crate) fn write_comment<W: Write>(&self, mut _f: W) -> std::fmt::Result {
         match self {
-            ArmInstr::Undefined { .. } => Ok(()),
-            ArmInstr::DataProc { .. } => Ok(()),
+            _ => Ok(()),
         }
     }
 
@@ -90,6 +101,14 @@ impl ArmInstr {
 
     pub fn comment(&self) -> crate::Comment<'_, Self> {
         crate::Comment(self)
+    }
+
+    pub fn condition(&self) -> Condition {
+        match self {
+            ArmInstr::Undefined { cond, .. } => *cond,
+            ArmInstr::DataProc { cond, .. } => *cond,
+            ArmInstr::BranchAndExchange { cond, .. } => *cond,
+        }
     }
 }
 
@@ -813,6 +832,12 @@ mod tests {
         [disasm_mov_sp, "mov r0, sp", "mov", "r0, sp"],
         [disasm_mov_lr, "mov r0, lr", "mov", "r0, lr"],
         [disasm_mov_pc, "mov r0, pc", "mov", "r0, pc"],
+    }
+
+    // REGISTERS
+    #[rustfmt::skip]
+    make_tests! {
+        [disasm_bx, "bx r2", "bx", "r2"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
