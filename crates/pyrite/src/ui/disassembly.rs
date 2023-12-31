@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
+use super::app_window::{AppWindow, AppWindowWrapper};
+use crate::gba_runner::SharedGba;
 use ahash::HashSet;
 use arm::{disasm::AnyInstr, emu::InstructionSet};
 use egui::{epaint::PathShape, Color32, RichText, Sense, Stroke, ViewportId};
 use parking_lot::Mutex;
-
-use crate::gba_runner::SharedGba;
-
-use super::app_window::{AppWindow, AppWindowWrapper};
+use std::fmt::Write as _;
+use std::sync::Arc;
 
 pub struct DisassemblyWindow {
     gba: SharedGba,
@@ -168,6 +166,7 @@ impl AppWindow for DisassemblyWindow {
                     ui.monospace("Comment");
                     ui.end_row();
 
+                    let mut comment_buffer = String::with_capacity(32);
                     for address in address_range.step_by(instruction_width as usize) {
                         let address = address as u32;
 
@@ -242,13 +241,15 @@ impl AppWindow for DisassemblyWindow {
                         };
 
                         ui.monospace(format!(
-                            "{mnemonic:<16} {arguments:<32}",
+                            "{mnemonic:<12} {arguments:<32}",
                             mnemonic = mnemonic,
                             arguments = arguments,
                         ));
 
-                        let comment_string = comment.to_string();
-                        if !comment_string.is_empty() {
+                        comment_buffer.clear();
+                        write!(&mut comment_buffer, "{comment}").unwrap();
+                        if !comment_buffer.is_empty() {
+                            let comment_string = format!("{comment_buffer:<32}");
                             ui.horizontal(|ui| {
                                 ui.monospace(RichText::new("; ").color(Color32::LIGHT_GREEN));
                                 ui.monospace(

@@ -197,7 +197,7 @@ impl ArmInstr {
                 ..
             } => {
                 let signed_imm = imm as i32;
-                write!(f, "rhs = {imm}")
+                write!(f, "rhs = {signed_imm}")
             }
             _ => Ok(()),
         }
@@ -655,7 +655,7 @@ mod tests {
             #[test]
             fn $name() {
                 let asm = assemble_one($source).unwrap();
-                let dis = disasm(asm);
+                let dis = disasm(asm, 0x0);
                 assert_eq!($mnemonic, dis.mnemonic().to_string());
                 assert_eq!($arguments, dis.arguments().to_string());
                 assert_eq!($comment, dis.comment().to_string());
@@ -673,7 +673,7 @@ mod tests {
     #[rustfmt::skip]
     make_tests! {
         // AND
-        [disasm_and_imm, "and r0, r1, #0x4", "and", "r0, r1, #0x4"],
+        [disasm_and_imm, "and r0, r1, #0x4", "and", "r0, r1, #0x4", "rhs = 4"],
         [disasm_ands_imm, "ands r0, r1, #0x4", "ands", "r0, r1, #0x4"],
         [disasm_and_reg, "and r0, r1, r2", "and", "r0, r1, r2"],
         [disasm_and_reg_lsl_imm, "and r0, r1, r2, lsl #4", "and", "r0, r1, r2, lsl #4"],
