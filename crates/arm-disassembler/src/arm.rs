@@ -9,6 +9,7 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0FBFFFF0, 0x0129F000, disasm_msr_all),
     (0x0FBFFFF0, 0x0128F000, disasm_msr_flg_reg),
     (0x0FBFF000, 0x0328F000, disasm_msr_flg_imm),
+    (0x0FC000F0, 0x00000090, disasm_mul_and_mla),
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
     (0x0E000000, 0x02000000, disasm_dataproc), // dataproc immediate op2
     (0x0E000010, 0x00000000, disasm_dataproc), // dataproc op2 shift by imm
@@ -108,6 +109,26 @@ pub fn disasm_msr_flg_imm(instr: u32, _address: u32) -> ArmInstr {
     ArmInstr::RegisterToPsr { cond, dst, src }
 }
 
+pub fn disasm_mul_and_mla(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    let a = instr.get_bit(21);
+    let s = instr.get_bit(20);
+    let rd = Register::from(instr.get_bit_range(16..=19));
+    let rn = Register::from(instr.get_bit_range(12..=15));
+    let rs = Register::from(instr.get_bit_range(8..=11));
+    let rm = Register::from(instr.get_bit_range(0..=3));
+
+    ArmInstr::Multiply {
+        cond,
+        a,
+        s,
+        rd,
+        rn,
+        rs,
+        rm,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ArmInstr {
     DataProc {
@@ -142,6 +163,16 @@ pub enum ArmInstr {
         src: RegisterOrImmediate,
     },
 
+    Multiply {
+        cond: Condition,
+        a: bool,
+        s: bool,
+        rd: Register,
+        rn: Register,
+        rs: Register,
+        rm: Register,
+    },
+
     Undefined {
         cond: Condition,
         instr: u32,
@@ -161,6 +192,14 @@ impl ArmInstr {
                 } else {
                     write!(f, "{proc}{cond}{s}", s = if *s { "s" } else { "" })
                 }
+            }
+            ArmInstr::Multiply { cond, a, s, .. } => {
+                write!(
+                    f,
+                    "{proc}{cond}{s}",
+                    proc = if *a { "mla" } else { "mul" },
+                    s = if *s { "s" } else { "" }
+                )
             }
             ArmInstr::BranchAndExchange { cond, .. } => write!(f, "bx{cond}"),
             ArmInstr::Branch { cond, link, .. } => {
@@ -183,6 +222,15 @@ impl ArmInstr {
                 }
                 _ => write!(f, "{rd}, {rn}, {op2:x}"),
             },
+            ArmInstr::Multiply {
+                rd, rn, rs, rm, a, ..
+            } => {
+                if *a {
+                    write!(f, "{rd}, {rm}, {rs}, {rn}")
+                } else {
+                    write!(f, "{rd}, {rm}, {rs}")
+                }
+            }
             ArmInstr::BranchAndExchange { rn, .. } => write!(f, "{rn}"),
             ArmInstr::Branch { target, .. } => write!(f, "0x{:08x}", target),
             ArmInstr::PsrToRegister { rd, src, .. } => write!(f, "{rd}, {src}"),
@@ -219,6 +267,7 @@ impl ArmInstr {
         match self {
             ArmInstr::Undefined { cond, .. } => *cond,
             ArmInstr::DataProc { cond, .. } => *cond,
+            ArmInstr::Multiply { cond, .. } => *cond,
             ArmInstr::BranchAndExchange { cond, .. } => *cond,
             ArmInstr::Branch { cond, .. } => *cond,
             ArmInstr::PsrToRegister { cond, .. } => *cond,
@@ -1034,6 +1083,15 @@ mod tests {
         [disasm_msr_spsr_flg_reg, "msr spsr_flg, r9", "msr", "spsr_flg, r9"],
         [disasm_msr_cpsr_flg_imm, "msr cpsr_flg, #0x10", "msr", "cpsr_flg, #0x10"],
         [disasm_msr_spsr_flg_imm, "msr spsr_flg, #0x10", "msr", "spsr_flg, #0x10"],
+    }
+
+    // Multiply
+    #[rustfmt::skip]
+    make_tests! {
+        [disasm_mul, "mul r0, r1, r2", "mul", "r0, r1, r2"],
+        [disasm_muls, "muls r0, r1, r2", "muls", "r0, r1, r2"],
+        [disasm_mla, "mla r0, r1, r2, r3", "mla", "r0, r1, r2, r3"],
+        [disasm_mlas, "mlas r0, r1, r2, r3", "mlas", "r0, r1, r2, r3"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
