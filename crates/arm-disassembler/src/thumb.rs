@@ -1,6 +1,7 @@
 use std::fmt::Write;
 
 pub fn disasm(instr: u16, address: u32) -> ThumbInstr {
+    // should be all instructions in the range: 0-0xE7FF
     ThumbInstr::Undefined(instr)
 }
 

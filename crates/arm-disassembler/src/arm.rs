@@ -11,6 +11,8 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0FBFF000, 0x0328F000, disasm_msr_flg_imm),
     (0x0FC000F0, 0x00000090, disasm_mul_and_mla),
     (0x0F8000F0, 0x00800090, disasm_mul_and_mla_long),
+    (0x0E000000, 0x04000000, disasm_single_data_transfer), // single data transfer immediate offset
+    (0x0E000010, 0x06000000, disasm_single_data_transfer), // single data transfer offset shift by imm
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
     (0x0E000000, 0x02000000, disasm_dataproc), // dataproc immediate op2
     (0x0E000010, 0x00000000, disasm_dataproc), // dataproc op2 shift by imm
@@ -20,6 +22,11 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
 pub fn disasm(instr: u32, address: u32) -> ArmInstr {
     for &(mask, check, disasm_fn) in DISASM_TABLE {
         if instr & mask == check {
+            #[cfg(test)]
+            {
+                println!("match; address=0x{address:08x}; instr=0x{instr:08x}; mask=0x{mask:08x}; check=0x{check:08x}");
+            }
+
             return disasm_fn(instr, address);
         }
     }
@@ -54,9 +61,9 @@ pub fn disasm_dataproc(instr: u32, _address: u32) -> ArmInstr {
         rd: Register::from((instr >> 12) & 0xF),
         rn: Register::from((instr >> 16) & 0xF),
         op2: if (instr & 0x02000000) == 0 {
-            DataProcOperand2::from_register(instr)
+            RegisterOrImmediate::from_maybe_shifted_register(instr)
         } else {
-            DataProcOperand2::from_imm(instr)
+            RegisterOrImmediate::from_rotated_imm(instr)
         },
     }
 }
@@ -152,6 +159,41 @@ pub fn disasm_mul_and_mla_long(instr: u32, _address: u32) -> ArmInstr {
     }
 }
 
+pub fn disasm_single_data_transfer(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from(instr.get_bit_range(28..=31));
+    ArmInstr::SingleDataTransfer {
+        cond,
+        op: if instr.get_bit(20) {
+            SDTOp::Load
+        } else {
+            SDTOp::Store
+        },
+        data_type: if instr.get_bit(22) {
+            SDTDataType::Byte
+        } else {
+            SDTDataType::Word
+        },
+        indexing: if instr.get_bit(24) {
+            SDTIndexing::Pre
+        } else {
+            SDTIndexing::Post
+        },
+        direction: if instr.get_bit(23) {
+            SDTDirection::Up
+        } else {
+            SDTDirection::Down
+        },
+        writeback: instr.get_bit(21),
+        rn: Register::from(instr.get_bit_range(16..=19)),
+        rd: Register::from(instr.get_bit_range(12..=15)),
+        offset: if instr.get_bit(25) {
+            RegisterOrImmediate::from_maybe_shifted_register(instr)
+        } else {
+            RegisterOrImmediate::Immediate(instr.get_bit_range(0..=11))
+        },
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ArmInstr {
     DataProc {
@@ -160,7 +202,7 @@ pub enum ArmInstr {
         s: bool,
         rd: Register,
         rn: Register,
-        op2: DataProcOperand2,
+        op2: RegisterOrImmediate,
     },
 
     BranchAndExchange {
@@ -207,6 +249,18 @@ pub enum ArmInstr {
         rm: Register,
     },
 
+    SingleDataTransfer {
+        cond: Condition,
+        op: SDTOp,
+        data_type: SDTDataType,
+        direction: SDTDirection,
+        indexing: SDTIndexing,
+        writeback: bool,
+        rn: Register,
+        rd: Register,
+        offset: RegisterOrImmediate,
+    },
+
     Undefined {
         cond: Condition,
         instr: u32,
@@ -246,6 +300,35 @@ impl ArmInstr {
             }
             ArmInstr::PsrToRegister { cond, .. } => write!(f, "mrs{cond}"),
             ArmInstr::RegisterToPsr { cond, .. } => write!(f, "msr{cond}"),
+            ArmInstr::SingleDataTransfer {
+                cond,
+                op,
+                indexing,
+                writeback,
+                data_type,
+                ..
+            } => {
+                let proc = match op {
+                    SDTOp::Load => "ldr",
+                    SDTOp::Store => "str",
+                };
+                let dt = match data_type {
+                    SDTDataType::Byte => "b",
+                    SDTDataType::Halfword => "h",
+                    SDTDataType::SignedByte => "sb",
+                    SDTDataType::SignedHalfword => "sh",
+                    SDTDataType::Word => "",
+                };
+                let t = if matches!(data_type, SDTDataType::Word | SDTDataType::Byte)
+                    && *indexing == SDTIndexing::Post
+                    && *writeback
+                {
+                    "t"
+                } else {
+                    ""
+                };
+                write!(f, "{proc}{cond}{dt}{t}")
+            }
         }
     }
 
@@ -283,13 +366,40 @@ impl ArmInstr {
             ArmInstr::Branch { target, .. } => write!(f, "0x{:08x}", target),
             ArmInstr::PsrToRegister { rd, src, .. } => write!(f, "{rd}, {src}"),
             ArmInstr::RegisterToPsr { dst, src, .. } => write!(f, "{dst}, {src:x}"),
+            ArmInstr::SingleDataTransfer {
+                rd,
+                rn,
+                indexing,
+                writeback,
+                offset,
+                direction,
+                ..
+            } => match indexing {
+                SDTIndexing::Pre => {
+                    let w = if *writeback { "!" } else { "" };
+                    let u = if *direction == SDTDirection::Down {
+                        "-"
+                    } else {
+                        ""
+                    };
+                    write!(f, "{rd}, [{rn}, {u}{offset:x}]{w}")
+                }
+                SDTIndexing::Post => {
+                    let u = if *direction == SDTDirection::Down {
+                        "-"
+                    } else {
+                        ""
+                    };
+                    write!(f, "{rd}, [{rn}], {u}{offset:x}")
+                }
+            },
         }
     }
 
     pub(crate) fn write_comment<W: Write>(&self, mut f: W) -> std::fmt::Result {
         match self {
             &ArmInstr::DataProc {
-                op2: DataProcOperand2::Immediate(imm),
+                op2: RegisterOrImmediate::Immediate(imm),
                 ..
             } => {
                 let signed_imm = imm as i32;
@@ -321,51 +431,51 @@ impl ArmInstr {
             ArmInstr::Branch { cond, .. } => *cond,
             ArmInstr::PsrToRegister { cond, .. } => *cond,
             ArmInstr::RegisterToPsr { cond, .. } => *cond,
+            ArmInstr::SingleDataTransfer { cond, .. } => *cond,
         }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum DataProcOperand2 {
+pub enum RegisterOrImmediate {
     Immediate(u32),
-    Register(Register, Option<Shift>),
+    Register(Register),
+    ShiftedRegister(Register, Shift),
 }
 
-impl DataProcOperand2 {
-    pub fn from_register(val: u32) -> Self {
+impl RegisterOrImmediate {
+    pub fn from_maybe_shifted_register(val: u32) -> Self {
         let rm = Register::from(val & 0xF);
         let shift = Shift::from(val >> 4);
 
         if matches!(shift, Shift::Imm(ImmShift::Lsl(0))) {
-            DataProcOperand2::Register(rm, None)
+            RegisterOrImmediate::Register(rm)
         } else {
-            DataProcOperand2::Register(rm, Some(shift))
+            RegisterOrImmediate::ShiftedRegister(rm, shift)
         }
     }
 
-    pub fn from_imm(val: u32) -> Self {
+    pub fn from_rotated_imm(val: u32) -> Self {
         let imm = val & 0xFF;
         let rot = (val >> 8) & 0xF;
-        DataProcOperand2::Immediate(imm.rotate_right(rot * 2))
+        RegisterOrImmediate::Immediate(imm.rotate_right(rot * 2))
     }
 }
 
-impl std::fmt::Display for DataProcOperand2 {
+impl std::fmt::Display for RegisterOrImmediate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataProcOperand2::Immediate(imm) => write!(f, "#{imm}"),
-            DataProcOperand2::Register(reg, shift) => match shift {
-                Some(shift) => write!(f, "{}, {}", reg, shift),
-                None => write!(f, "{}", reg),
-            },
+            RegisterOrImmediate::Immediate(imm) => write!(f, "#{imm}"),
+            RegisterOrImmediate::Register(reg) => write!(f, "{}", reg),
+            RegisterOrImmediate::ShiftedRegister(reg, shift) => write!(f, "{}, {}", reg, shift),
         }
     }
 }
 
-impl std::fmt::LowerHex for DataProcOperand2 {
+impl std::fmt::LowerHex for RegisterOrImmediate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataProcOperand2::Immediate(imm) => write!(f, "#0x{imm:x}"),
+            RegisterOrImmediate::Immediate(imm) => write!(f, "#0x{imm:x}"),
             _ => std::fmt::Display::fmt(self, f),
         }
     }
@@ -700,42 +810,56 @@ impl std::fmt::Display for Condition {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum RegisterOrImmediate {
-    Register(Register),
-    Immediate(u32),
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SDTIndexing {
+    Pre,
+    Post,
 }
 
-impl std::fmt::Display for RegisterOrImmediate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RegisterOrImmediate::Register(r) => write!(f, "{r}"),
-            RegisterOrImmediate::Immediate(imm) => write!(f, "#{imm}"),
-        }
-    }
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SDTDataType {
+    Word,
+    Byte,
+    Halfword,
+    SignedHalfword,
+    SignedByte,
 }
 
-impl std::fmt::LowerHex for RegisterOrImmediate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RegisterOrImmediate::Immediate(imm) => write!(f, "#0x{imm:x}"),
-            _ => std::fmt::Display::fmt(self, f),
-        }
-    }
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SDTOp {
+    Load,
+    Store,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SDTDirection {
+    Up,
+    Down,
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::arm::Condition;
+
     use super::disasm;
     use arm_devkit::LinkerScriptWeakRef;
     use std::sync::RwLock;
+    use util::bits::BitOps as _;
 
     #[test]
     fn disasm_undef() {
-        let dis = disasm(0xE777F777, 0x0);
-        assert_eq!("undef", dis.mnemonic().to_string());
-        assert_eq!("0xe777f777", dis.arguments().to_string());
-        assert_eq!("", dis.comment().to_string());
+        // UNDEFINED RANGE:
+        // XXXX011XXXXXXXXXXXXXXXXXXXX1XXXX
+        let rand = util::wyhash::WyHash::new(0x8a88c0726f22dadd);
+        for bits in rand.take(4096) {
+            let bits = bits as u32;
+            let instr = (bits & 0xF1FFFFEF) | 0x06000010;
+            let cond = Condition::from(instr.get_bit_range(28..=31));
+            let dis = disasm(instr, 0x0);
+            assert_eq!(format!("undef{cond}"), dis.mnemonic().to_string());
+            assert_eq!(format!("0x{instr:08x}"), dis.arguments().to_string());
+            assert_eq!("", dis.comment().to_string());
+        }
     }
 
     macro_rules! make_test {
@@ -1150,6 +1274,70 @@ mod tests {
         [disasm_umlal, "umlal r0, r1, r2, r3", "umlal", "r0, r1, r2, r3"],
         [disasm_smull, "smull r0, r1, r2, r3", "smull", "r0, r1, r2, r3"],
         [disasm_smlal, "smlal r0, r1, r2, r3", "smlal", "r0, r1, r2, r3"],
+    }
+
+    // Single Data Transfer
+    #[rustfmt::skip]
+    make_tests! {
+        // LDR
+        [disasm_ldr_imm_pre, "ldr r0, [r1, #0x4]", "ldr", "r0, [r1, #0x4]"],
+        [disasm_ldr_imm_pre_writeback, "ldr r0, [r1, #0x4]!", "ldr", "r0, [r1, #0x4]!"],
+        [disasm_ldr_reg_pre, "ldr r0, [r1, r2]", "ldr", "r0, [r1, r2]"],
+        [disasm_ldr_reg_pre_writeback, "ldr r0, [r1, r2]!", "ldr", "r0, [r1, r2]!"],
+        [disasm_ldr_reg_pre_lsl, "ldr r0, [r1, r2, lsl #4]", "ldr", "r0, [r1, r2, lsl #4]"],
+        [disasm_ldr_reg_pre_lsl_writeback, "ldr r0, [r1, r2, lsl #4]!", "ldr", "r0, [r1, r2, lsl #4]!"],
+        [disasm_ldr_reg_pre_lsr, "ldr r0, [r1, r2, lsr #4]", "ldr", "r0, [r1, r2, lsr #4]"],
+        [disasm_ldr_reg_pre_lsr_writeback, "ldr r0, [r1, r2, lsr #4]!", "ldr", "r0, [r1, r2, lsr #4]!"],
+        [disasm_ldr_reg_pre_asr, "ldr r0, [r1, r2, asr #4]", "ldr", "r0, [r1, r2, asr #4]"],
+        [disasm_ldr_reg_pre_asr_writeback, "ldr r0, [r1, r2, asr #4]!", "ldr", "r0, [r1, r2, asr #4]!"],
+        [disasm_ldr_reg_pre_ror, "ldr r0, [r1, r2, ror #4]", "ldr", "r0, [r1, r2, ror #4]"],
+        [disasm_ldr_reg_pre_ror_writeback, "ldr r0, [r1, r2, ror #4]!", "ldr", "r0, [r1, r2, ror #4]!"],
+        [disasm_ldr_reg_pre_rrx, "ldr r0, [r1, r2, rrx]", "ldr", "r0, [r1, r2, rrx]"],
+        [disasm_ldr_reg_pre_rrx_writeback, "ldr r0, [r1, r2, rrx]!", "ldr", "r0, [r1, r2, rrx]!"],
+        [disasm_ldr_imm_post, "ldr r0, [r1], #0x4", "ldr", "r0, [r1], #0x4"],
+        [disasm_ldr_reg_post, "ldr r0, [r1], r2", "ldr", "r0, [r1], r2"],
+        [disasm_ldr_reg_post_lsl, "ldr r0, [r1], r2, lsl #4", "ldr", "r0, [r1], r2, lsl #4"],
+        [disasm_ldr_reg_post_lsr, "ldr r0, [r1], r2, lsr #4", "ldr", "r0, [r1], r2, lsr #4"],
+        [disasm_ldr_reg_post_asr, "ldr r0, [r1], r2, asr #4", "ldr", "r0, [r1], r2, asr #4"],
+        [disasm_ldr_reg_post_ror, "ldr r0, [r1], r2, ror #4", "ldr", "r0, [r1], r2, ror #4"],
+        [disasm_ldr_reg_post_rrx, "ldr r0, [r1], r2, rrx", "ldr", "r0, [r1], r2, rrx"],
+        [disasm_ldrt_imm_post, "ldrt r0, [r1], #0x4", "ldrt", "r0, [r1], #0x4"],
+        [disasm_ldrt_reg_post, "ldrt r0, [r1], r2", "ldrt", "r0, [r1], r2"],
+        [disasm_ldrt_reg_post_lsl, "ldrt r0, [r1], r2, lsl #4", "ldrt", "r0, [r1], r2, lsl #4"],
+        [disasm_ldrt_reg_post_lsr, "ldrt r0, [r1], r2, lsr #4", "ldrt", "r0, [r1], r2, lsr #4"],
+        [disasm_ldrt_reg_post_asr, "ldrt r0, [r1], r2, asr #4", "ldrt", "r0, [r1], r2, asr #4"],
+        [disasm_ldrt_reg_post_ror, "ldrt r0, [r1], r2, ror #4", "ldrt", "r0, [r1], r2, ror #4"],
+        [disasm_ldrt_reg_post_rrx, "ldrt r0, [r1], r2, rrx", "ldrt", "r0, [r1], r2, rrx"],
+
+        // STR
+        [disasm_str_imm_pre, "str r0, [r1, #0x4]", "str", "r0, [r1, #0x4]"],
+        [disasm_str_imm_pre_writeback, "str r0, [r1, #0x4]!", "str", "r0, [r1, #0x4]!"],
+        [disasm_str_reg_pre, "str r0, [r1, r2]", "str", "r0, [r1, r2]"],
+        [disasm_str_reg_pre_writeback, "str r0, [r1, r2]!", "str", "r0, [r1, r2]!"],
+        [disasm_str_reg_pre_lsl, "str r0, [r1, r2, lsl #4]", "str", "r0, [r1, r2, lsl #4]"],
+        [disasm_str_reg_pre_lsl_writeback, "str r0, [r1, r2, lsl #4]!", "str", "r0, [r1, r2, lsl #4]!"],
+        [disasm_str_reg_pre_lsr, "str r0, [r1, r2, lsr #4]", "str", "r0, [r1, r2, lsr #4]"],
+        [disasm_str_reg_pre_lsr_writeback, "str r0, [r1, r2, lsr #4]!", "str", "r0, [r1, r2, lsr #4]!"],
+        [disasm_str_reg_pre_asr, "str r0, [r1, r2, asr #4]", "str", "r0, [r1, r2, asr #4]"],
+        [disasm_str_reg_pre_asr_writeback, "str r0, [r1, r2, asr #4]!", "str", "r0, [r1, r2, asr #4]!"],
+        [disasm_str_reg_pre_ror, "str r0, [r1, r2, ror #4]", "str", "r0, [r1, r2, ror #4]"],
+        [disasm_str_reg_pre_ror_writeback, "str r0, [r1, r2, ror #4]!", "str", "r0, [r1, r2, ror #4]!"],
+        [disasm_str_reg_pre_rrx, "str r0, [r1, r2, rrx]", "str", "r0, [r1, r2, rrx]"],
+        [disasm_str_reg_pre_rrx_writeback, "str r0, [r1, r2, rrx]!", "str", "r0, [r1, r2, rrx]!"],
+        [disasm_str_imm_post, "str r0, [r1], #0x4", "str", "r0, [r1], #0x4"],
+        [disasm_str_reg_post, "str r0, [r1], r2", "str", "r0, [r1], r2"],
+        [disasm_str_reg_post_lsl, "str r0, [r1], r2, lsl #4", "str", "r0, [r1], r2, lsl #4"],
+        [disasm_str_reg_post_lsr, "str r0, [r1], r2, lsr #4", "str", "r0, [r1], r2, lsr #4"],
+        [disasm_str_reg_post_asr, "str r0, [r1], r2, asr #4", "str", "r0, [r1], r2, asr #4"],
+        [disasm_str_reg_post_ror, "str r0, [r1], r2, ror #4", "str", "r0, [r1], r2, ror #4"],
+        [disasm_str_reg_post_rrx, "str r0, [r1], r2, rrx", "str", "r0, [r1], r2, rrx"],
+        [disasm_strt_imm_post, "strt r0, [r1], #0x4", "strt", "r0, [r1], #0x4"],
+        [disasm_strt_reg_post, "strt r0, [r1], r2", "strt", "r0, [r1], r2"],
+        [disasm_strt_reg_post_lsl, "strt r0, [r1], r2, lsl #4", "strt", "r0, [r1], r2, lsl #4"],
+        [disasm_strt_reg_post_lsr, "strt r0, [r1], r2, lsr #4", "strt", "r0, [r1], r2, lsr #4"],
+        [disasm_strt_reg_post_asr, "strt r0, [r1], r2, asr #4", "strt", "r0, [r1], r2, asr #4"],
+        [disasm_strt_reg_post_ror, "strt r0, [r1], r2, ror #4", "strt", "r0, [r1], r2, ror #4"],
+        [disasm_strt_reg_post_rrx, "strt r0, [r1], r2, rrx", "strt", "r0, [r1], r2, rrx"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
