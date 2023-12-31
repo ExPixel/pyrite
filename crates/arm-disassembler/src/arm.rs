@@ -24,12 +24,12 @@ pub fn disasm(instr: u32, address: u32) -> ArmInstr {
         }
     }
 
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     ArmInstr::Undefined { cond, instr }
 }
 
 pub fn disasm_bx(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     ArmInstr::BranchAndExchange {
         cond,
         rn: Register::from(instr & 0xF),
@@ -37,7 +37,7 @@ pub fn disasm_bx(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_b_and_bl(instr: u32, address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let pc = address.wrapping_add(8);
     let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
     let target = pc.wrapping_add(offset);
@@ -46,7 +46,7 @@ pub fn disasm_b_and_bl(instr: u32, address: u32) -> ArmInstr {
 }
 
 pub fn disasm_dataproc(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     ArmInstr::DataProc {
         cond,
         proc: DataProc::from((instr >> 21) & 0xF),
@@ -62,7 +62,7 @@ pub fn disasm_dataproc(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_mrs(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let rd = Register::from(instr.get_bit_range(12..=15));
     let src = if instr.get_bit(22) {
         Psr::Spsr(false)
@@ -73,7 +73,7 @@ pub fn disasm_mrs(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_msr_all(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let dst = if instr.get_bit(22) {
         Psr::Spsr(false)
     } else {
@@ -85,7 +85,7 @@ pub fn disasm_msr_all(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_msr_flg_reg(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let dst = if instr.get_bit(22) {
         Psr::Spsr(true)
     } else {
@@ -97,7 +97,7 @@ pub fn disasm_msr_flg_reg(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_msr_flg_imm(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let dst = if instr.get_bit(22) {
         Psr::Spsr(true)
     } else {
@@ -111,7 +111,7 @@ pub fn disasm_msr_flg_imm(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_mul_and_mla(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let a = instr.get_bit(21);
     let s = instr.get_bit(20);
     let rd = Register::from(instr.get_bit_range(16..=19));
@@ -131,7 +131,7 @@ pub fn disasm_mul_and_mla(instr: u32, _address: u32) -> ArmInstr {
 }
 
 pub fn disasm_mul_and_mla_long(instr: u32, _address: u32) -> ArmInstr {
-    let cond = Condition::from((instr >> 28) & 0xF);
+    let cond = Condition::from(instr.get_bit_range(28..=31));
     let u = instr.get_bit(22);
     let a = instr.get_bit(21);
     let s = instr.get_bit(20);
