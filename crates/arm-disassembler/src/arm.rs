@@ -3,6 +3,7 @@ use std::fmt::Write;
 use util::bits::BitOps as _;
 
 type ArmDisasmFn = fn(u32, u32) -> ArmInstr;
+#[rustfmt::skip]
 const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0FFFFFF0, 0x012FFF10, disasm_bx),
     (0x0FBF0FFF, 0x010F0000, disasm_mrs),
@@ -13,6 +14,7 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0F8000F0, 0x00800090, disasm_mul_and_mla_long),
     (0x0E000000, 0x04000000, disasm_single_data_transfer), // single data transfer immediate offset
     (0x0E000010, 0x06000000, disasm_single_data_transfer), // single data transfer offset shift by imm
+    (0x0E400F90, 0x00000090, disasm_signed_and_halfword_data_transfer),
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
     (0x0E000000, 0x02000000, disasm_dataproc), // dataproc immediate op2
     (0x0E000010, 0x00000000, disasm_dataproc), // dataproc op2 shift by imm
@@ -191,6 +193,39 @@ pub fn disasm_single_data_transfer(instr: u32, _address: u32) -> ArmInstr {
         } else {
             RegisterOrImmediate::Immediate(instr.get_bit_range(0..=11))
         },
+    }
+}
+
+pub fn disasm_signed_and_halfword_data_transfer(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from(instr.get_bit_range(28..=31));
+    ArmInstr::SingleDataTransfer {
+        cond,
+        op: if instr.get_bit(20) {
+            SDTOp::Load
+        } else {
+            SDTOp::Store
+        },
+        data_type: match instr.get_bit_range(5..=6) {
+            0b00 => unreachable!("SWP not LDRH/STRH/LDRSB/LDRSH"),
+            0b01 => SDTDataType::Halfword,
+            0b10 => SDTDataType::SignedByte,
+            0b11 => SDTDataType::SignedHalfword,
+            _ => unreachable!(),
+        },
+        indexing: if instr.get_bit(24) {
+            SDTIndexing::Pre
+        } else {
+            SDTIndexing::Post
+        },
+        direction: if instr.get_bit(23) {
+            SDTDirection::Up
+        } else {
+            SDTDirection::Down
+        },
+        writeback: instr.get_bit(21),
+        rn: Register::from(instr.get_bit_range(16..=19)),
+        rd: Register::from(instr.get_bit_range(12..=15)),
+        offset: RegisterOrImmediate::Register(Register::from(instr.get_bit_range(0..=3))),
     }
 }
 
@@ -1338,6 +1373,86 @@ mod tests {
         [disasm_strt_reg_post_asr, "strt r0, [r1], r2, asr #4", "strt", "r0, [r1], r2, asr #4"],
         [disasm_strt_reg_post_ror, "strt r0, [r1], r2, ror #4", "strt", "r0, [r1], r2, ror #4"],
         [disasm_strt_reg_post_rrx, "strt r0, [r1], r2, rrx", "strt", "r0, [r1], r2, rrx"],
+
+        // LDRB
+        [disasm_ldrb_imm_pre, "ldrb r0, [r1, #0x4]", "ldrb", "r0, [r1, #0x4]"],
+        [disasm_ldrb_imm_pre_writeback, "ldrb r0, [r1, #0x4]!", "ldrb", "r0, [r1, #0x4]!"],
+        [disasm_ldrb_reg_pre, "ldrb r0, [r1, r2]", "ldrb", "r0, [r1, r2]"],
+        [disasm_ldrb_reg_pre_writeback, "ldrb r0, [r1, r2]!", "ldrb", "r0, [r1, r2]!"],
+        [disasm_ldrb_reg_pre_lsl, "ldrb r0, [r1, r2, lsl #4]", "ldrb", "r0, [r1, r2, lsl #4]"],
+        [disasm_ldrb_reg_pre_lsl_writeback, "ldrb r0, [r1, r2, lsl #4]!", "ldrb", "r0, [r1, r2, lsl #4]!"],
+        [disasm_ldrb_reg_pre_lsr, "ldrb r0, [r1, r2, lsr #4]", "ldrb", "r0, [r1, r2, lsr #4]"],
+        [disasm_ldrb_reg_pre_lsr_writeback, "ldrb r0, [r1, r2, lsr #4]!", "ldrb", "r0, [r1, r2, lsr #4]!"],
+        [disasm_ldrb_reg_pre_asr, "ldrb r0, [r1, r2, asr #4]", "ldrb", "r0, [r1, r2, asr #4]"],
+        [disasm_ldrb_reg_pre_asr_writeback, "ldrb r0, [r1, r2, asr #4]!", "ldrb", "r0, [r1, r2, asr #4]!"],
+        [disasm_ldrb_reg_pre_ror, "ldrb r0, [r1, r2, ror #4]", "ldrb", "r0, [r1, r2, ror #4]"],
+        [disasm_ldrb_reg_pre_ror_writeback, "ldrb r0, [r1, r2, ror #4]!", "ldrb", "r0, [r1, r2, ror #4]!"],
+        [disasm_ldrb_reg_pre_rrx, "ldrb r0, [r1, r2, rrx]", "ldrb", "r0, [r1, r2, rrx]"],
+        [disasm_ldrb_reg_pre_rrx_writeback, "ldrb r0, [r1, r2, rrx]!", "ldrb", "r0, [r1, r2, rrx]!"],
+        [disasm_ldrb_imm_post, "ldrb r0, [r1], #0x4", "ldrb", "r0, [r1], #0x4"],
+        [disasm_ldrb_reg_post, "ldrb r0, [r1], r2", "ldrb", "r0, [r1], r2"],
+        [disasm_ldrb_reg_post_lsl, "ldrb r0, [r1], r2, lsl #4", "ldrb", "r0, [r1], r2, lsl #4"],
+        [disasm_ldrb_reg_post_lsr, "ldrb r0, [r1], r2, lsr #4", "ldrb", "r0, [r1], r2, lsr #4"],
+        [disasm_ldrb_reg_post_asr, "ldrb r0, [r1], r2, asr #4", "ldrb", "r0, [r1], r2, asr #4"],
+        [disasm_ldrb_reg_post_ror, "ldrb r0, [r1], r2, ror #4", "ldrb", "r0, [r1], r2, ror #4"],
+        [disasm_ldrb_reg_post_rrx, "ldrb r0, [r1], r2, rrx", "ldrb", "r0, [r1], r2, rrx"],
+        [disasm_ldrbt_imm_post, "ldrbt r0, [r1], #0x4", "ldrbt", "r0, [r1], #0x4"],
+        [disasm_ldrbt_reg_post, "ldrbt r0, [r1], r2", "ldrbt", "r0, [r1], r2"],
+        [disasm_ldrbt_reg_post_lsl, "ldrbt r0, [r1], r2, lsl #4", "ldrbt", "r0, [r1], r2, lsl #4"],
+        [disasm_ldrbt_reg_post_lsr, "ldrbt r0, [r1], r2, lsr #4", "ldrbt", "r0, [r1], r2, lsr #4"],
+        [disasm_ldrbt_reg_post_asr, "ldrbt r0, [r1], r2, asr #4", "ldrbt", "r0, [r1], r2, asr #4"],
+        [disasm_ldrbt_reg_post_ror, "ldrbt r0, [r1], r2, ror #4", "ldrbt", "r0, [r1], r2, ror #4"],
+        [disasm_ldrbt_reg_post_rrx, "ldrbt r0, [r1], r2, rrx", "ldrbt", "r0, [r1], r2, rrx"],
+
+        // STRB
+        [disasm_strb_imm_pre, "strb r0, [r1, #0x4]", "strb", "r0, [r1, #0x4]"],
+        [disasm_strb_imm_pre_writeback, "strb r0, [r1, #0x4]!", "strb", "r0, [r1, #0x4]!"],
+        [disasm_strb_reg_pre, "strb r0, [r1, r2]", "strb", "r0, [r1, r2]"],
+        [disasm_strb_reg_pre_writeback, "strb r0, [r1, r2]!", "strb", "r0, [r1, r2]!"],
+        [disasm_strb_reg_pre_lsl, "strb r0, [r1, r2, lsl #4]", "strb", "r0, [r1, r2, lsl #4]"],
+        [disasm_strb_reg_pre_lsl_writeback, "strb r0, [r1, r2, lsl #4]!", "strb", "r0, [r1, r2, lsl #4]!"],
+        [disasm_strb_reg_pre_lsr, "strb r0, [r1, r2, lsr #4]", "strb", "r0, [r1, r2, lsr #4]"],
+        [disasm_strb_reg_pre_lsr_writeback, "strb r0, [r1, r2, lsr #4]!", "strb", "r0, [r1, r2, lsr #4]!"],
+        [disasm_strb_reg_pre_asr, "strb r0, [r1, r2, asr #4]", "strb", "r0, [r1, r2, asr #4]"],
+        [disasm_strb_reg_pre_asr_writeback, "strb r0, [r1, r2, asr #4]!", "strb", "r0, [r1, r2, asr #4]!"],
+        [disasm_strb_reg_pre_ror, "strb r0, [r1, r2, ror #4]", "strb", "r0, [r1, r2, ror #4]"],
+        [disasm_strb_reg_pre_ror_writeback, "strb r0, [r1, r2, ror #4]!", "strb", "r0, [r1, r2, ror #4]!"],
+        [disasm_strb_reg_pre_rrx, "strb r0, [r1, r2, rrx]", "strb", "r0, [r1, r2, rrx]"],
+        [disasm_strb_reg_pre_rrx_writeback, "strb r0, [r1, r2, rrx]!", "strb", "r0, [r1, r2, rrx]!"],
+        [disasm_strb_imm_post, "strb r0, [r1], #0x4", "strb", "r0, [r1], #0x4"],
+        [disasm_strb_reg_post, "strb r0, [r1], r2", "strb", "r0, [r1], r2"],
+        [disasm_strb_reg_post_lsl, "strb r0, [r1], r2, lsl #4", "strb", "r0, [r1], r2, lsl #4"],
+        [disasm_strb_reg_post_lsr, "strb r0, [r1], r2, lsr #4", "strb", "r0, [r1], r2, lsr #4"],
+        [disasm_strb_reg_post_asr, "strb r0, [r1], r2, asr #4", "strb", "r0, [r1], r2, asr #4"],
+        [disasm_strb_reg_post_ror, "strb r0, [r1], r2, ror #4", "strb", "r0, [r1], r2, ror #4"],
+        [disasm_strb_reg_post_rrx, "strb r0, [r1], r2, rrx", "strb", "r0, [r1], r2, rrx"],
+        [disasm_strbt_imm_post, "strbt r0, [r1], #0x4", "strbt", "r0, [r1], #0x4"],
+        [disasm_strbt_reg_post, "strbt r0, [r1], r2", "strbt", "r0, [r1], r2"],
+        [disasm_strbt_reg_post_lsl, "strbt r0, [r1], r2, lsl #4", "strbt", "r0, [r1], r2, lsl #4"],
+        [disasm_strbt_reg_post_lsr, "strbt r0, [r1], r2, lsr #4", "strbt", "r0, [r1], r2, lsr #4"],
+        [disasm_strbt_reg_post_asr, "strbt r0, [r1], r2, asr #4", "strbt", "r0, [r1], r2, asr #4"],
+        [disasm_strbt_reg_post_ror, "strbt r0, [r1], r2, ror #4", "strbt", "r0, [r1], r2, ror #4"],
+        [disasm_strbt_reg_post_rrx, "strbt r0, [r1], r2, rrx", "strbt", "r0, [r1], r2, rrx"],
+
+        // LDRH
+        [disasm_ldrh_reg_pre, "ldrh r0, [r1, r2]", "ldrh", "r0, [r1, r2]"],
+        [disasm_ldrh_reg_pre_writeback, "ldrh r0, [r1, r2]!", "ldrh", "r0, [r1, r2]!"],
+        [disasm_ldrh_reg_post, "ldrh r0, [r1], r2", "ldrh", "r0, [r1], r2"],
+
+        // STRH
+        [disasm_strh_reg_pre, "strh r0, [r1, r2]", "strh", "r0, [r1, r2]"],
+        [disasm_strh_reg_pre_writeback, "strh r0, [r1, r2]!", "strh", "r0, [r1, r2]!"],
+        [disasm_strh_reg_post, "strh r0, [r1], r2", "strh", "r0, [r1], r2"],
+
+        // LDRSB
+        [disasm_ldrsb_reg_pre, "ldrsb r0, [r1, r2]", "ldrsb", "r0, [r1, r2]"],
+        [disasm_ldrsb_reg_pre_writeback, "ldrsb r0, [r1, r2]!", "ldrsb", "r0, [r1, r2]!"],
+        [disasm_ldrsb_reg_post, "ldrsb r0, [r1], r2", "ldrsb", "r0, [r1], r2"],
+
+        // LDRSH
+        [disasm_ldrsh_reg_pre, "ldrsb r0, [r1, r2]", "ldrsb", "r0, [r1, r2]"],
+        [disasm_ldrsh_reg_pre_writeback, "ldrsb r0, [r1, r2]!", "ldrsb", "r0, [r1, r2]!"],
+        [disasm_ldrsh_reg_post, "ldrsb r0, [r1], r2", "ldrsb", "r0, [r1], r2"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
