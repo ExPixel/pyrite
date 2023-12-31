@@ -2,38 +2,56 @@ use std::fmt::Write;
 
 use util::bits::BitOps as _;
 
+type ArmDisasmFn = fn(u32, u32) -> ArmInstr;
+const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
+    (0x0FFFFFF0, 0x012FFF10, disasm_bx),
+    (0x0E000000, 0x0A000000, disasm_b_and_bl),
+    (0x0E000000, 0x02000000, disasm_dataproc),
+    (0x0E000010, 0x00000000, disasm_dataproc),
+    (0x0E000090, 0x00000010, disasm_dataproc),
+];
+
 pub fn disasm(instr: u32, address: u32) -> ArmInstr {
+    for &(mask, check, disasm_fn) in DISASM_TABLE {
+        if instr & mask == check {
+            return disasm_fn(instr, address);
+        }
+    }
+
+    let cond = Condition::from((instr >> 28) & 0xF);
+    ArmInstr::Undefined { cond, instr }
+}
+
+pub fn disasm_bx(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    ArmInstr::BranchAndExchange {
+        cond,
+        rn: Register::from(instr & 0xF),
+    }
+}
+
+pub fn disasm_b_and_bl(instr: u32, address: u32) -> ArmInstr {
     let cond = Condition::from((instr >> 28) & 0xF);
     let pc = address.wrapping_add(8);
+    let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
+    let target = pc.wrapping_add(offset);
+    let link = instr.get_bit(24);
+    ArmInstr::Branch { cond, target, link }
+}
 
-    if instr & 0x0FFFFFF0 == 0x012FFF10 {
-        ArmInstr::BranchAndExchange {
-            cond,
-            rn: Register::from(instr & 0xF),
-        }
-    } else if instr & 0x0E000000 == 0x0A000000 {
-        let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
-        let target = pc.wrapping_add(offset);
-        let link = instr.get_bit(24);
-        ArmInstr::Branch { cond, target, link }
-    } else if (instr & 0x0E000000 == 0x02000000)
-        || (instr & 0x0E000010 == 0x00000000)
-        || (instr & 0x0E000090 == 0x00000010)
-    {
-        ArmInstr::DataProc {
-            cond,
-            proc: DataProc::from((instr >> 21) & 0xF),
-            s: (instr & 0x00100000) != 0,
-            rd: Register::from((instr >> 12) & 0xF),
-            rn: Register::from((instr >> 16) & 0xF),
-            op2: if (instr & 0x02000000) == 0 {
-                DataProcOperand2::from_register(instr)
-            } else {
-                DataProcOperand2::from_imm(instr)
-            },
-        }
-    } else {
-        ArmInstr::Undefined { cond, instr }
+pub fn disasm_dataproc(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    ArmInstr::DataProc {
+        cond,
+        proc: DataProc::from((instr >> 21) & 0xF),
+        s: (instr & 0x00100000) != 0,
+        rd: Register::from((instr >> 12) & 0xF),
+        rn: Register::from((instr >> 16) & 0xF),
+        op2: if (instr & 0x02000000) == 0 {
+            DataProcOperand2::from_register(instr)
+        } else {
+            DataProcOperand2::from_imm(instr)
+        },
     }
 }
 
