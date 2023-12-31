@@ -5,10 +5,14 @@ use util::bits::BitOps as _;
 type ArmDisasmFn = fn(u32, u32) -> ArmInstr;
 const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0FFFFFF0, 0x012FFF10, disasm_bx),
+    (0x0FBF0FFF, 0x010F0000, disasm_mrs),
+    (0x0FBFFFF0, 0x0129F000, disasm_msr_all),
+    (0x0FBFFFF0, 0x0128F000, disasm_msr_flg_reg),
+    (0x0FBFF000, 0x0328F000, disasm_msr_flg_imm),
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
-    (0x0E000000, 0x02000000, disasm_dataproc),
-    (0x0E000010, 0x00000000, disasm_dataproc),
-    (0x0E000090, 0x00000010, disasm_dataproc),
+    (0x0E000000, 0x02000000, disasm_dataproc), // dataproc immediate op2
+    (0x0E000010, 0x00000000, disasm_dataproc), // dataproc op2 shift by imm
+    (0x0E000090, 0x00000010, disasm_dataproc), // dataproc op2 shift by reg
 ];
 
 pub fn disasm(instr: u32, address: u32) -> ArmInstr {
@@ -55,6 +59,55 @@ pub fn disasm_dataproc(instr: u32, _address: u32) -> ArmInstr {
     }
 }
 
+pub fn disasm_mrs(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    let rd = Register::from(instr.get_bit_range(12..=15));
+    let src = if instr.get_bit(22) {
+        Psr::Spsr(false)
+    } else {
+        Psr::Cpsr(false)
+    };
+    ArmInstr::PsrToRegister { cond, rd, src }
+}
+
+pub fn disasm_msr_all(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    let dst = if instr.get_bit(22) {
+        Psr::Spsr(false)
+    } else {
+        Psr::Cpsr(false)
+    };
+    let rm = Register::from(instr.get_bit_range(0..=3));
+    let src = RegisterOrImmediate::Register(rm);
+    ArmInstr::RegisterToPsr { cond, dst, src }
+}
+
+pub fn disasm_msr_flg_reg(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    let dst = if instr.get_bit(22) {
+        Psr::Spsr(true)
+    } else {
+        Psr::Cpsr(true)
+    };
+    let rm = Register::from(instr.get_bit_range(0..=3));
+    let src = RegisterOrImmediate::Register(rm);
+    ArmInstr::RegisterToPsr { cond, dst, src }
+}
+
+pub fn disasm_msr_flg_imm(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from((instr >> 28) & 0xF);
+    let dst = if instr.get_bit(22) {
+        Psr::Spsr(true)
+    } else {
+        Psr::Cpsr(true)
+    };
+
+    let imm = instr.get_bit_range(0..=7);
+    let rot = instr.get_bit_range(8..=11);
+    let src = RegisterOrImmediate::Immediate(imm.rotate_right(rot * 2));
+    ArmInstr::RegisterToPsr { cond, dst, src }
+}
+
 #[derive(Debug, Clone)]
 pub enum ArmInstr {
     DataProc {
@@ -75,6 +128,18 @@ pub enum ArmInstr {
         cond: Condition,
         target: u32,
         link: bool,
+    },
+
+    PsrToRegister {
+        cond: Condition,
+        rd: Register,
+        src: Psr,
+    },
+
+    RegisterToPsr {
+        cond: Condition,
+        dst: Psr,
+        src: RegisterOrImmediate,
     },
 
     Undefined {
@@ -101,6 +166,8 @@ impl ArmInstr {
             ArmInstr::Branch { cond, link, .. } => {
                 write!(f, "b{cond}{link}", link = if *link { "l" } else { "" })
             }
+            ArmInstr::PsrToRegister { cond, .. } => write!(f, "mrs{cond}"),
+            ArmInstr::RegisterToPsr { cond, .. } => write!(f, "msr{cond}"),
         }
     }
 
@@ -110,19 +177,28 @@ impl ArmInstr {
             ArmInstr::DataProc {
                 proc, rd, rn, op2, ..
             } => match proc {
-                DataProc::Mov | DataProc::Mvn => write!(f, "{rd}, {op2}"),
+                DataProc::Mov | DataProc::Mvn => write!(f, "{rd}, {op2:x}"),
                 DataProc::Tst | DataProc::Teq | DataProc::Cmp | DataProc::Cmn => {
-                    write!(f, "{rn}, {op2}")
+                    write!(f, "{rn}, {op2:x}")
                 }
-                _ => write!(f, "{rd}, {rn}, {op2}"),
+                _ => write!(f, "{rd}, {rn}, {op2:x}"),
             },
             ArmInstr::BranchAndExchange { rn, .. } => write!(f, "{rn}"),
             ArmInstr::Branch { target, .. } => write!(f, "0x{:08x}", target),
+            ArmInstr::PsrToRegister { rd, src, .. } => write!(f, "{rd}, {src}"),
+            ArmInstr::RegisterToPsr { dst, src, .. } => write!(f, "{dst}, {src:x}"),
         }
     }
 
-    pub(crate) fn write_comment<W: Write>(&self, mut _f: W) -> std::fmt::Result {
+    pub(crate) fn write_comment<W: Write>(&self, mut f: W) -> std::fmt::Result {
         match self {
+            &ArmInstr::DataProc {
+                op2: DataProcOperand2::Immediate(imm),
+                ..
+            } => {
+                let signed_imm = imm as i32;
+                write!(f, "rhs = {imm}")
+            }
             _ => Ok(()),
         }
     }
@@ -145,6 +221,8 @@ impl ArmInstr {
             ArmInstr::DataProc { cond, .. } => *cond,
             ArmInstr::BranchAndExchange { cond, .. } => *cond,
             ArmInstr::Branch { cond, .. } => *cond,
+            ArmInstr::PsrToRegister { cond, .. } => *cond,
+            ArmInstr::RegisterToPsr { cond, .. } => *cond,
         }
     }
 }
@@ -177,11 +255,20 @@ impl DataProcOperand2 {
 impl std::fmt::Display for DataProcOperand2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataProcOperand2::Immediate(imm) => write!(f, "#{}", imm),
+            DataProcOperand2::Immediate(imm) => write!(f, "#{imm}"),
             DataProcOperand2::Register(reg, shift) => match shift {
                 Some(shift) => write!(f, "{}, {}", reg, shift),
                 None => write!(f, "{}", reg),
             },
+        }
+    }
+}
+
+impl std::fmt::LowerHex for DataProcOperand2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataProcOperand2::Immediate(imm) => write!(f, "#0x{imm:x}"),
+            _ => std::fmt::Display::fmt(self, f),
         }
     }
 }
@@ -207,6 +294,15 @@ impl std::fmt::Display for Shift {
         match self {
             Shift::Imm(imm) => write!(f, "{}", imm),
             Shift::Reg(reg) => write!(f, "{}", reg),
+        }
+    }
+}
+
+impl std::fmt::LowerHex for Shift {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Shift::Imm(imm) => write!(f, "#0x{imm:x}"),
+            _ => std::fmt::Display::fmt(self, f),
         }
     }
 }
@@ -237,10 +333,22 @@ impl From<u32> for ImmShift {
 impl std::fmt::Display for ImmShift {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ImmShift::Lsl(imm) => write!(f, "lsl #{}", imm),
-            ImmShift::Lsr(imm) => write!(f, "lsr #{}", imm),
-            ImmShift::Asr(imm) => write!(f, "asr #{}", imm),
-            ImmShift::Ror(imm) => write!(f, "ror #{}", imm),
+            ImmShift::Lsl(imm) => write!(f, "lsl #{imm}"),
+            ImmShift::Lsr(imm) => write!(f, "lsr #{imm}"),
+            ImmShift::Asr(imm) => write!(f, "asr #{imm}"),
+            ImmShift::Ror(imm) => write!(f, "ror #{imm}"),
+            ImmShift::Rrx => write!(f, "rrx"),
+        }
+    }
+}
+
+impl std::fmt::LowerHex for ImmShift {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImmShift::Lsl(imm) => write!(f, "lsl #0x{imm:x}"),
+            ImmShift::Lsr(imm) => write!(f, "lsr #0x{imm:x}"),
+            ImmShift::Asr(imm) => write!(f, "asr #0x{imm:x}"),
+            ImmShift::Ror(imm) => write!(f, "ror #0x{imm:x}"),
             ImmShift::Rrx => write!(f, "rrx"),
         }
     }
@@ -341,6 +449,21 @@ impl std::fmt::Display for Register {
             Register::R13 => f.pad("sp"),
             Register::R14 => f.pad("lr"),
             Register::R15 => f.pad("pc"),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Psr {
+    Cpsr(/* flags only */ bool),
+    Spsr(/* flags only */ bool),
+}
+
+impl std::fmt::Display for Psr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Psr::Cpsr(flags_only) => write!(f, "cpsr{}", if *flags_only { "_flg" } else { "_all" }),
+            Psr::Spsr(flags_only) => write!(f, "spsr{}", if *flags_only { "_flg" } else { "_all" }),
         }
     }
 }
@@ -479,6 +602,30 @@ impl std::fmt::Display for Condition {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum RegisterOrImmediate {
+    Register(Register),
+    Immediate(u32),
+}
+
+impl std::fmt::Display for RegisterOrImmediate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegisterOrImmediate::Register(r) => write!(f, "{r}"),
+            RegisterOrImmediate::Immediate(imm) => write!(f, "#{imm}"),
+        }
+    }
+}
+
+impl std::fmt::LowerHex for RegisterOrImmediate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegisterOrImmediate::Immediate(imm) => write!(f, "#0x{imm:x}"),
+            _ => std::fmt::Display::fmt(self, f),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::disasm;
@@ -501,7 +648,6 @@ mod tests {
                 let dis = disasm(asm, 0x0);
                 assert_eq!($mnemonic, dis.mnemonic().to_string());
                 assert_eq!($arguments, dis.arguments().to_string());
-                assert_eq!("", dis.comment().to_string());
             }
         };
 
@@ -527,8 +673,8 @@ mod tests {
     #[rustfmt::skip]
     make_tests! {
         // AND
-        [disasm_and_imm, "and r0, r1, #4", "and", "r0, r1, #4"],
-        [disasm_ands_imm, "ands r0, r1, #4", "ands", "r0, r1, #4"],
+        [disasm_and_imm, "and r0, r1, #0x4", "and", "r0, r1, #0x4"],
+        [disasm_ands_imm, "ands r0, r1, #0x4", "ands", "r0, r1, #0x4"],
         [disasm_and_reg, "and r0, r1, r2", "and", "r0, r1, r2"],
         [disasm_and_reg_lsl_imm, "and r0, r1, r2, lsl #4", "and", "r0, r1, r2, lsl #4"],
         [disasm_and_reg_lsl_reg, "and r0, r1, r2, lsl r4", "and", "r0, r1, r2, lsl r4"],
@@ -543,8 +689,8 @@ mod tests {
         [disasm_and_reg_rrx, "and r0, r1, r2, rrx", "and", "r0, r1, r2, rrx"],
 
         // EOR
-        [disasm_eor_imm, "eor r0, r1, #4", "eor", "r0, r1, #4"],
-        [disasm_eors_imm, "eors r0, r1, #4", "eors", "r0, r1, #4"],
+        [disasm_eor_imm, "eor r0, r1, #0x4", "eor", "r0, r1, #0x4"],
+        [disasm_eors_imm, "eors r0, r1, #0x4", "eors", "r0, r1, #0x4"],
         [disasm_eor_reg, "eor r0, r1, r2", "eor", "r0, r1, r2"],
         [disasm_eor_reg_lsl_imm, "eor r0, r1, r2, lsl #4", "eor", "r0, r1, r2, lsl #4"],
         [disasm_eor_reg_lsl_reg, "eor r0, r1, r2, lsl r4", "eor", "r0, r1, r2, lsl r4"],
@@ -559,8 +705,8 @@ mod tests {
         [disasm_eor_reg_rrx, "eor r0, r1, r2, rrx", "eor", "r0, r1, r2, rrx"],
 
         // SUB
-        [disasm_sub_imm, "sub r0, r1, #4", "sub", "r0, r1, #4"],
-        [disasm_subs_imm, "subs r0, r1, #4", "subs", "r0, r1, #4"],
+        [disasm_sub_imm, "sub r0, r1, #0x4", "sub", "r0, r1, #0x4"],
+        [disasm_subs_imm, "subs r0, r1, #0x4", "subs", "r0, r1, #0x4"],
         [disasm_sub_reg, "sub r0, r1, r2", "sub", "r0, r1, r2"],
         [disasm_sub_reg_lsl_imm, "sub r0, r1, r2, lsl #4", "sub", "r0, r1, r2, lsl #4"],
         [disasm_sub_reg_lsl_reg, "sub r0, r1, r2, lsl r4", "sub", "r0, r1, r2, lsl r4"],
@@ -575,8 +721,8 @@ mod tests {
         [disasm_sub_reg_rrx, "sub r0, r1, r2, rrx", "sub", "r0, r1, r2, rrx"],
 
         // RSB
-        [disasm_rsb_imm, "rsb r0, r1, #4", "rsb", "r0, r1, #4"],
-        [disasm_rsbs_imm, "rsbs r0, r1, #4", "rsbs", "r0, r1, #4"],
+        [disasm_rsb_imm, "rsb r0, r1, #0x4", "rsb", "r0, r1, #0x4"],
+        [disasm_rsbs_imm, "rsbs r0, r1, #0x4", "rsbs", "r0, r1, #0x4"],
         [disasm_rsb_reg, "rsb r0, r1, r2", "rsb", "r0, r1, r2"],
         [disasm_rsb_reg_lsl_imm, "rsb r0, r1, r2, lsl #4", "rsb", "r0, r1, r2, lsl #4"],
         [disasm_rsb_reg_lsl_reg, "rsb r0, r1, r2, lsl r4", "rsb", "r0, r1, r2, lsl r4"],
@@ -591,8 +737,8 @@ mod tests {
         [disasm_rsb_reg_rrx, "rsb r0, r1, r2, rrx", "rsb", "r0, r1, r2, rrx"],
 
         // ADD
-        [disasm_add_imm, "add r0, r1, #4", "add", "r0, r1, #4"],
-        [disasm_adds_imm, "adds r0, r1, #4", "adds", "r0, r1, #4"],
+        [disasm_add_imm, "add r0, r1, #0x4", "add", "r0, r1, #0x4"],
+        [disasm_adds_imm, "adds r0, r1, #0x4", "adds", "r0, r1, #0x4"],
         [disasm_add_reg, "add r0, r1, r2", "add", "r0, r1, r2"],
         [disasm_add_reg_lsl_imm, "add r0, r1, r2, lsl #4", "add", "r0, r1, r2, lsl #4"],
         [disasm_add_reg_lsl_reg, "add r0, r1, r2, lsl r4", "add", "r0, r1, r2, lsl r4"],
@@ -607,8 +753,8 @@ mod tests {
         [disasm_add_reg_rrx, "add r0, r1, r2, rrx", "add", "r0, r1, r2, rrx"],
 
         // ADC
-        [disasm_adc_imm, "adc r0, r1, #4", "adc", "r0, r1, #4"],
-        [disasm_adcs_imm, "adcs r0, r1, #4", "adcs", "r0, r1, #4"],
+        [disasm_adc_imm, "adc r0, r1, #0x4", "adc", "r0, r1, #0x4"],
+        [disasm_adcs_imm, "adcs r0, r1, #0x4", "adcs", "r0, r1, #0x4"],
         [disasm_adc_reg, "adc r0, r1, r2", "adc", "r0, r1, r2"],
         [disasm_adc_reg_lsl_imm, "adc r0, r1, r2, lsl #4", "adc", "r0, r1, r2, lsl #4"],
         [disasm_adc_reg_lsl_reg, "adc r0, r1, r2, lsl r4", "adc", "r0, r1, r2, lsl r4"],
@@ -623,8 +769,8 @@ mod tests {
         [disasm_adc_reg_rrx, "adc r0, r1, r2, rrx", "adc", "r0, r1, r2, rrx"],
 
         // SBC
-        [disasm_sbc_imm, "sbc r0, r1, #4", "sbc", "r0, r1, #4"],
-        [disasm_sbcs_imm, "sbcs r0, r1, #4", "sbcs", "r0, r1, #4"],
+        [disasm_sbc_imm, "sbc r0, r1, #0x4", "sbc", "r0, r1, #0x4"],
+        [disasm_sbcs_imm, "sbcs r0, r1, #0x4", "sbcs", "r0, r1, #0x4"],
         [disasm_sbc_reg, "sbc r0, r1, r2", "sbc", "r0, r1, r2"],
         [disasm_sbc_reg_lsl_imm, "sbc r0, r1, r2, lsl #4", "sbc", "r0, r1, r2, lsl #4"],
         [disasm_sbc_reg_lsl_reg, "sbc r0, r1, r2, lsl r4", "sbc", "r0, r1, r2, lsl r4"],
@@ -639,8 +785,8 @@ mod tests {
         [disasm_sbc_reg_rrx, "sbc r0, r1, r2, rrx", "sbc", "r0, r1, r2, rrx"],
 
         // RSC
-        [disasm_rsc_imm, "rsc r0, r1, #4", "rsc", "r0, r1, #4"],
-        [disasm_rscs_imm, "rscs r0, r1, #4", "rscs", "r0, r1, #4"],
+        [disasm_rsc_imm, "rsc r0, r1, #0x4", "rsc", "r0, r1, #0x4"],
+        [disasm_rscs_imm, "rscs r0, r1, #0x4", "rscs", "r0, r1, #0x4"],
         [disasm_rsc_reg, "rsc r0, r1, r2", "rsc", "r0, r1, r2"],
         [disasm_rsc_reg_lsl_imm, "rsc r0, r1, r2, lsl #4", "rsc", "r0, r1, r2, lsl #4"],
         [disasm_rsc_reg_lsl_reg, "rsc r0, r1, r2, lsl r4", "rsc", "r0, r1, r2, lsl r4"],
@@ -655,8 +801,8 @@ mod tests {
         [disasm_rsc_reg_rrx, "rsc r0, r1, r2, rrx", "rsc", "r0, r1, r2, rrx"],
 
         // ORR
-        [disasm_orr_imm, "orr r0, r1, #4", "orr", "r0, r1, #4"],
-        [disasm_orrs_imm, "orrs r0, r1, #4", "orrs", "r0, r1, #4"],
+        [disasm_orr_imm, "orr r0, r1, #0x4", "orr", "r0, r1, #0x4"],
+        [disasm_orrs_imm, "orrs r0, r1, #0x4", "orrs", "r0, r1, #0x4"],
         [disasm_orr_reg, "orr r0, r1, r2", "orr", "r0, r1, r2"],
         [disasm_orr_reg_lsl_imm, "orr r0, r1, r2, lsl #4", "orr", "r0, r1, r2, lsl #4"],
         [disasm_orr_reg_lsl_reg, "orr r0, r1, r2, lsl r4", "orr", "r0, r1, r2, lsl r4"],
@@ -671,8 +817,8 @@ mod tests {
         [disasm_orr_reg_rrx, "orr r0, r1, r2, rrx", "orr", "r0, r1, r2, rrx"],
 
         // BIC
-        [disasm_bic_imm, "bic r0, r1, #4", "bic", "r0, r1, #4"],
-        [disasm_bics_imm, "bics r0, r1, #4", "bics", "r0, r1, #4"],
+        [disasm_bic_imm, "bic r0, r1, #0x4", "bic", "r0, r1, #0x4"],
+        [disasm_bics_imm, "bics r0, r1, #0x4", "bics", "r0, r1, #0x4"],
         [disasm_bic_reg, "bic r0, r1, r2", "bic", "r0, r1, r2"],
         [disasm_bic_reg_lsl_imm, "bic r0, r1, r2, lsl #4", "bic", "r0, r1, r2, lsl #4"],
         [disasm_bic_reg_lsl_reg, "bic r0, r1, r2, lsl r4", "bic", "r0, r1, r2, lsl r4"],
@@ -687,8 +833,8 @@ mod tests {
         [disasm_bic_reg_rrx, "bic r0, r1, r2, rrx", "bic", "r0, r1, r2, rrx"],
 
         // TST
-        [disasm_tst_imm, "tst r1, #4", "tst", "r1, #4"],
-        [disasm_tsts_imm, "tsts r1, #4", "tst", "r1, #4"],
+        [disasm_tst_imm, "tst r1, #0x4", "tst", "r1, #0x4"],
+        [disasm_tsts_imm, "tsts r1, #0x4", "tst", "r1, #0x4"],
         [disasm_tst_reg, "tst r1, r2", "tst", "r1, r2"],
         [disasm_tst_reg_lsl_imm, "tst r1, r2, lsl #4", "tst", "r1, r2, lsl #4"],
         [disasm_tst_reg_lsl_reg, "tst r1, r2, lsl r4", "tst", "r1, r2, lsl r4"],
@@ -703,8 +849,8 @@ mod tests {
         [disasm_tst_reg_rrx, "tst r1, r2, rrx", "tst", "r1, r2, rrx"],
 
         // TEQ
-        [disasm_teq_imm, "teq r1, #4", "teq", "r1, #4"],
-        [disasm_teqs_imm, "teqs r1, #4", "teq", "r1, #4"],
+        [disasm_teq_imm, "teq r1, #0x4", "teq", "r1, #0x4"],
+        [disasm_teqs_imm, "teqs r1, #0x4", "teq", "r1, #0x4"],
         [disasm_teq_reg, "teq r1, r2", "teq", "r1, r2"],
         [disasm_teq_reg_lsl_imm, "teq r1, r2, lsl #4", "teq", "r1, r2, lsl #4"],
         [disasm_teq_reg_lsl_reg, "teq r1, r2, lsl r4", "teq", "r1, r2, lsl r4"],
@@ -719,8 +865,8 @@ mod tests {
         [disasm_teq_reg_rrx, "teq r1, r2, rrx", "teq", "r1, r2, rrx"],
 
         // CMP
-        [disasm_cmp_imm, "cmp r1, #4", "cmp", "r1, #4"],
-        [disasm_cmps_imm, "cmps r1, #4", "cmp", "r1, #4"],
+        [disasm_cmp_imm, "cmp r1, #0x4", "cmp", "r1, #0x4"],
+        [disasm_cmps_imm, "cmps r1, #0x4", "cmp", "r1, #0x4"],
         [disasm_cmp_reg, "cmp r1, r2", "cmp", "r1, r2"],
         [disasm_cmp_reg_lsl_imm, "cmp r1, r2, lsl #4", "cmp", "r1, r2, lsl #4"],
         [disasm_cmp_reg_lsl_reg, "cmp r1, r2, lsl r4", "cmp", "r1, r2, lsl r4"],
@@ -735,8 +881,8 @@ mod tests {
         [disasm_cmp_reg_rrx, "cmp r1, r2, rrx", "cmp", "r1, r2, rrx"],
 
         // CMN
-        [disasm_cmn_imm, "cmn r1, #4", "cmn", "r1, #4"],
-        [disasm_cmns_imm, "cmns r1, #4", "cmn", "r1, #4"],
+        [disasm_cmn_imm, "cmn r1, #0x4", "cmn", "r1, #0x4"],
+        [disasm_cmns_imm, "cmns r1, #0x4", "cmn", "r1, #0x4"],
         [disasm_cmn_reg, "cmn r1, r2", "cmn", "r1, r2"],
         [disasm_cmn_reg_lsl_imm, "cmn r1, r2, lsl #4", "cmn", "r1, r2, lsl #4"],
         [disasm_cmn_reg_lsl_reg, "cmn r1, r2, lsl r4", "cmn", "r1, r2, lsl r4"],
@@ -751,8 +897,8 @@ mod tests {
         [disasm_cmn_reg_rrx, "cmn r1, r2, rrx", "cmn", "r1, r2, rrx"],
 
         // MOV
-        [disasm_mov_imm, "mov r1, #4", "mov", "r1, #4"],
-        [disasm_movs_imm, "movs r1, #4", "movs", "r1, #4"],
+        [disasm_mov_imm, "mov r1, #0x4", "mov", "r1, #0x4"],
+        [disasm_movs_imm, "movs r1, #0x4", "movs", "r1, #0x4"],
         [disasm_mov_reg, "mov r1, r2", "mov", "r1, r2"],
         [disasm_mov_reg_lsl_imm, "mov r1, r2, lsl #4", "mov", "r1, r2, lsl #4"],
         [disasm_mov_reg_lsl_reg, "mov r1, r2, lsl r4", "mov", "r1, r2, lsl r4"],
@@ -767,8 +913,8 @@ mod tests {
         [disasm_mov_reg_rrx, "mov r1, r2, rrx", "mov", "r1, r2, rrx"],
 
         // MVN
-        [disasm_mvn_imm, "mvn r1, #4", "mvn", "r1, #4"],
-        [disasm_mvns_imm, "mvns r1, #4", "mvns", "r1, #4"],
+        [disasm_mvn_imm, "mvn r1, #0x4", "mvn", "r1, #0x4"],
+        [disasm_mvns_imm, "mvns r1, #0x4", "mvns", "r1, #0x4"],
         [disasm_mvn_reg, "mvn r1, r2", "mvn", "r1, r2"],
         [disasm_mvn_reg_lsl_imm, "mvn r1, r2, lsl #4", "mvn", "r1, r2, lsl #4"],
         [disasm_mvn_reg_lsl_reg, "mvn r1, r2, lsl r4", "mvn", "r1, r2, lsl r4"],
@@ -787,64 +933,64 @@ mod tests {
     #[rustfmt::skip]
     make_tests! {
         // AND / ANDS
-        [disasm_and_eq, "andeq r0, r1, #4", "andeq", "r0, r1, #4"],
-        [disasm_ands_eq, "andeqs r0, r1, #4", "andeqs", "r0, r1, #4"],
-        [disasm_and_ne, "andne r0, r1, #4", "andne", "r0, r1, #4"],
-        [disasm_ands_ne, "andnes r0, r1, #4", "andnes", "r0, r1, #4"],
-        [disasm_and_cs, "andcs r0, r1, #4", "andcs", "r0, r1, #4"],
-        [disasm_ands_cs, "andcss r0, r1, #4", "andcss", "r0, r1, #4"],
-        [disasm_and_cc, "andcc r0, r1, #4", "andcc", "r0, r1, #4"],
-        [disasm_ands_cc, "andccs r0, r1, #4", "andccs", "r0, r1, #4"],
-        [disasm_and_mi, "andmi r0, r1, #4", "andmi", "r0, r1, #4"],
-        [disasm_ands_mi, "andmis r0, r1, #4", "andmis", "r0, r1, #4"],
-        [disasm_and_pl, "andpl r0, r1, #4", "andpl", "r0, r1, #4"],
-        [disasm_ands_pl, "andpls r0, r1, #4", "andpls", "r0, r1, #4"],
-        [disasm_and_vs, "andvs r0, r1, #4", "andvs", "r0, r1, #4"],
-        [disasm_ands_vs, "andvss r0, r1, #4", "andvss", "r0, r1, #4"],
-        [disasm_and_vc, "andvc r0, r1, #4", "andvc", "r0, r1, #4"],
-        [disasm_ands_vc, "andvcs r0, r1, #4", "andvcs", "r0, r1, #4"],
-        [disasm_and_hi, "andhi r0, r1, #4", "andhi", "r0, r1, #4"],
-        [disasm_ands_hi, "andhis r0, r1, #4", "andhis", "r0, r1, #4"],
-        [disasm_and_ls, "andls r0, r1, #4", "andls", "r0, r1, #4"],
-        [disasm_ands_ls, "andlss r0, r1, #4", "andlss", "r0, r1, #4"],
-        [disasm_and_ge, "andge r0, r1, #4", "andge", "r0, r1, #4"],
-        [disasm_ands_ge, "andges r0, r1, #4", "andges", "r0, r1, #4"],
-        [disasm_and_lt, "andlt r0, r1, #4", "andlt", "r0, r1, #4"],
-        [disasm_ands_lt, "andlts r0, r1, #4", "andlts", "r0, r1, #4"],
-        [disasm_and_gt, "andgt r0, r1, #4", "andgt", "r0, r1, #4"],
-        [disasm_ands_gt, "andgts r0, r1, #4", "andgts", "r0, r1, #4"],
-        [disasm_and_le, "andle r0, r1, #4", "andle", "r0, r1, #4"],
-        [disasm_ands_le, "andles r0, r1, #4", "andles", "r0, r1, #4"],
+        [disasm_and_eq, "andeq r0, r1, #0x4", "andeq", "r0, r1, #0x4"],
+        [disasm_ands_eq, "andeqs r0, r1, #0x4", "andeqs", "r0, r1, #0x4"],
+        [disasm_and_ne, "andne r0, r1, #0x4", "andne", "r0, r1, #0x4"],
+        [disasm_ands_ne, "andnes r0, r1, #0x4", "andnes", "r0, r1, #0x4"],
+        [disasm_and_cs, "andcs r0, r1, #0x4", "andcs", "r0, r1, #0x4"],
+        [disasm_ands_cs, "andcss r0, r1, #0x4", "andcss", "r0, r1, #0x4"],
+        [disasm_and_cc, "andcc r0, r1, #0x4", "andcc", "r0, r1, #0x4"],
+        [disasm_ands_cc, "andccs r0, r1, #0x4", "andccs", "r0, r1, #0x4"],
+        [disasm_and_mi, "andmi r0, r1, #0x4", "andmi", "r0, r1, #0x4"],
+        [disasm_ands_mi, "andmis r0, r1, #0x4", "andmis", "r0, r1, #0x4"],
+        [disasm_and_pl, "andpl r0, r1, #0x4", "andpl", "r0, r1, #0x4"],
+        [disasm_ands_pl, "andpls r0, r1, #0x4", "andpls", "r0, r1, #0x4"],
+        [disasm_and_vs, "andvs r0, r1, #0x4", "andvs", "r0, r1, #0x4"],
+        [disasm_ands_vs, "andvss r0, r1, #0x4", "andvss", "r0, r1, #0x4"],
+        [disasm_and_vc, "andvc r0, r1, #0x4", "andvc", "r0, r1, #0x4"],
+        [disasm_ands_vc, "andvcs r0, r1, #0x4", "andvcs", "r0, r1, #0x4"],
+        [disasm_and_hi, "andhi r0, r1, #0x4", "andhi", "r0, r1, #0x4"],
+        [disasm_ands_hi, "andhis r0, r1, #0x4", "andhis", "r0, r1, #0x4"],
+        [disasm_and_ls, "andls r0, r1, #0x4", "andls", "r0, r1, #0x4"],
+        [disasm_ands_ls, "andlss r0, r1, #0x4", "andlss", "r0, r1, #0x4"],
+        [disasm_and_ge, "andge r0, r1, #0x4", "andge", "r0, r1, #0x4"],
+        [disasm_ands_ge, "andges r0, r1, #0x4", "andges", "r0, r1, #0x4"],
+        [disasm_and_lt, "andlt r0, r1, #0x4", "andlt", "r0, r1, #0x4"],
+        [disasm_ands_lt, "andlts r0, r1, #0x4", "andlts", "r0, r1, #0x4"],
+        [disasm_and_gt, "andgt r0, r1, #0x4", "andgt", "r0, r1, #0x4"],
+        [disasm_ands_gt, "andgts r0, r1, #0x4", "andgts", "r0, r1, #0x4"],
+        [disasm_and_le, "andle r0, r1, #0x4", "andle", "r0, r1, #0x4"],
+        [disasm_ands_le, "andles r0, r1, #0x4", "andles", "r0, r1, #0x4"],
 
         // TST / TSTS
-        [disasm_tst_eq, "tsteq r1, #4", "tsteq", "r1, #4"],
-        [disasm_tsts_eq, "tsteqs r1, #4", "tsteq", "r1, #4"],
-        [disasm_tst_ne, "tstne r1, #4", "tstne", "r1, #4"],
-        [disasm_tsts_ne, "tstnes r1, #4", "tstne", "r1, #4"],
-        [disasm_tst_cs, "tstcs r1, #4", "tstcs", "r1, #4"],
-        [disasm_tsts_cs, "tstcss r1, #4", "tstcs", "r1, #4"],
-        [disasm_tst_cc, "tstcc r1, #4", "tstcc", "r1, #4"],
-        [disasm_tsts_cc, "tstccs r1, #4", "tstcc", "r1, #4"],
-        [disasm_tst_mi, "tstmi r1, #4", "tstmi", "r1, #4"],
-        [disasm_tsts_mi, "tstmis r1, #4", "tstmi", "r1, #4"],
-        [disasm_tst_pl, "tstpl r1, #4", "tstpl", "r1, #4"],
-        [disasm_tsts_pl, "tstpls r1, #4", "tstpl", "r1, #4"],
-        [disasm_tst_vs, "tstvs r1, #4", "tstvs", "r1, #4"],
-        [disasm_tsts_vs, "tstvss r1, #4", "tstvs", "r1, #4"],
-        [disasm_tst_vc, "tstvc r1, #4", "tstvc", "r1, #4"],
-        [disasm_tsts_vc, "tstvcs r1, #4", "tstvc", "r1, #4"],
-        [disasm_tst_hi, "tsthi r1, #4", "tsthi", "r1, #4"],
-        [disasm_tsts_hi, "tsthis r1, #4", "tsthi", "r1, #4"],
-        [disasm_tst_ls, "tstls r1, #4", "tstls", "r1, #4"],
-        [disasm_tsts_ls, "tstlss r1, #4", "tstls", "r1, #4"],
-        [disasm_tst_ge, "tstge r1, #4", "tstge", "r1, #4"],
-        [disasm_tsts_ge, "tstges r1, #4", "tstge", "r1, #4"],
-        [disasm_tst_lt, "tstlt r1, #4", "tstlt", "r1, #4"],
-        [disasm_tsts_lt, "tstlts r1, #4", "tstlt", "r1, #4"],
-        [disasm_tst_gt, "tstgt r1, #4", "tstgt", "r1, #4"],
-        [disasm_tsts_gt, "tstgts r1, #4", "tstgt", "r1, #4"],
-        [disasm_tst_le, "tstle r1, #4", "tstle", "r1, #4"],
-        [disasm_tsts_le, "tstles r1, #4", "tstle", "r1, #4"],
+        [disasm_tst_eq, "tsteq r1, #0x4", "tsteq", "r1, #0x4"],
+        [disasm_tsts_eq, "tsteqs r1, #0x4", "tsteq", "r1, #0x4"],
+        [disasm_tst_ne, "tstne r1, #0x4", "tstne", "r1, #0x4"],
+        [disasm_tsts_ne, "tstnes r1, #0x4", "tstne", "r1, #0x4"],
+        [disasm_tst_cs, "tstcs r1, #0x4", "tstcs", "r1, #0x4"],
+        [disasm_tsts_cs, "tstcss r1, #0x4", "tstcs", "r1, #0x4"],
+        [disasm_tst_cc, "tstcc r1, #0x4", "tstcc", "r1, #0x4"],
+        [disasm_tsts_cc, "tstccs r1, #0x4", "tstcc", "r1, #0x4"],
+        [disasm_tst_mi, "tstmi r1, #0x4", "tstmi", "r1, #0x4"],
+        [disasm_tsts_mi, "tstmis r1, #0x4", "tstmi", "r1, #0x4"],
+        [disasm_tst_pl, "tstpl r1, #0x4", "tstpl", "r1, #0x4"],
+        [disasm_tsts_pl, "tstpls r1, #0x4", "tstpl", "r1, #0x4"],
+        [disasm_tst_vs, "tstvs r1, #0x4", "tstvs", "r1, #0x4"],
+        [disasm_tsts_vs, "tstvss r1, #0x4", "tstvs", "r1, #0x4"],
+        [disasm_tst_vc, "tstvc r1, #0x4", "tstvc", "r1, #0x4"],
+        [disasm_tsts_vc, "tstvcs r1, #0x4", "tstvc", "r1, #0x4"],
+        [disasm_tst_hi, "tsthi r1, #0x4", "tsthi", "r1, #0x4"],
+        [disasm_tsts_hi, "tsthis r1, #0x4", "tsthi", "r1, #0x4"],
+        [disasm_tst_ls, "tstls r1, #0x4", "tstls", "r1, #0x4"],
+        [disasm_tsts_ls, "tstlss r1, #0x4", "tstls", "r1, #0x4"],
+        [disasm_tst_ge, "tstge r1, #0x4", "tstge", "r1, #0x4"],
+        [disasm_tsts_ge, "tstges r1, #0x4", "tstge", "r1, #0x4"],
+        [disasm_tst_lt, "tstlt r1, #0x4", "tstlt", "r1, #0x4"],
+        [disasm_tsts_lt, "tstlts r1, #0x4", "tstlt", "r1, #0x4"],
+        [disasm_tst_gt, "tstgt r1, #0x4", "tstgt", "r1, #0x4"],
+        [disasm_tsts_gt, "tstgts r1, #0x4", "tstgt", "r1, #0x4"],
+        [disasm_tst_le, "tstle r1, #0x4", "tstle", "r1, #0x4"],
+        [disasm_tsts_le, "tstles r1, #0x4", "tstle", "r1, #0x4"],
     }
 
     // REGISTERS
@@ -876,6 +1022,18 @@ mod tests {
     make_tests! {
         [disasm_bx, "bx r2", "bx", "r2"],
         [disasm_b, "b 0x00081234", "b", "0x00081234"],
+    }
+
+    // PSR transfer
+    #[rustfmt::skip]
+    make_tests! {
+        [disasm_mrs, "mrs r8, cpsr_all", "mrs", "r8, cpsr_all"],
+        [disasm_msr_cpsr_all, "msr cpsr_all, r9", "msr", "cpsr_all, r9"],
+        [disasm_msr_spsr_all, "msr spsr_all, r9", "msr", "spsr_all, r9"],
+        [disasm_msr_cpsr_flg_reg, "msr cpsr_flg, r9", "msr", "cpsr_flg, r9"],
+        [disasm_msr_spsr_flg_reg, "msr spsr_flg, r9", "msr", "spsr_flg, r9"],
+        [disasm_msr_cpsr_flg_imm, "msr cpsr_flg, #0x10", "msr", "cpsr_flg, #0x10"],
+        [disasm_msr_spsr_flg_imm, "msr spsr_flg, #0x10", "msr", "spsr_flg, #0x10"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
