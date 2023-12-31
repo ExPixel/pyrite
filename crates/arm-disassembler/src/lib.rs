@@ -1,6 +1,37 @@
 pub mod arm;
 pub mod thumb;
 
+pub enum AnyInstr {
+    Arm(arm::ArmInstr),
+    Thumb(thumb::ThumbInstr),
+}
+
+impl AnyInstr {
+    pub fn mnemonic(&self) -> crate::Mnemonic<'_, Self> {
+        Mnemonic(self)
+    }
+
+    pub fn arguments(&self) -> crate::Arguments<'_, Self> {
+        Arguments(self)
+    }
+
+    pub fn comment(&self) -> crate::Comment<'_, Self> {
+        Comment(self)
+    }
+}
+
+impl From<arm::ArmInstr> for AnyInstr {
+    fn from(instr: arm::ArmInstr) -> Self {
+        Self::Arm(instr)
+    }
+}
+
+impl From<thumb::ThumbInstr> for AnyInstr {
+    fn from(instr: thumb::ThumbInstr) -> Self {
+        Self::Thumb(instr)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Mnemonic<'i, I>(&'i I);
 
@@ -26,6 +57,15 @@ impl std::fmt::Display for Mnemonic<'_, thumb::ThumbInstr> {
     }
 }
 
+impl std::fmt::Display for Mnemonic<'_, AnyInstr> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            AnyInstr::Arm(instr) => Mnemonic(instr).fmt(f),
+            AnyInstr::Thumb(instr) => Mnemonic(instr).fmt(f),
+        }
+    }
+}
+
 impl std::fmt::Display for Arguments<'_, arm::ArmInstr> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buffer = WriteBuffer::<32>::new();
@@ -42,6 +82,15 @@ impl std::fmt::Display for Arguments<'_, thumb::ThumbInstr> {
     }
 }
 
+impl std::fmt::Display for Arguments<'_, AnyInstr> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            AnyInstr::Arm(instr) => Arguments(instr).fmt(f),
+            AnyInstr::Thumb(instr) => Arguments(instr).fmt(f),
+        }
+    }
+}
+
 impl std::fmt::Display for Comment<'_, arm::ArmInstr> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buffer = WriteBuffer::<32>::new();
@@ -55,6 +104,15 @@ impl std::fmt::Display for Comment<'_, thumb::ThumbInstr> {
         let mut buffer = WriteBuffer::<32>::new();
         self.0.write_comment(&mut buffer)?;
         f.pad(buffer.as_str())
+    }
+}
+
+impl std::fmt::Display for Comment<'_, AnyInstr> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            AnyInstr::Arm(instr) => Comment(instr).fmt(f),
+            AnyInstr::Thumb(instr) => Comment(instr).fmt(f),
+        }
     }
 }
 
