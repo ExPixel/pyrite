@@ -853,7 +853,7 @@ mod tests {
         [disasm_mov_pc, "mov r0, pc", "mov", "r0, pc"],
     }
 
-    // REGISTERS
+    // BRANCHES
     #[rustfmt::skip]
     make_tests! {
         [disasm_bx, "bx r2", "bx", "r2"],
