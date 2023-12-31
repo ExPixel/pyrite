@@ -1,13 +1,21 @@
 use std::fmt::Write;
 
-pub fn disasm(instr: u32) -> ArmInstr {
+use util::bits::BitOps as _;
+
+pub fn disasm(instr: u32, address: u32) -> ArmInstr {
     let cond = Condition::from((instr >> 28) & 0xF);
+    let pc = address.wrapping_add(8);
 
     if instr & 0x0FFFFFF0 == 0x012FFF10 {
         ArmInstr::BranchAndExchange {
             cond,
             rn: Register::from(instr & 0xF),
         }
+    } else if instr & 0x0E000000 == 0x0A000000 {
+        let offset = (instr & 0xFFFFFF).sign_extend(24).wrapping_shl(2);
+        let target = pc.wrapping_add(offset);
+        let link = instr.get_bit(24);
+        ArmInstr::Branch { cond, target, link }
     } else if (instr & 0x0E000000 == 0x02000000)
         || (instr & 0x0E000010 == 0x00000000)
         || (instr & 0x0E000090 == 0x00000010)
@@ -45,6 +53,12 @@ pub enum ArmInstr {
         rn: Register,
     },
 
+    Branch {
+        cond: Condition,
+        target: u32,
+        link: bool,
+    },
+
     Undefined {
         cond: Condition,
         instr: u32,
@@ -66,6 +80,9 @@ impl ArmInstr {
                 }
             }
             ArmInstr::BranchAndExchange { cond, .. } => write!(f, "bx{cond}"),
+            ArmInstr::Branch { cond, link, .. } => {
+                write!(f, "b{cond}{link}", link = if *link { "l" } else { "" })
+            }
         }
     }
 
@@ -82,6 +99,7 @@ impl ArmInstr {
                 _ => write!(f, "{rd}, {rn}, {op2}"),
             },
             ArmInstr::BranchAndExchange { rn, .. } => write!(f, "{rn}"),
+            ArmInstr::Branch { target, .. } => write!(f, "0x{:08x}", target),
         }
     }
 
@@ -108,6 +126,7 @@ impl ArmInstr {
             ArmInstr::Undefined { cond, .. } => *cond,
             ArmInstr::DataProc { cond, .. } => *cond,
             ArmInstr::BranchAndExchange { cond, .. } => *cond,
+            ArmInstr::Branch { cond, .. } => *cond,
         }
     }
 }
@@ -450,7 +469,7 @@ mod tests {
 
     #[test]
     fn disasm_undef() {
-        let dis = disasm(0xE777F777);
+        let dis = disasm(0xE777F777, 0x0);
         assert_eq!("undef", dis.mnemonic().to_string());
         assert_eq!("0xe777f777", dis.arguments().to_string());
         assert_eq!("", dis.comment().to_string());
@@ -461,7 +480,7 @@ mod tests {
             #[test]
             fn $name() {
                 let asm = assemble_one($source).unwrap();
-                let dis = disasm(asm);
+                let dis = disasm(asm, 0x0);
                 assert_eq!($mnemonic, dis.mnemonic().to_string());
                 assert_eq!($arguments, dis.arguments().to_string());
                 assert_eq!("", dis.comment().to_string());
@@ -838,6 +857,7 @@ mod tests {
     #[rustfmt::skip]
     make_tests! {
         [disasm_bx, "bx r2", "bx", "r2"],
+        [disasm_b, "b 0x00081234", "b", "0x00081234"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {

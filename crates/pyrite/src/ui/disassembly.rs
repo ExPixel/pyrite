@@ -177,12 +177,15 @@ impl AppWindow for DisassemblyWindow {
                         match instruction_set {
                             InstructionSet::Arm => {
                                 bytes = gba_data.gba.mapped.view32(address);
-                                disassembled = AnyInstr::from(arm::disasm::arm::disasm(bytes));
+                                disassembled =
+                                    AnyInstr::from(arm::disasm::arm::disasm(bytes, address));
                             }
                             InstructionSet::Thumb => {
                                 bytes = gba_data.gba.mapped.view16(address) as u32;
-                                disassembled =
-                                    AnyInstr::from(arm::disasm::thumb::disasm(bytes as u16))
+                                disassembled = AnyInstr::from(arm::disasm::thumb::disasm(
+                                    bytes as u16,
+                                    address,
+                                ))
                             }
                         }
 

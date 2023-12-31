@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-pub fn disasm(instr: u16) -> ThumbInstr {
+pub fn disasm(instr: u16, address: u32) -> ThumbInstr {
     ThumbInstr::Undefined(instr)
 }
 
