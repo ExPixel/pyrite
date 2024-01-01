@@ -1,4 +1,5 @@
 mod app_window;
+mod disassembly;
 mod gba_image;
 mod profiler;
 
@@ -16,6 +17,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 use self::{
     app_window::{AppWindow, AppWindowCategory, AppWindowWrapper},
+    disassembly::DisassemblyWindow,
     gba_image::GbaImage,
     profiler::ProfilerWindow,
 };
@@ -82,6 +84,7 @@ impl App {
         #[cfg(feature = "profiling")]
         let profiler_window = ProfilerWindow::wrapped(windows_visible.clone(), context.storage);
         let windows = vec![
+            DisassemblyWindow::wrapped(windows_visible.clone(), gba.clone()),
             #[cfg(feature = "profiling")]
             profiler_window,
             EguiSettingsWindow::wrapped(windows_visible.clone()),
