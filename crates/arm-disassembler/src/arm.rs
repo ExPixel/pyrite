@@ -16,6 +16,7 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0E000010, 0x06000000, disasm_single_data_transfer), // single data transfer offset shift by imm
     (0x0FB00FF0, 0x01000090, disasm_single_data_swap),
     (0x0E400F90, 0x00000090, disasm_signed_and_halfword_data_transfer),
+    (0x0F000000, 0x0F000000, disasm_software_interrupt),
     (0x0E000000, 0x08000000, disasm_block_data_transfer),
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
     (0x0E000000, 0x02000000, disasm_dataproc), // dataproc immediate op2
@@ -268,6 +269,14 @@ pub fn disasm_block_data_transfer(instr: u32, _address: u32) -> ArmInstr {
     }
 }
 
+pub fn disasm_software_interrupt(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from(instr.get_bit_range(28..=31));
+    ArmInstr::SoftwareInterrupt {
+        cond,
+        comment: instr.get_bit_range(0..=23),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ArmInstr {
     DataProc {
@@ -352,6 +361,11 @@ pub enum ArmInstr {
         s: bool,
         rn: Register,
         registers: RegisterList,
+    },
+
+    SoftwareInterrupt {
+        cond: Condition,
+        comment: u32,
     },
 
     Undefined {
@@ -477,6 +491,7 @@ impl ArmInstr {
                 };
                 write!(f, "{proc}{cond}")
             }
+            ArmInstr::SoftwareInterrupt { cond, .. } => write!(f, "swi{cond}"),
         }
     }
 
@@ -555,6 +570,7 @@ impl ArmInstr {
                 let s = if *s { "^" } else { "" };
                 write!(f, "{rn}{w}, {registers}{s}")
             }
+            ArmInstr::SoftwareInterrupt { comment, .. } => write!(f, "#0x{:06x}", comment),
         }
     }
 
@@ -596,6 +612,7 @@ impl ArmInstr {
             ArmInstr::SingleDataTransfer { cond, .. } => *cond,
             ArmInstr::SingleDataSwap { cond, .. } => *cond,
             ArmInstr::BlockDataTransfer { cond, .. } => *cond,
+            ArmInstr::SoftwareInterrupt { cond, .. } => *cond,
         }
     }
 }
@@ -1676,6 +1693,12 @@ mod tests {
     make_tests! {
         [disasm_swp, "swp r0, r1, [r2]", "swp", "r0, r1, [r2]"],
         [disasm_swpb, "swpb r0, r1, [r2]", "swpb", "r0, r1, [r2]"],
+    }
+
+    // Software Interrupt
+    #[rustfmt::skip]
+    make_tests! {
+        [disasm_swi, "swi #0x123456", "swi", "#0x123456"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
