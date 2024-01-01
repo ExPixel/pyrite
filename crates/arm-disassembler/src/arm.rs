@@ -14,6 +14,7 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0F8000F0, 0x00800090, disasm_mul_and_mla_long),
     (0x0E000000, 0x04000000, disasm_single_data_transfer), // single data transfer immediate offset
     (0x0E000010, 0x06000000, disasm_single_data_transfer), // single data transfer offset shift by imm
+    (0x0FB00FF0, 0x01000090, disasm_single_data_swap),
     (0x0E400F90, 0x00000090, disasm_signed_and_halfword_data_transfer),
     (0x0E000000, 0x08000000, disasm_block_data_transfer),
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
@@ -230,6 +231,17 @@ pub fn disasm_signed_and_halfword_data_transfer(instr: u32, _address: u32) -> Ar
     }
 }
 
+pub fn disasm_single_data_swap(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from(instr.get_bit_range(28..=31));
+    ArmInstr::SingleDataSwap {
+        cond,
+        b: instr.get_bit(22),
+        rn: Register::from(instr.get_bit_range(16..=19)),
+        rd: Register::from(instr.get_bit_range(12..=15)),
+        rm: Register::from(instr.get_bit_range(0..=3)),
+    }
+}
+
 pub fn disasm_block_data_transfer(instr: u32, _address: u32) -> ArmInstr {
     let cond = Condition::from(instr.get_bit_range(28..=31));
     ArmInstr::BlockDataTransfer {
@@ -323,6 +335,14 @@ pub enum ArmInstr {
         offset: RegisterOrImmediate,
     },
 
+    SingleDataSwap {
+        cond: Condition,
+        b: bool,
+        rn: Register,
+        rd: Register,
+        rm: Register,
+    },
+
     BlockDataTransfer {
         cond: Condition,
         op: DataTransferOp,
@@ -401,6 +421,10 @@ impl ArmInstr {
                     ""
                 };
                 write!(f, "{proc}{cond}{dt}{t}")
+            }
+            ArmInstr::SingleDataSwap { cond, b, .. } => {
+                let b = if *b { "b" } else { "" };
+                write!(f, "swp{cond}{b}")
             }
             ArmInstr::BlockDataTransfer {
                 cond,
@@ -517,6 +541,9 @@ impl ArmInstr {
                     write!(f, "{rd}, [{rn}], {u}{offset:x}")
                 }
             },
+            ArmInstr::SingleDataSwap { rn, rd, rm, .. } => {
+                write!(f, "{rd}, {rm}, [{rn}]")
+            }
             ArmInstr::BlockDataTransfer {
                 w,
                 s,
@@ -567,6 +594,7 @@ impl ArmInstr {
             ArmInstr::PsrToRegister { cond, .. } => *cond,
             ArmInstr::RegisterToPsr { cond, .. } => *cond,
             ArmInstr::SingleDataTransfer { cond, .. } => *cond,
+            ArmInstr::SingleDataSwap { cond, .. } => *cond,
             ArmInstr::BlockDataTransfer { cond, .. } => *cond,
         }
     }
@@ -1641,6 +1669,13 @@ mod tests {
         [disasm_stmia_s_writeback, "stmia r0!, {r1,r3-r4,r6-r10,lr}^", "stmia", "r0!, {r1,r3-r4,r6-r10,lr}^"],
         [disasm_stmdb_s_writeback, "stmdb r0!, {r1,r3-r4,r6-r10,lr}^", "stmdb", "r0!, {r1,r3-r4,r6-r10,lr}^"],
         [disasm_stmda_s_writeback, "stmda r0!, {r1,r3-r4,r6-r10,lr}^", "stmda", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+    }
+
+    // Single Data Swap
+    #[rustfmt::skip]
+    make_tests! {
+        [disasm_swp, "swp r0, r1, [r2]", "swp", "r0, r1, [r2]"],
+        [disasm_swpb, "swpb r0, r1, [r2]", "swpb", "r0, r1, [r2]"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
