@@ -15,6 +15,7 @@ const DISASM_TABLE: &[(u32, u32, ArmDisasmFn)] = &[
     (0x0E000000, 0x04000000, disasm_single_data_transfer), // single data transfer immediate offset
     (0x0E000010, 0x06000000, disasm_single_data_transfer), // single data transfer offset shift by imm
     (0x0E400F90, 0x00000090, disasm_signed_and_halfword_data_transfer),
+    (0x0E000000, 0x08000000, disasm_block_data_transfer),
     (0x0E000000, 0x0A000000, disasm_b_and_bl),
     (0x0E000000, 0x02000000, disasm_dataproc), // dataproc immediate op2
     (0x0E000010, 0x00000000, disasm_dataproc), // dataproc op2 shift by imm
@@ -166,9 +167,9 @@ pub fn disasm_single_data_transfer(instr: u32, _address: u32) -> ArmInstr {
     ArmInstr::SingleDataTransfer {
         cond,
         op: if instr.get_bit(20) {
-            SDTOp::Load
+            DataTransferOp::Load
         } else {
-            SDTOp::Store
+            DataTransferOp::Store
         },
         data_type: if instr.get_bit(22) {
             SDTDataType::Byte
@@ -176,14 +177,14 @@ pub fn disasm_single_data_transfer(instr: u32, _address: u32) -> ArmInstr {
             SDTDataType::Word
         },
         indexing: if instr.get_bit(24) {
-            SDTIndexing::Pre
+            DataTransferIndexing::Pre
         } else {
-            SDTIndexing::Post
+            DataTransferIndexing::Post
         },
         direction: if instr.get_bit(23) {
-            SDTDirection::Up
+            DataTransferDirection::Up
         } else {
-            SDTDirection::Down
+            DataTransferDirection::Down
         },
         writeback: instr.get_bit(21),
         rn: Register::from(instr.get_bit_range(16..=19)),
@@ -201,9 +202,9 @@ pub fn disasm_signed_and_halfword_data_transfer(instr: u32, _address: u32) -> Ar
     ArmInstr::SingleDataTransfer {
         cond,
         op: if instr.get_bit(20) {
-            SDTOp::Load
+            DataTransferOp::Load
         } else {
-            SDTOp::Store
+            DataTransferOp::Store
         },
         data_type: match instr.get_bit_range(5..=6) {
             0b00 => unreachable!("SWP not LDRH/STRH/LDRSB/LDRSH"),
@@ -213,19 +214,45 @@ pub fn disasm_signed_and_halfword_data_transfer(instr: u32, _address: u32) -> Ar
             _ => unreachable!(),
         },
         indexing: if instr.get_bit(24) {
-            SDTIndexing::Pre
+            DataTransferIndexing::Pre
         } else {
-            SDTIndexing::Post
+            DataTransferIndexing::Post
         },
         direction: if instr.get_bit(23) {
-            SDTDirection::Up
+            DataTransferDirection::Up
         } else {
-            SDTDirection::Down
+            DataTransferDirection::Down
         },
         writeback: instr.get_bit(21),
         rn: Register::from(instr.get_bit_range(16..=19)),
         rd: Register::from(instr.get_bit_range(12..=15)),
         offset: RegisterOrImmediate::Register(Register::from(instr.get_bit_range(0..=3))),
+    }
+}
+
+pub fn disasm_block_data_transfer(instr: u32, _address: u32) -> ArmInstr {
+    let cond = Condition::from(instr.get_bit_range(28..=31));
+    ArmInstr::BlockDataTransfer {
+        cond,
+        op: if instr.get_bit(20) {
+            DataTransferOp::Load
+        } else {
+            DataTransferOp::Store
+        },
+        direction: if instr.get_bit(23) {
+            DataTransferDirection::Up
+        } else {
+            DataTransferDirection::Down
+        },
+        indexing: if instr.get_bit(24) {
+            DataTransferIndexing::Pre
+        } else {
+            DataTransferIndexing::Post
+        },
+        w: instr.get_bit(21),
+        s: instr.get_bit(22),
+        rn: Register::from(instr.get_bit_range(16..=19)),
+        registers: RegisterList(instr as u16),
     }
 }
 
@@ -286,14 +313,25 @@ pub enum ArmInstr {
 
     SingleDataTransfer {
         cond: Condition,
-        op: SDTOp,
+        op: DataTransferOp,
         data_type: SDTDataType,
-        direction: SDTDirection,
-        indexing: SDTIndexing,
+        direction: DataTransferDirection,
+        indexing: DataTransferIndexing,
         writeback: bool,
         rn: Register,
         rd: Register,
         offset: RegisterOrImmediate,
+    },
+
+    BlockDataTransfer {
+        cond: Condition,
+        op: DataTransferOp,
+        direction: DataTransferDirection,
+        indexing: DataTransferIndexing,
+        w: bool,
+        s: bool,
+        rn: Register,
+        registers: RegisterList,
     },
 
     Undefined {
@@ -344,8 +382,8 @@ impl ArmInstr {
                 ..
             } => {
                 let proc = match op {
-                    SDTOp::Load => "ldr",
-                    SDTOp::Store => "str",
+                    DataTransferOp::Load => "ldr",
+                    DataTransferOp::Store => "str",
                 };
                 let dt = match data_type {
                     SDTDataType::Byte => "b",
@@ -355,7 +393,7 @@ impl ArmInstr {
                     SDTDataType::Word => "",
                 };
                 let t = if matches!(data_type, SDTDataType::Word | SDTDataType::Byte)
-                    && *indexing == SDTIndexing::Post
+                    && *indexing == DataTransferIndexing::Post
                     && *writeback
                 {
                     "t"
@@ -363,6 +401,57 @@ impl ArmInstr {
                     ""
                 };
                 write!(f, "{proc}{cond}{dt}{t}")
+            }
+            ArmInstr::BlockDataTransfer {
+                cond,
+                op,
+                direction,
+                indexing,
+                ..
+            } => {
+                let proc = match (op, direction, indexing) {
+                    (
+                        DataTransferOp::Load,
+                        DataTransferDirection::Up,
+                        DataTransferIndexing::Pre,
+                    ) => "ldmib",
+                    (
+                        DataTransferOp::Load,
+                        DataTransferDirection::Up,
+                        DataTransferIndexing::Post,
+                    ) => "ldmia",
+                    (
+                        DataTransferOp::Load,
+                        DataTransferDirection::Down,
+                        DataTransferIndexing::Pre,
+                    ) => "ldmdb",
+                    (
+                        DataTransferOp::Load,
+                        DataTransferDirection::Down,
+                        DataTransferIndexing::Post,
+                    ) => "ldmda",
+                    (
+                        DataTransferOp::Store,
+                        DataTransferDirection::Up,
+                        DataTransferIndexing::Pre,
+                    ) => "stmib",
+                    (
+                        DataTransferOp::Store,
+                        DataTransferDirection::Up,
+                        DataTransferIndexing::Post,
+                    ) => "stmia",
+                    (
+                        DataTransferOp::Store,
+                        DataTransferDirection::Down,
+                        DataTransferIndexing::Pre,
+                    ) => "stmdb",
+                    (
+                        DataTransferOp::Store,
+                        DataTransferDirection::Down,
+                        DataTransferIndexing::Post,
+                    ) => "stmda",
+                };
+                write!(f, "{proc}{cond}")
             }
         }
     }
@@ -410,17 +499,17 @@ impl ArmInstr {
                 direction,
                 ..
             } => match indexing {
-                SDTIndexing::Pre => {
+                DataTransferIndexing::Pre => {
                     let w = if *writeback { "!" } else { "" };
-                    let u = if *direction == SDTDirection::Down {
+                    let u = if *direction == DataTransferDirection::Down {
                         "-"
                     } else {
                         ""
                     };
                     write!(f, "{rd}, [{rn}, {u}{offset:x}]{w}")
                 }
-                SDTIndexing::Post => {
-                    let u = if *direction == SDTDirection::Down {
+                DataTransferIndexing::Post => {
+                    let u = if *direction == DataTransferDirection::Down {
                         "-"
                     } else {
                         ""
@@ -428,6 +517,17 @@ impl ArmInstr {
                     write!(f, "{rd}, [{rn}], {u}{offset:x}")
                 }
             },
+            ArmInstr::BlockDataTransfer {
+                w,
+                s,
+                rn,
+                registers,
+                ..
+            } => {
+                let w = if *w { "!" } else { "" };
+                let s = if *s { "^" } else { "" };
+                write!(f, "{rn}{w}, {registers}{s}")
+            }
         }
     }
 
@@ -467,6 +567,7 @@ impl ArmInstr {
             ArmInstr::PsrToRegister { cond, .. } => *cond,
             ArmInstr::RegisterToPsr { cond, .. } => *cond,
             ArmInstr::SingleDataTransfer { cond, .. } => *cond,
+            ArmInstr::BlockDataTransfer { cond, .. } => *cond,
         }
     }
 }
@@ -629,7 +730,7 @@ impl std::fmt::Display for RegShift {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Register {
     R0,
     R1,
@@ -846,7 +947,7 @@ impl std::fmt::Display for Condition {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SDTIndexing {
+pub enum DataTransferIndexing {
     Pre,
     Post,
 }
@@ -861,15 +962,62 @@ pub enum SDTDataType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SDTOp {
+pub enum DataTransferOp {
     Load,
     Store,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SDTDirection {
+pub enum DataTransferDirection {
     Up,
     Down,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct RegisterList(u16);
+
+impl std::fmt::Display for RegisterList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char('{')?;
+
+        let mut start: Option<Register> = None;
+        let mut end: Option<Register> = None;
+        let mut not_first_write = false;
+        let mut write_registers = |start: &mut Option<Register>,
+                                   end: &mut Option<Register>,
+                                   f: &mut std::fmt::Formatter<'_>|
+         -> std::fmt::Result {
+            let prefix = if not_first_write {
+                ","
+            } else {
+                not_first_write = true;
+                ""
+            };
+            match (*start, *end) {
+                (Some(start), None) => write!(f, "{prefix}{start}")?,
+                (Some(start), Some(end)) if start == end => write!(f, "{prefix}{start}")?,
+                (Some(start), Some(end)) => write!(f, "{prefix}{start}-{end}")?,
+                (None, None) | (None, Some(_)) => return Ok(()),
+            }
+            *start = None;
+            *end = None;
+            Ok(())
+        };
+
+        for register in 0..16 {
+            let set = ((self.0 >> register) & 0x1) != 0;
+
+            if set && start.is_some() {
+                end = Some(Register::from(register));
+            } else if set && start.is_none() {
+                start = Some(Register::from(register));
+            } else if !set && (start.is_some() || end.is_some()) {
+                write_registers(&mut start, &mut end, f)?;
+            }
+        }
+        write_registers(&mut start, &mut end, f)?;
+        f.write_char('}')
+    }
 }
 
 #[cfg(test)]
@@ -1453,6 +1601,46 @@ mod tests {
         [disasm_ldrsh_reg_pre, "ldrsb r0, [r1, r2]", "ldrsb", "r0, [r1, r2]"],
         [disasm_ldrsh_reg_pre_writeback, "ldrsb r0, [r1, r2]!", "ldrsb", "r0, [r1, r2]!"],
         [disasm_ldrsh_reg_post, "ldrsb r0, [r1], r2", "ldrsb", "r0, [r1], r2"],
+    }
+
+    // Block Data Transfer
+    #[rustfmt::skip]
+    make_tests! {
+        // LDM
+        [disasm_ldmib, "ldmib r0, {r1,r3-r4,r6-r10,lr}", "ldmib", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmia, "ldmia r0, {r1,r3-r4,r6-r10,lr}", "ldmia", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmdb, "ldmdb r0, {r1,r3-r4,r6-r10,lr}", "ldmdb", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmda, "ldmda r0, {r1,r3-r4,r6-r10,lr}", "ldmda", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmib_writeback, "ldmib r0!, {r1,r3-r4,r6-r10,lr}", "ldmib", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmia_writeback, "ldmia r0!, {r1,r3-r4,r6-r10,lr}", "ldmia", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmdb_writeback, "ldmdb r0!, {r1,r3-r4,r6-r10,lr}", "ldmdb", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmda_writeback, "ldmda r0!, {r1,r3-r4,r6-r10,lr}", "ldmda", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_ldmib_s, "ldmib r0, {r1,r3-r4,r6-r10,lr}^", "ldmib", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmia_s, "ldmia r0, {r1,r3-r4,r6-r10,lr}^", "ldmia", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmdb_s, "ldmdb r0, {r1,r3-r4,r6-r10,lr}^", "ldmdb", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmda_s, "ldmda r0, {r1,r3-r4,r6-r10,lr}^", "ldmda", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmib_s_writeback, "ldmib r0!, {r1,r3-r4,r6-r10,lr}^", "ldmib", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmia_s_writeback, "ldmia r0!, {r1,r3-r4,r6-r10,lr}^", "ldmia", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmdb_s_writeback, "ldmdb r0!, {r1,r3-r4,r6-r10,lr}^", "ldmdb", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_ldmda_s_writeback, "ldmda r0!, {r1,r3-r4,r6-r10,lr}^", "ldmda", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+
+        // STM
+        [disasm_stmib, "stmib r0, {r1,r3-r4,r6-r10,lr}", "stmib", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmia, "stmia r0, {r1,r3-r4,r6-r10,lr}", "stmia", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmdb, "stmdb r0, {r1,r3-r4,r6-r10,lr}", "stmdb", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmda, "stmda r0, {r1,r3-r4,r6-r10,lr}", "stmda", "r0, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmib_writeback, "stmib r0!, {r1,r3-r4,r6-r10,lr}", "stmib", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmia_writeback, "stmia r0!, {r1,r3-r4,r6-r10,lr}", "stmia", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmdb_writeback, "stmdb r0!, {r1,r3-r4,r6-r10,lr}", "stmdb", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmda_writeback, "stmda r0!, {r1,r3-r4,r6-r10,lr}", "stmda", "r0!, {r1,r3-r4,r6-r10,lr}"],
+        [disasm_stmib_s, "stmib r0, {r1,r3-r4,r6-r10,lr}^", "stmib", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmia_s, "stmia r0, {r1,r3-r4,r6-r10,lr}^", "stmia", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmdb_s, "stmdb r0, {r1,r3-r4,r6-r10,lr}^", "stmdb", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmda_s, "stmda r0, {r1,r3-r4,r6-r10,lr}^", "stmda", "r0, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmib_s_writeback, "stmib r0!, {r1,r3-r4,r6-r10,lr}^", "stmib", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmia_s_writeback, "stmia r0!, {r1,r3-r4,r6-r10,lr}^", "stmia", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmdb_s_writeback, "stmdb r0!, {r1,r3-r4,r6-r10,lr}^", "stmdb", "r0!, {r1,r3-r4,r6-r10,lr}^"],
+        [disasm_stmda_s_writeback, "stmda r0!, {r1,r3-r4,r6-r10,lr}^", "stmda", "r0!, {r1,r3-r4,r6-r10,lr}^"],
     }
 
     fn assemble_one(source: &str) -> std::io::Result<u32> {
