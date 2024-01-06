@@ -658,7 +658,7 @@ impl ThumbInstr {
                 src: Register::R15,
                 off: RegisterOrImmediate::Immediate(off),
             } => {
-                let pc = addr.wrapping_add(4);
+                let pc = addr.wrapping_add(4) & !0x3;
                 let data_addr = pc.wrapping_add(off);
                 if let Some(m) = m {
                     match data_type {
@@ -668,22 +668,7 @@ impl ThumbInstr {
                                 .rotate_right(8 * (data_addr % 4));
                             write!(f, "{dst} = 0x{data:08x}")
                         }
-                        SDTDataType::Byte => {
-                            let data = m.view8(data_addr);
-                            write!(f, "{dst} = 0x{data:02x}")
-                        }
-                        SDTDataType::Halfword => {
-                            let data = m.view16(data_addr & !0x1);
-                            write!(f, "{dst} = 0x{data:04x}")
-                        }
-                        SDTDataType::SignedHalfword => {
-                            let data = m.view16(data_addr & !0x1) as i16;
-                            write!(f, "{dst} = 0x{data:04x}")
-                        }
-                        SDTDataType::SignedByte => {
-                            let data = m.view8(data_addr) as i8;
-                            write!(f, "{dst} = 0x{data:02x}")
-                        }
+                        _ => unreachable!("invalid data type"),
                     }
                 } else {
                     write!(f, "{dst} = [0x{data_addr:08x}]")
