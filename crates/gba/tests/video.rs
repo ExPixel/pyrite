@@ -1,3 +1,4 @@
+use arm::disasm::MemoryView as _;
 use common::{audio_noop, execute_until};
 use gba::{
     video::{rgb5, LineBuffer, VISIBLE_LINE_COUNT, VISIBLE_LINE_WIDTH},

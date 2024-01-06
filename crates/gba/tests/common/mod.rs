@@ -6,7 +6,10 @@ use std::{
     },
 };
 
-use arm::emu::{CpuException, Cycles, ExceptionHandlerResult};
+use arm::{
+    disasm::MemoryView as _,
+    emu::{CpuException, Cycles, ExceptionHandlerResult},
+};
 use arm_devkit::{LinkerScript, LinkerScriptWeakRef};
 use gba::{
     video::LineBuffer, Gba, GbaMemoryMappedHardware, GbaVideoOutput, NoopGbaAudioOutput,

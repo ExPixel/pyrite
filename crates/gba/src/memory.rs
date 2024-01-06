@@ -1,5 +1,7 @@
 mod io_registers;
 
+#[cfg(feature = "arm-disassembler")]
+use arm::disasm::MemoryView;
 use arm::emu::{AccessType, Cpu, Memory, Waitstates};
 use byteorder::{ByteOrder, LittleEndian};
 use util::bits::BitOps;
@@ -7,43 +9,6 @@ use util::bits::BitOps;
 use crate::hardware::GbaMemoryMappedHardware;
 
 impl GbaMemoryMappedHardware {
-    pub fn view8(&self, _address: u32) -> u8 {
-        0
-    }
-
-    pub fn view16(&self, _address: u32) -> u16 {
-        0
-    }
-
-    pub fn view32(&self, address: u32) -> u32 {
-        let address = address & !0x3;
-        match address >> 24 {
-            REGION_BIOS if address < 0x4000 => {
-                LittleEndian::read_u32(&self.bios[address as usize..])
-            }
-            // FIXME implement enable/disable from SystemControl
-            REGION_EWRAM => LittleEndian::read_u32(&self.ewram[(address & EWRAM_MASK) as usize..]),
-            // FIXME implement enable/disable from SystemControl
-            REGION_IWRAM => LittleEndian::read_u32(&self.iwram[(address & IWRAM_MASK) as usize..]),
-            REGION_IOREGS => 0,
-            REGION_PAL => self.palram.load32(address),
-            REGION_VRAM => LittleEndian::read_u32(&self.vram[vram_offset(address)..]),
-            REGION_OAM => LittleEndian::read_u32(&self.oam[(address & OAM_MASK) as usize..]),
-
-            REGION_GAMEPAK0_LO | REGION_GAMEPAK0_HI => {
-                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
-            }
-            REGION_GAMEPAK1_LO | REGION_GAMEPAK1_HI => {
-                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
-            }
-            REGION_GAMEPAK2_LO | REGION_GAMEPAK2_HI => {
-                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
-            }
-            REGION_SRAM => 0,
-            _ => 0,
-        }
-    }
-
     fn gamepak_load32<const AREA: usize>(
         &mut self,
         address: u32,
@@ -414,6 +379,71 @@ impl Memory for GbaMemoryMappedHardware {
 
     fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(feature = "arm-disassembler")]
+impl MemoryView for GbaMemoryMappedHardware {
+    fn view8(&self, _address: u32) -> u8 {
+        0
+    }
+
+    fn view16(&self, address: u32) -> u16 {
+        let address = address & !0x1;
+        match address >> 24 {
+            REGION_BIOS if address < 0x4000 => {
+                LittleEndian::read_u16(&self.bios[address as usize..])
+            }
+            // FIXME implement enable/disable from SystemControl
+            REGION_EWRAM => LittleEndian::read_u16(&self.ewram[(address & EWRAM_MASK) as usize..]),
+            // FIXME implement enable/disable from SystemControl
+            REGION_IWRAM => LittleEndian::read_u16(&self.iwram[(address & IWRAM_MASK) as usize..]),
+            REGION_IOREGS => 0,
+            REGION_PAL => self.palram.load16(address),
+            REGION_VRAM => LittleEndian::read_u16(&self.vram[vram_offset(address)..]),
+            REGION_OAM => LittleEndian::read_u16(&self.oam[(address & OAM_MASK) as usize..]),
+
+            REGION_GAMEPAK0_LO | REGION_GAMEPAK0_HI => {
+                LittleEndian::read_u16(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_GAMEPAK1_LO | REGION_GAMEPAK1_HI => {
+                LittleEndian::read_u16(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_GAMEPAK2_LO | REGION_GAMEPAK2_HI => {
+                LittleEndian::read_u16(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_SRAM => 0,
+            _ => 0,
+        }
+    }
+
+    fn view32(&self, address: u32) -> u32 {
+        let address = address & !0x3;
+        match address >> 24 {
+            REGION_BIOS if address < 0x4000 => {
+                LittleEndian::read_u32(&self.bios[address as usize..])
+            }
+            // FIXME implement enable/disable from SystemControl
+            REGION_EWRAM => LittleEndian::read_u32(&self.ewram[(address & EWRAM_MASK) as usize..]),
+            // FIXME implement enable/disable from SystemControl
+            REGION_IWRAM => LittleEndian::read_u32(&self.iwram[(address & IWRAM_MASK) as usize..]),
+            REGION_IOREGS => 0,
+            REGION_PAL => self.palram.load32(address),
+            REGION_VRAM => LittleEndian::read_u32(&self.vram[vram_offset(address)..]),
+            REGION_OAM => LittleEndian::read_u32(&self.oam[(address & OAM_MASK) as usize..]),
+
+            REGION_GAMEPAK0_LO | REGION_GAMEPAK0_HI => {
+                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_GAMEPAK1_LO | REGION_GAMEPAK1_HI => {
+                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_GAMEPAK2_LO | REGION_GAMEPAK2_HI => {
+                LittleEndian::read_u32(&self.gamepak[(address as usize & self.gamepak_mask)..])
+            }
+            REGION_SRAM => 0,
+            _ => 0,
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+use arm::disasm::MemoryView as _;
+
 #[macro_use]
 mod common;
 
