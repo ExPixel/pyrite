@@ -171,7 +171,9 @@ fn disasm_hi_reg_op(instr: u16) -> ThumbInstr {
 
     // The action of H1= 0, H2 = 0 for Op = 00 (ADD), Op =01 (CMP) and Op = 10 (MOV) is
     // undefined, and should not be used.
-    debug_assert!((h1 | h2) != 0, "both h1 and h2 are zero");
+    if h1 == 0 && h2 == 0 {
+        return ThumbInstr::Undefined(instr);
+    }
 
     ThumbInstr::DataProc {
         op,
