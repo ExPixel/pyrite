@@ -143,6 +143,29 @@ impl AppWindow for DisassemblyWindow {
                         ui.monospace(RichText::new(dec).color(col));
                         ui.end_row();
                     }
+
+                    let cpsr = gba_data.gba.cpu.registers.read_cpsr();
+                    ui.monospace("cpsr");
+                    ui.monospace(format!("0x{cpsr:08X}"));
+                    ui.monospace(cpsr.to_string());
+                    ui.end_row();
+
+                    let spsr = gba_data.gba.cpu.registers.read_spsr();
+                    ui.monospace("spsr");
+                    ui.monospace(format!("0x{spsr:08X}"));
+                    ui.monospace(spsr.to_string());
+                    ui.end_row();
+
+                    ui.monospace("Mode");
+                    ui.monospace(gba_data.gba.cpu.registers.read_mode().to_string());
+                    ui.end_row();
+
+                    ui.monospace("ISA");
+                    if gba_data.gba.cpu.registers.get_flag(arm::emu::CpsrFlag::T) {
+                        ui.monospace("Thumb");
+                    } else {
+                        ui.monospace("ARM");
+                    }
                 });
         });
 
