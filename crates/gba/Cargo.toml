@@ -3,7 +3,9 @@ name = "gba"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+"default" = ["arm-disassembler"]
+"arm-disassembler" = ["arm/arm-disassembler"]
 
 [dependencies]
 arm = { path = "../arm", features = ["arm-emulator"] }

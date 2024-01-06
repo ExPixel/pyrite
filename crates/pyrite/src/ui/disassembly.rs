@@ -1,6 +1,7 @@
 use super::app_window::{AppWindow, AppWindowWrapper};
 use crate::gba_runner::SharedGba;
 use ahash::HashSet;
+use arm::disasm::MemoryView as _;
 use arm::{disasm::AnyInstr, emu::InstructionSet};
 use egui::{epaint::PathShape, Color32, RichText, Sense, Stroke, ViewportId};
 use parking_lot::Mutex;
@@ -189,8 +190,8 @@ impl AppWindow for DisassemblyWindow {
                         }
 
                         let mnemonic = disassembled.mnemonic();
-                        let arguments = disassembled.arguments();
-                        let comment = disassembled.comment();
+                        let arguments = disassembled.arguments(address, Some(&gba_data.gba.mapped));
+                        let comment = disassembled.comment(address, Some(&gba_data.gba.mapped));
 
                         let (cursor_rect, _response) = ui.allocate_exact_size(
                             egui::vec2(text_height, text_height),
@@ -248,6 +249,7 @@ impl AppWindow for DisassemblyWindow {
 
                         comment_buffer.clear();
                         write!(&mut comment_buffer, "{comment}").unwrap();
+
                         if !comment_buffer.is_empty() {
                             let comment_string = format!("{comment_buffer:<32}");
                             ui.horizontal(|ui| {

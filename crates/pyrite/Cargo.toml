@@ -18,7 +18,7 @@ serde = { version = "1", default-features = false, features = ["derive", "std"] 
 serde_json = { version = "1", default-features = false, features = ["std"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-gba = { path = "../gba" }
+gba = { path = "../gba", features = ["arm-disassembler"]  }
 arm = { path = "../arm", features = ["arm-disassembler"] }
 parking_lot = "0.12"
 bytemuck = { version = "1.13", features = ["derive"] }
