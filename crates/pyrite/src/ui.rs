@@ -12,7 +12,7 @@ use crate::{
 };
 use ahash::HashSet;
 use anyhow::Context as _;
-use egui::{Ui, Vec2, ViewportId};
+use egui::{Frame, Ui, Vec2, ViewportId};
 use parking_lot::{Mutex, MutexGuard};
 
 use self::{
@@ -137,15 +137,17 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("menu_bar_panel").show(ctx, |ui| self.render_menu(ui));
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let screen_width = ui.available_width();
-            let screen_height = (screen_width / 240.0) * 160.0;
-            let (rect, _) = ui.allocate_exact_size(
-                Vec2::new(screen_width as _, screen_height as _),
-                egui::Sense::hover(),
-            );
-            ui.painter().add(self.screen.paint(rect));
-        });
+        egui::CentralPanel::default()
+            .frame(Frame::none())
+            .show(ctx, |ui| {
+                let screen_width = ui.available_width();
+                let screen_height = (screen_width / 240.0) * 160.0;
+                let (rect, _) = ui.allocate_exact_size(
+                    Vec2::new(screen_width as _, screen_height as _),
+                    egui::Sense::hover(),
+                );
+                ui.painter().add(self.screen.paint(rect));
+            });
 
         let mut windows_visible = self.windows_visible.lock();
         for window in self.windows.iter() {
