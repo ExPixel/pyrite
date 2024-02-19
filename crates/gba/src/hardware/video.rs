@@ -1,5 +1,6 @@
 pub mod line;
 mod mode3;
+mod mode4;
 pub mod registers;
 
 use arm::emu::Cycles;
@@ -48,12 +49,13 @@ impl GbaVideo {
         let mut unhandled_mode = false;
 
         let render_context = RenderContext::new(line, &self.registers, context.vram);
+        self.line.clear(context.palette);
         match self.registers.dispcnt.bg_mode() {
             BgMode::Mode0 => unhandled_mode = true,
             BgMode::Mode1 => unhandled_mode = true,
             BgMode::Mode3 => mode3::render(&mut self.line, render_context),
             BgMode::Mode2 => unhandled_mode = true,
-            BgMode::Mode4 => unhandled_mode = true,
+            BgMode::Mode4 => mode4::render(&mut self.line, render_context),
             BgMode::Mode5 => unhandled_mode = true,
             BgMode::Invalid6 => unhandled_mode = true,
             BgMode::Invalid7 => unhandled_mode = true,
@@ -89,12 +91,18 @@ impl GbaVideo {
         } else {
             current_scanline += 1;
         }
+
+        self.registers
+            .dispstat
+            .set_vblank_flag(current_scanline >= VISIBLE_LINE_COUNT as u16);
+        self.registers.dispstat.set_hblank_flag(false);
         self.registers.vcount.set_current_scanline(current_scanline);
     }
 
     pub(crate) fn begin_hblank(&mut self, video: &mut dyn GbaVideoOutput, context: HBlankContext) {
         self.scheduler.schedule(GbaEvent::HDraw, HBLANK_CYCLES);
 
+        self.registers.dispstat.set_hblank_flag(true);
         let current_scanline = self.registers.vcount.current_scanline();
         if current_scanline < VISIBLE_LINE_COUNT as _ {
             self.render_line(current_scanline, video, context);

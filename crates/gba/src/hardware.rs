@@ -1,3 +1,4 @@
+pub mod keypad;
 pub mod palette;
 pub mod system_control;
 pub mod video;
@@ -8,6 +9,7 @@ use crate::{
 };
 
 use self::{
+    keypad::Keypad,
     palette::Palette,
     system_control::{RegInternalMemoryControl, SystemControl},
     video::GbaVideo,
@@ -20,6 +22,7 @@ pub struct GbaMemoryMappedHardware {
 
     pub video: Box<GbaVideo>,
     pub system_control: SystemControl,
+    pub keypad: Keypad,
 
     pub palram: Box<Palette>,
     pub vram: Box<[u8; VRAM_SIZE]>,
@@ -43,6 +46,7 @@ impl GbaMemoryMappedHardware {
 
             video: Box::new(GbaVideo::new(scheduler)),
             system_control: SystemControl::default(),
+            keypad: Keypad::default(),
 
             palram: Box::default(),
             vram: Box::new([0; VRAM_SIZE]),
@@ -58,9 +62,11 @@ impl GbaMemoryMappedHardware {
 
     /// Called after a hard reset of the GBA.
     pub(crate) fn reset(&mut self) {
+        tracing::debug!("resetting GBA hardware");
         self.system_control
             .write_internal_memory_control(RegInternalMemoryControl::DEFAULT);
         self.video.reset();
+        self.keypad.reset();
     }
 
     pub fn set_gamepak(&mut self, mut new_gamepak: Vec<u8>) {
