@@ -1,11 +1,14 @@
 use pyrite_derive::IoRegister;
 
+use crate::hardware::keypad::RegKeyInput;
+
 #[derive(Default)]
 pub struct GbaVideoRegisters {
     pub(crate) dispcnt: RegDispcnt,
     pub(crate) green_swap: RegGreenSwap,
     pub(crate) dispstat: RegDispstat,
     pub(crate) vcount: RegVcount,
+    pub(crate) keyinput: RegKeyInput,
 }
 
 /// 4000000h - DISPCNT - LCD Control (Read/Write)
@@ -144,15 +147,15 @@ impl From<BgMode> for u16 {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum DisplayFrame {
-    Mode0,
-    Mode1,
+    Frame0,
+    Frame1,
 }
 
 impl From<DisplayFrame> for u16 {
     fn from(value: DisplayFrame) -> Self {
         match value {
-            DisplayFrame::Mode0 => 0,
-            DisplayFrame::Mode1 => 1,
+            DisplayFrame::Frame0 => 0,
+            DisplayFrame::Frame1 => 1,
         }
     }
 }
@@ -160,9 +163,9 @@ impl From<DisplayFrame> for u16 {
 impl From<u16> for DisplayFrame {
     fn from(value: u16) -> Self {
         if value == 0 {
-            DisplayFrame::Mode0
+            DisplayFrame::Frame0
         } else {
-            DisplayFrame::Mode1
+            DisplayFrame::Frame1
         }
     }
 }

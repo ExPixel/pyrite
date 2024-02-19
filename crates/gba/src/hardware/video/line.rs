@@ -1,29 +1,97 @@
 use util::bits::BitOps;
 
-use crate::{hardware::palette::Palette, memory::VRAM_SIZE};
+use crate::{hardware::palette::Palette, memory::VRAM_SIZE, video::registers::BgMode};
 
-use super::{registers::GbaVideoRegisters, HBlankContext, VISIBLE_LINE_WIDTH};
+use super::{registers::GbaVideoRegisters, HBlankContext, RenderContext, VISIBLE_LINE_WIDTH};
 
-#[derive(Default)]
 pub struct GbaLine {
-    layers: [LayerLine; 5],
+    pixels: [DoublePixel; VISIBLE_LINE_WIDTH],
     objwin: LineBits,
-    layer_attrs: [LayerAttrs; 5],
 }
 
 impl GbaLine {
-    pub fn put(&mut self, layer: Layer, x: usize, pixel: impl Into<Pixel>) {
-        self.layers[layer as usize].pixels[x] = pixel.into();
+    pub fn push(&mut self, x: usize, pixel: Pixel) {
+        self.pixels[x].push(pixel);
+    }
+
+    pub fn clear(&mut self, context: &Palette) {
+        let pixel = Pixel::from(context.get_bg256(0));
+        self.pixels.fill(DoublePixel::new(pixel, pixel));
     }
 
     pub fn blend(&mut self, output: &mut [u16; VISIBLE_LINE_WIDTH], context: BlendContext) {
         #[cfg(feature = "puffin")]
         puffin::profile_function!();
 
-        for (x, output) in output.iter_mut().enumerate() {
-            let pixel = self.layers[2].pixels[x];
-            *output = pixel.value;
+        let mode = context.registers.dispcnt.bg_mode();
+        let is_bitmap_16bpp_mode = mode == BgMode::Mode3 || mode == BgMode::Mode5;
+
+        if !is_bitmap_16bpp_mode {
+            self.blend_internal::<false>(output, context);
+        } else {
+            self.blend_internal::<true>(output, context);
         }
+
+        // for layer in 2..=2 {
+        //     let is_bitmap_layer = layer == 2 && (mode == BgMode::Mode3 || mode == BgMode::Mode5);
+        //     if is_bitmap_layer {
+        //         self.blend_layer_pixels::<true, true>(layer, output, context);
+        //     } else {
+        //         self.blend_layer_pixels::<false, true>(layer, output, context);
+        //     }
+        // }
+    }
+
+    fn blend_internal<const IS_BITMAP_16BPP_MODE: bool>(
+        &self,
+        output: &mut [u16; VISIBLE_LINE_WIDTH],
+        context: BlendContext,
+    ) {
+        for (pixel, output) in self.pixels.iter().zip(output.iter_mut()) {
+            if IS_BITMAP_16BPP_MODE {
+                *output = pixel.top().color_16bpp();
+            } else {
+                let color = if pixel.top().attrs().is_obj() {
+                    context.palette.get_obj256(pixel.top().entry())
+                } else {
+                    context.palette.get_bg256(pixel.top().entry())
+                };
+                *output = color;
+            }
+        }
+    }
+}
+
+impl Default for GbaLine {
+    fn default() -> Self {
+        Self {
+            pixels: [DoublePixel::default(); VISIBLE_LINE_WIDTH],
+            objwin: LineBits::zeroes(),
+        }
+    }
+}
+
+/// The top pixel is actually in the lower 16 bits of the u32, and the bottom
+/// pixel is in the upper 16 bits. This saves us a shift when pushing the pixels.
+#[derive(Default, Clone, Copy)]
+struct DoublePixel(u32);
+
+impl DoublePixel {
+    pub fn new(top: Pixel, bottom: Pixel) -> Self {
+        Self((u32::from(u16::from(top)) << 16) | u32::from(u16::from(bottom)))
+    }
+
+    pub fn top(&self) -> Pixel {
+        Pixel::from(self.0 as u16)
+    }
+
+    pub fn bottom(&self) -> Pixel {
+        Pixel::from((self.0 >> 16) as u16)
+    }
+
+    pub fn push(&mut self, pixel: Pixel) {
+        let pixel = u32::from(u16::from(pixel));
+        self.0 = (self.0 << 16) | pixel;
     }
 }
 
@@ -49,213 +117,6 @@ impl<'a> BlendContext<'a> {
             vram,
             palette,
         }
-    }
-}
-
-pub enum Layer {
-    Bg0 = 0,
-    Bg1 = 1,
-    Bg2 = 2,
-    Bg3 = 3,
-    Obj = 4,
-}
-
-struct LayerLine {
-    attrs: LayerAttrs,
-    pixels: [Pixel; VISIBLE_LINE_WIDTH],
-}
-
-impl Default for LayerLine {
-    fn default() -> Self {
-        Self {
-            pixels: [Pixel::default(); VISIBLE_LINE_WIDTH],
-            attrs: LayerAttrs::default(),
-        }
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct Pixel {
-    value: u16,
-}
-
-impl Pixel {
-    pub const fn new(value: u16) -> Self {
-        Self { value }
-    }
-}
-
-impl From<ObjPixel8Bpp> for Pixel {
-    fn from(value: ObjPixel8Bpp) -> Self {
-        Self { value: value.0 }
-    }
-}
-
-impl From<ObjPixel4Bpp> for Pixel {
-    fn from(value: ObjPixel4Bpp) -> Self {
-        Self { value: value.0 }
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct ObjPixel8Bpp(u16);
-
-impl ObjPixel8Bpp {
-    pub fn new(attrs: PixelAttrs, entry: u8) -> Self {
-        Self(attrs.value as u16 | ((entry as u16) << 8))
-    }
-}
-
-impl From<Pixel> for ObjPixel8Bpp {
-    fn from(pixel: Pixel) -> Self {
-        Self(pixel.value)
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct ObjPixel4Bpp(u16);
-
-impl ObjPixel4Bpp {
-    pub fn new(attrs: PixelAttrs, palette: u8, entry: u8) -> Self {
-        Self((attrs.value as u16) | ((palette as u16) << 12) | ((entry as u16) << 8))
-    }
-}
-
-impl From<Pixel> for ObjPixel4Bpp {
-    fn from(pixel: Pixel) -> Self {
-        Self(pixel.value)
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct BgPixel8Bpp(u16);
-
-impl BgPixel8Bpp {
-    pub fn new(entry: u8) -> Self {
-        Self(entry as u16)
-    }
-
-    pub fn entry(&self) -> u8 {
-        self.0.get_bit_range(0..8) as u8
-    }
-}
-
-impl From<Pixel> for BgPixel8Bpp {
-    fn from(pixel: Pixel) -> Self {
-        Self(pixel.value)
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct BgPixel4Bpp(u16);
-
-impl BgPixel4Bpp {
-    pub fn new(palette: u8, entry: u8) -> Self {
-        Self(((palette as u16) << 4) | (entry as u16))
-    }
-}
-
-impl From<Pixel> for BgPixel4Bpp {
-    fn from(pixel: Pixel) -> Self {
-        Self(pixel.value)
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-pub struct PixelAttrs {
-    value: u8,
-}
-
-impl PixelAttrs {
-    // # NOTE Bits 6 and 7 are used for priority
-
-    const FIRST_TARGET: u8 = 0x1; // bit 0
-    const SECOND_TARGET: u8 = 0x2; // bit 1
-    const PALETTE_4BPP: u8 = 0x4; // bit 2
-    const SEMI_TRANSPARENT: u8 = 0x8; // bit 3
-
-    fn effects_mask(mut self, has_effects: bool) -> Self {
-        if !has_effects {
-            self.value &= !0xB; // mask out bits 0,1,3
-        }
-        self
-    }
-
-    pub fn is_first_target(&self) -> bool {
-        (self.value & Self::FIRST_TARGET) != 0
-    }
-
-    pub fn is_second_target(&self) -> bool {
-        (self.value & Self::SECOND_TARGET) != 0
-    }
-
-    pub fn set_first_target(&mut self) {
-        self.value |= Self::FIRST_TARGET;
-    }
-
-    pub fn set_second_target(&mut self) {
-        self.value |= Self::SECOND_TARGET;
-    }
-
-    /// Only used by OBJ layer pixels while calculating color.
-    pub fn is_4bpp(&self) -> bool {
-        (self.value & Self::PALETTE_4BPP) != 0
-    }
-
-    /// Only used by OBJ layer pixels
-    pub fn set_4bpp(&mut self) {
-        self.value |= Self::PALETTE_4BPP;
-    }
-
-    /// Only used by OBJ layer pixels
-    pub fn set_8bpp(&mut self) {
-        /* NOP */
-    }
-
-    pub fn set_semi_transparent(&mut self) {
-        self.value |= Self::SEMI_TRANSPARENT;
-    }
-
-    pub fn is_semi_transparent(&self) -> bool {
-        (self.value & Self::SEMI_TRANSPARENT) != 0
-    }
-
-    pub fn set_priority(&mut self, priority: u16) {
-        self.value |= (priority as u8) << 6;
-    }
-
-    pub fn priority(&self) -> u16 {
-        (self.value >> 6) as u16
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-pub(crate) struct LayerAttrs {
-    value: u8,
-}
-
-impl LayerAttrs {
-    const BITMAP_16BPP: u8 = 0x1;
-    const PALETTE_4BPP: u8 = 0x2;
-
-    pub fn is_bitmap(&self) -> bool {
-        (self.value & Self::BITMAP_16BPP) != 0
-    }
-
-    pub fn is_4bpp(&self) -> bool {
-        (self.value & Self::PALETTE_4BPP) != 0
-    }
-
-    pub fn set_bitmap(&mut self) {
-        self.value |= Self::BITMAP_16BPP;
-    }
-
-    pub fn set_4bpp(&mut self) {
-        self.value |= Self::PALETTE_4BPP;
-    }
-
-    pub fn set_8bpp(&mut self) {
-        /* NOP */
     }
 }
 
@@ -288,39 +149,145 @@ impl LineBits {
     }
 }
 
-#[derive(Copy, Clone)]
-struct WindowMask {
-    visible: LineBits,
-    effects: LineBits,
-}
+#[derive(Default, Clone, Copy)]
+pub struct Pixel(u16);
 
-impl WindowMask {
-    fn new_all_enabled() -> Self {
-        WindowMask {
-            visible: LineBits::ones(),
-            effects: LineBits::ones(),
-        }
+impl Pixel {
+    pub fn new(attrs: PixelAttrs, entry: u8) -> Self {
+        Self(u16::from(entry) | u16::from(attrs))
     }
 
-    fn new_all_disabled() -> Self {
-        WindowMask {
-            visible: LineBits::zeroes(),
-            effects: LineBits::zeroes(),
-        }
+    pub fn new_bitmap(entry: u16) -> Self {
+        Self(entry | u16::from(PixelAttrs::default().with_bitmap(true)))
     }
 
-    fn set_visible(&mut self, x: usize, visible: bool, effects: bool) {
-        if x < 240 {
-            self.visible.put(x, visible);
-            self.effects.put(x, effects);
-        }
+    pub fn entry(&self) -> u8 {
+        self.0.get_bit_range(0..8) as u8
     }
 
-    fn visible(&self, x: usize) -> bool {
-        self.visible.get(x)
+    pub fn color_16bpp(&self) -> u16 {
+        self.0
     }
 
-    fn effects(&self, x: usize) -> bool {
-        self.effects.get(x)
+    pub fn attrs(&self) -> PixelAttrs {
+        PixelAttrs::from(self.0)
     }
 }
+
+impl From<u16> for Pixel {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Pixel> for u16 {
+    fn from(pixel: Pixel) -> Self {
+        pixel.0
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct PixelAttrs(u8);
+
+impl PixelAttrs {
+    const BITMAP_16BPP: u32 = 7;
+    const FIRST_TARGET: u32 = 1;
+    const SECOND_TARGET: u32 = 2;
+    const SEMI_TRANSPARENT: u32 = 3;
+    const OBJ: u32 = 4;
+
+    pub fn is_bitmap(&self) -> bool {
+        self.0.get_bit(Self::BITMAP_16BPP)
+    }
+
+    pub fn with_bitmap(&self, value: bool) -> Self {
+        Self(self.0.put_bit(Self::BITMAP_16BPP, value))
+    }
+
+    pub fn is_obj(&self) -> bool {
+        self.0.get_bit(Self::OBJ)
+    }
+
+    pub fn with_obj(&self, value: bool) -> Self {
+        Self(self.0.put_bit(Self::OBJ, value))
+    }
+}
+
+impl From<u16> for PixelAttrs {
+    fn from(value: u16) -> Self {
+        Self((value >> 8) as u8)
+    }
+}
+
+impl From<PixelAttrs> for u16 {
+    fn from(attrs: PixelAttrs) -> Self {
+        (attrs.0 as u16) << 8
+    }
+}
+
+// #[derive(Clone, Copy, Default)]
+// pub(crate) struct LayerAttrs {
+//     value: u8,
+// }
+
+// impl LayerAttrs {
+//     const BITMAP_16BPP: u8 = 0x1;
+//     const PALETTE_4BPP: u8 = 0x2;
+
+//     pub fn is_bitmap(&self) -> bool {
+//         (self.value & Self::BITMAP_16BPP) != 0
+//     }
+
+//     pub fn is_4bpp(&self) -> bool {
+//         (self.value & Self::PALETTE_4BPP) != 0
+//     }
+
+//     pub fn set_bitmap(&mut self) {
+//         self.value |= Self::BITMAP_16BPP;
+//     }
+
+//     pub fn set_4bpp(&mut self) {
+//         self.value |= Self::PALETTE_4BPP;
+//     }
+
+//     pub fn set_8bpp(&mut self) {
+//         /* NOP */
+//     }
+// }
+
+// #[derive(Copy, Clone)]
+// struct WindowMask {
+//     visible: LineBits,
+//     effects: LineBits,
+// }
+
+// impl WindowMask {
+//     fn new_all_enabled() -> Self {
+//         WindowMask {
+//             visible: LineBits::ones(),
+//             effects: LineBits::ones(),
+//         }
+//     }
+
+//     fn new_all_disabled() -> Self {
+//         WindowMask {
+//             visible: LineBits::zeroes(),
+//             effects: LineBits::zeroes(),
+//         }
+//     }
+
+//     fn set_visible(&mut self, x: usize, visible: bool, effects: bool) {
+//         if x < 240 {
+//             self.visible.put(x, visible);
+//             self.effects.put(x, effects);
+//         }
+//     }
+
+//     fn visible(&self, x: usize) -> bool {
+//         self.visible.get(x)
+//     }
+
+//     fn effects(&self, x: usize) -> bool {
+//         self.effects.get(x)
+//     }
+// }

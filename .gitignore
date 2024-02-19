@@ -5,4 +5,4 @@ gba-programs/**/build/*
 gba-programs/**/*.elf
 gba-programs/**/*.gba
 gba-programs/**/*.sav
-roms/custom/**/*.sav
+roms/**/*.sav

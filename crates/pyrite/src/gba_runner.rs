@@ -56,6 +56,7 @@ impl SharedGba {
         self.inner.write().current_mode = GbaRunMode::Step;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn with<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&GbaData) -> T,

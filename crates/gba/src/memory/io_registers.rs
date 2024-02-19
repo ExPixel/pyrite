@@ -12,6 +12,7 @@ impl GbaMemoryMappedHardware {
             self::GREENSWAP => self.video.registers.green_swap.read(),
             self::DISPSTAT => self.video.registers.dispstat.read(),
             self::VCOUNT => self.video.registers.vcount.read(),
+            self::KEYINPUT => self.keypad.keyinput.read(),
             _ => {
                 tracing::debug!(address = hex(address), "unimplemented read from IO");
                 0
@@ -234,7 +235,7 @@ pub const VCOUNT: u32 = 0x04000006;
 // pub const SIODATA8: u32 = 0x0400012A;
 
 // // Keypad Input
-// pub const KEYINPUT: u32 = 0x04000130;
+pub const KEYINPUT: u32 = 0x04000130;
 // pub const KEYCNT: u32 = 0x04000132;
 
 // // Serial Communication (2)
