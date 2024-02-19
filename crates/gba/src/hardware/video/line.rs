@@ -2,11 +2,10 @@ use util::bits::BitOps;
 
 use crate::{hardware::palette::Palette, memory::VRAM_SIZE, video::registers::BgMode};
 
-use super::{registers::GbaVideoRegisters, HBlankContext, RenderContext, VISIBLE_LINE_WIDTH};
+use super::{registers::GbaVideoRegisters, HBlankContext, VISIBLE_LINE_WIDTH};
 
 pub struct GbaLine {
     pixels: [DoublePixel; VISIBLE_LINE_WIDTH],
-    objwin: LineBits,
 }
 
 impl GbaLine {
@@ -31,15 +30,6 @@ impl GbaLine {
         } else {
             self.blend_internal::<true>(output, context);
         }
-
-        // for layer in 2..=2 {
-        //     let is_bitmap_layer = layer == 2 && (mode == BgMode::Mode3 || mode == BgMode::Mode5);
-        //     if is_bitmap_layer {
-        //         self.blend_layer_pixels::<true, true>(layer, output, context);
-        //     } else {
-        //         self.blend_layer_pixels::<false, true>(layer, output, context);
-        //     }
-        // }
     }
 
     fn blend_internal<const IS_BITMAP_16BPP_MODE: bool>(
@@ -66,7 +56,6 @@ impl Default for GbaLine {
     fn default() -> Self {
         Self {
             pixels: [DoublePixel::default(); VISIBLE_LINE_WIDTH],
-            objwin: LineBits::zeroes(),
         }
     }
 }
@@ -120,35 +109,6 @@ impl<'a> BlendContext<'a> {
     }
 }
 
-#[derive(Default, Copy, Clone)]
-struct LineBits {
-    inner: [u8; 30],
-}
-
-impl LineBits {
-    const fn ones() -> Self {
-        LineBits { inner: [0xFF; 30] }
-    }
-
-    const fn zeroes() -> Self {
-        LineBits { inner: [0x00; 30] }
-    }
-
-    fn put(&mut self, index: usize, value: bool) {
-        if index < 240 {
-            self.inner[index / 8] |= (value as u8) << (index % 8);
-        }
-    }
-
-    fn get(&self, index: usize) -> bool {
-        if index < 240 {
-            (self.inner[index / 8] & (1 << (index % 8))) != 0
-        } else {
-            false
-        }
-    }
-}
-
 #[derive(Default, Clone, Copy)]
 pub struct Pixel(u16);
 
@@ -191,10 +151,7 @@ pub struct PixelAttrs(u8);
 
 impl PixelAttrs {
     const BITMAP_16BPP: u32 = 7;
-    const FIRST_TARGET: u32 = 1;
-    const SECOND_TARGET: u32 = 2;
-    const SEMI_TRANSPARENT: u32 = 3;
-    const OBJ: u32 = 4;
+    const OBJ: u32 = 0;
 
     pub fn is_bitmap(&self) -> bool {
         self.0.get_bit(Self::BITMAP_16BPP)
@@ -224,70 +181,3 @@ impl From<PixelAttrs> for u16 {
         (attrs.0 as u16) << 8
     }
 }
-
-// #[derive(Clone, Copy, Default)]
-// pub(crate) struct LayerAttrs {
-//     value: u8,
-// }
-
-// impl LayerAttrs {
-//     const BITMAP_16BPP: u8 = 0x1;
-//     const PALETTE_4BPP: u8 = 0x2;
-
-//     pub fn is_bitmap(&self) -> bool {
-//         (self.value & Self::BITMAP_16BPP) != 0
-//     }
-
-//     pub fn is_4bpp(&self) -> bool {
-//         (self.value & Self::PALETTE_4BPP) != 0
-//     }
-
-//     pub fn set_bitmap(&mut self) {
-//         self.value |= Self::BITMAP_16BPP;
-//     }
-
-//     pub fn set_4bpp(&mut self) {
-//         self.value |= Self::PALETTE_4BPP;
-//     }
-
-//     pub fn set_8bpp(&mut self) {
-//         /* NOP */
-//     }
-// }
-
-// #[derive(Copy, Clone)]
-// struct WindowMask {
-//     visible: LineBits,
-//     effects: LineBits,
-// }
-
-// impl WindowMask {
-//     fn new_all_enabled() -> Self {
-//         WindowMask {
-//             visible: LineBits::ones(),
-//             effects: LineBits::ones(),
-//         }
-//     }
-
-//     fn new_all_disabled() -> Self {
-//         WindowMask {
-//             visible: LineBits::zeroes(),
-//             effects: LineBits::zeroes(),
-//         }
-//     }
-
-//     fn set_visible(&mut self, x: usize, visible: bool, effects: bool) {
-//         if x < 240 {
-//             self.visible.put(x, visible);
-//             self.effects.put(x, effects);
-//         }
-//     }
-
-//     fn visible(&self, x: usize) -> bool {
-//         self.visible.get(x)
-//     }
-
-//     fn effects(&self, x: usize) -> bool {
-//         self.effects.get(x)
-//     }
-// }

@@ -120,7 +120,7 @@ mod test {
         );
 
         assert_eq!(
-            scheduler.entries.get(0),
+            scheduler.entries.first(),
             Some(&Entry {
                 event: GbaEvent::HBlank,
                 cycles: Cycles::from(4)
@@ -143,7 +143,7 @@ mod test {
         );
 
         assert_eq!(
-            scheduler.entries.get(0),
+            scheduler.entries.first(),
             Some(&Entry {
                 event: GbaEvent::HBlank,
                 cycles: Cycles::from(4)
@@ -175,7 +175,7 @@ mod test {
         );
 
         assert_eq!(
-            scheduler.entries.get(0),
+            scheduler.entries.first(),
             Some(&Entry {
                 event: GbaEvent::HBlank,
                 cycles: Cycles::from(2)
