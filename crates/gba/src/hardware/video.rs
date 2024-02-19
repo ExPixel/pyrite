@@ -140,5 +140,5 @@ impl<'a> RenderContext<'a> {
 
 #[inline]
 pub const fn rgb5(r: u16, g: u16, b: u16) -> u16 {
-    (r & 0x1F) | ((g & 0x1F) << 5) | ((b & 0x1F) << 10)
+    (r & 0x1F) | ((g & 0x1F) << 5) | ((b & 0x1F) << 10) | 0x8000
 }
