@@ -52,6 +52,95 @@ impl RegKeyInput {
         self.set_button_r(KeyInputState::Released);
         self.set_button_l(KeyInputState::Released);
     }
+
+    pub fn set_key_state(&mut self, key: Key, state: KeyInputState) {
+        match key {
+            Key::A => self.set_button_a(state),
+            Key::B => self.set_button_b(state),
+            Key::Select => self.set_select(state),
+            Key::Start => self.set_start(state),
+            Key::Right => self.set_right(state),
+            Key::Left => self.set_left(state),
+            Key::Up => self.set_up(state),
+            Key::Down => self.set_down(state),
+            Key::R => self.set_button_r(state),
+            Key::L => self.set_button_l(state),
+        }
+    }
+
+    pub fn release_all(&mut self) {
+        self.reset();
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Key {
+    A,
+    B,
+    Select,
+    Start,
+    Right,
+    Left,
+    Up,
+    Down,
+    R,
+    L,
+}
+
+impl Key {
+    pub const COUNT: usize = 10;
+}
+
+impl TryFrom<u8> for Key {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Key::A),
+            1 => Ok(Key::B),
+            2 => Ok(Key::Select),
+            3 => Ok(Key::Start),
+            4 => Ok(Key::Right),
+            5 => Ok(Key::Left),
+            6 => Ok(Key::Up),
+            7 => Ok(Key::Down),
+            8 => Ok(Key::R),
+            9 => Ok(Key::L),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<Key> for u8 {
+    fn from(value: Key) -> Self {
+        match value {
+            Key::A => 0,
+            Key::B => 1,
+            Key::Select => 2,
+            Key::Start => 3,
+            Key::Right => 4,
+            Key::Left => 5,
+            Key::Up => 6,
+            Key::Down => 7,
+            Key::R => 8,
+            Key::L => 9,
+        }
+    }
+}
+
+impl TryFrom<usize> for Key {
+    type Error = ();
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        let value: u8 = value.try_into().map_err(|_| ())?;
+        value.try_into()
+    }
+}
+
+impl From<Key> for usize {
+    fn from(value: Key) -> Self {
+        u8::from(value) as usize
+    }
 }
 
 #[derive(Copy, Clone)]

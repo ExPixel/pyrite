@@ -12,7 +12,8 @@ use crate::{
 };
 use ahash::HashSet;
 use anyhow::Context as _;
-use egui::{Frame, Ui, Vec2, ViewportId};
+use egui::{EventFilter, Frame, Key, Response, Ui, Vec2, ViewportId};
+use gba::keypad::{Key as GbaKey, KeyInputState};
 use parking_lot::{Mutex, MutexGuard};
 
 use self::{
@@ -23,10 +24,12 @@ use self::{
 };
 
 pub struct App {
+    gba: SharedGba,
     config: Config,
     screen: GbaImage,
     windows: Vec<app_window::AppWindowWrapper>,
     windows_visible: Arc<Mutex<HashSet<ViewportId>>>,
+    keymap: ahash::AHashMap<Key, GbaKey>,
 }
 
 impl App {
@@ -94,11 +97,25 @@ impl App {
             EguiStyleWindow::wrapped(windows_visible.clone()),
         ];
 
+        let mut keymap = ahash::AHashMap::default();
+        keymap.insert(Key::Z, GbaKey::A);
+        keymap.insert(Key::X, GbaKey::B);
+        keymap.insert(Key::ArrowUp, GbaKey::Up);
+        keymap.insert(Key::ArrowDown, GbaKey::Down);
+        keymap.insert(Key::ArrowLeft, GbaKey::Left);
+        keymap.insert(Key::ArrowRight, GbaKey::Right);
+        keymap.insert(Key::Enter, GbaKey::Start);
+        keymap.insert(Key::Backspace, GbaKey::Select);
+        keymap.insert(Key::A, GbaKey::L);
+        keymap.insert(Key::S, GbaKey::R);
+
         Ok(Self {
+            gba,
             config,
             screen,
             windows,
             windows_visible,
+            keymap,
         })
     }
 
@@ -132,6 +149,52 @@ impl App {
             });
         });
     }
+
+    fn gba_input_dirty(&self, ctx: &eframe::egui::Context) -> bool {
+        ctx.input(|input| {
+            self.keymap
+                .keys()
+                .any(|&key| input.key_pressed(key) || input.key_released(key))
+        })
+    }
+
+    fn handle_gba_input(&mut self, ctx: &eframe::egui::Context) {
+        let mut keys_pressed: [bool; GbaKey::COUNT] = [false; GbaKey::COUNT];
+        ctx.input(|input| {
+            for (&key, &gba_key) in self.keymap.iter() {
+                let index = usize::from(gba_key);
+                keys_pressed[index] = input.key_pressed(key);
+            }
+        });
+
+        self.gba.with_mut(|data| {
+            keys_pressed
+                .into_iter()
+                .enumerate()
+                .for_each(|(index, pressed)| {
+                    let gba_key = GbaKey::try_from(index).unwrap();
+                    let state = if pressed {
+                        KeyInputState::Pressed
+                    } else {
+                        KeyInputState::Released
+                    };
+                    data.gba.keypad_mut().keyinput.set_key_state(gba_key, state);
+                });
+        });
+    }
+
+    fn handle_gba_input_with_response(&mut self, resp: Response, ctx: &eframe::egui::Context) {
+        if resp.lost_focus() {
+            self.gba.with_mut(|data| {
+                data.gba.keypad_mut().keyinput.release_all();
+            });
+            return;
+        }
+
+        if resp.gained_focus() || (resp.has_focus() && self.gba_input_dirty(ctx)) {
+            self.handle_gba_input(ctx);
+        }
+    }
 }
 
 impl eframe::App for App {
@@ -142,10 +205,25 @@ impl eframe::App for App {
             .show(ctx, |ui| {
                 let screen_width = ui.available_width();
                 let screen_height = (screen_width / 240.0) * 160.0;
-                let (rect, _) = ui.allocate_exact_size(
+                let (rect, resp) = ui.allocate_exact_size(
                     Vec2::new(screen_width as _, screen_height as _),
-                    egui::Sense::hover(),
+                    egui::Sense::click(),
                 );
+
+                if ctx.memory(|memory| memory.focus().is_none()) || resp.clicked() {
+                    resp.request_focus();
+                }
+
+                if resp.has_focus() {
+                    let filter = EventFilter {
+                        arrows: true,
+                        ..Default::default()
+                    };
+                    ctx.memory_mut(|memory| memory.set_focus_lock_filter(resp.id, filter));
+                }
+
+                self.handle_gba_input_with_response(resp, ctx);
+
                 ui.painter().add(self.screen.paint(rect));
             });
 

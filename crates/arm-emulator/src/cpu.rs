@@ -257,10 +257,6 @@ impl Cpu {
         let cpsr = self.registers.read_cpsr();
         self.registers.write_mode(exception_info.mode_on_entry); // Set the entry mode.
         self.registers.write_spsr(cpsr); // Set the CPSR of the old mode to the SPSR of the new mode.
-        eprintln!(
-            "return_addr: 0x{return_addr:08X} (adjust = {})",
-            exception_info.pc_adjust
-        );
         self.registers
             .write(14, return_addr.wrapping_add(exception_info.pc_adjust)); // Save the return address.
         self.registers.clear_flag(CpsrFlag::T); // Go into ARM mode.
