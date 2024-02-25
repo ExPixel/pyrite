@@ -4,8 +4,8 @@ pub mod memory;
 
 use arm::emu::{Cpu, CpuMode, Cycles, InstructionSet};
 use events::{GbaEvent, SharedGbaScheduler};
-pub use hardware::{video, GbaMemoryMappedHardware};
-use hardware::{video::HBlankContext, CUSTOM_BIOS};
+pub use hardware::{keypad, video, GbaMemoryMappedHardware};
+use hardware::{keypad::Keypad, video::HBlankContext, CUSTOM_BIOS};
 
 pub const NOP_ROM: [u8; 4] = [0xFE, 0xFF, 0xFF, 0xEA];
 
@@ -71,6 +71,10 @@ impl Gba {
 
     pub fn frame_count(&self) -> u64 {
         self.mapped.video.frame
+    }
+
+    pub fn keypad_mut(&mut self) -> &mut Keypad {
+        &mut self.mapped.keypad
     }
 }
 
